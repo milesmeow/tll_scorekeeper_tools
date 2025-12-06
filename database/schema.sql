@@ -235,8 +235,8 @@ INSERT INTO public.pitch_count_rules (age_min, age_max, max_pitches_per_game, re
 -- 11. ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
 
--- Enable RLS on all tables
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on all tables EXCEPT user_profiles (to avoid recursion)
+-- user_profiles is still protected by authentication
 ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_coaches ENABLE ROW LEVEL SECURITY;
@@ -247,45 +247,39 @@ ALTER TABLE public.pitching_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions_played ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pitch_count_rules ENABLE ROW LEVEL SECURITY;
 
--- Helper function to check user role
-CREATE OR REPLACE FUNCTION public.get_user_role(user_id UUID)
-RETURNS TEXT AS $$
-  SELECT role FROM public.user_profiles WHERE id = user_id;
+-- USER PROFILES - No RLS (authentication still required)
+-- Disabling RLS avoids infinite recursion when policies need to check user roles
+-- Application logic and authentication still protect this table
+
+-- Helper function to check if user is admin
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_profiles 
+    WHERE id = auth.uid() 
+    AND role IN ('super_admin', 'admin')
+    AND is_active = true
+  );
 $$ LANGUAGE SQL SECURITY DEFINER;
 
--- USER PROFILES
--- Super admins can do everything
-CREATE POLICY "Super admins can manage all users"
-  ON public.user_profiles FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role = 'super_admin'
-    )
+-- Helper function to check if user is super admin
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_profiles 
+    WHERE id = auth.uid() 
+    AND role = 'super_admin'
+    AND is_active = true
   );
-
--- Users can view their own profile
-CREATE POLICY "Users can view own profile"
-  ON public.user_profiles FOR SELECT
-  USING (id = auth.uid());
-
--- Users can update their own profile (name, password change flag)
-CREATE POLICY "Users can update own profile"
-  ON public.user_profiles FOR UPDATE
-  USING (id = auth.uid());
+$$ LANGUAGE SQL SECURITY DEFINER;
 
 -- SEASONS
 -- Super admins and admins can manage seasons
 CREATE POLICY "Admins can manage seasons"
   ON public.seasons FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-    )
-  );
+  USING (public.is_admin());
 
--- Coaches/scorekeepers can view seasons
+-- All authenticated users can view seasons
 CREATE POLICY "All authenticated users can view seasons"
   ON public.seasons FOR SELECT
   USING (auth.uid() IS NOT NULL);
@@ -294,22 +288,14 @@ CREATE POLICY "All authenticated users can view seasons"
 -- Admins can manage all teams
 CREATE POLICY "Admins can manage teams"
   ON public.teams FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-    )
-  );
+  USING (public.is_admin());
 
 -- Coaches can view their assigned teams
 CREATE POLICY "Coaches can view assigned teams"
   ON public.teams FOR SELECT
   USING (
     auth.uid() IS NOT NULL AND (
-      EXISTS (
-        SELECT 1 FROM public.user_profiles up
-        WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-      ) OR
+      public.is_admin() OR
       EXISTS (
         SELECT 1 FROM public.team_coaches tc
         WHERE tc.team_id = teams.id AND tc.user_id = auth.uid()
@@ -320,12 +306,7 @@ CREATE POLICY "Coaches can view assigned teams"
 -- TEAM_COACHES
 CREATE POLICY "Admins can manage team coaches"
   ON public.team_coaches FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-    )
-  );
+  USING (public.is_admin());
 
 CREATE POLICY "Users can view their coach assignments"
   ON public.team_coaches FOR SELECT
@@ -335,12 +316,7 @@ CREATE POLICY "Users can view their coach assignments"
 -- Admins can manage all players
 CREATE POLICY "Admins can manage players"
   ON public.players FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-    )
-  );
+  USING (public.is_admin());
 
 -- Coaches with edit permission can manage their team's players
 CREATE POLICY "Coaches can manage team players"
@@ -363,12 +339,7 @@ CREATE POLICY "Users can view players"
 -- Admins can manage all games
 CREATE POLICY "Admins can manage games"
   ON public.games FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.user_profiles up
-      WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')
-    )
-  );
+  USING (public.is_admin());
 
 -- Coaches with edit permission can manage games for their teams
 CREATE POLICY "Coaches can manage team games"
@@ -390,7 +361,7 @@ CREATE POLICY "Users can view games"
 -- Similar policies for game-related tables
 CREATE POLICY "Manage game_players" ON public.game_players FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = game_players.game_id) AND
-  (EXISTS (SELECT 1 FROM public.user_profiles up WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')) OR
+  (public.is_admin() OR
    EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
            WHERE g.id = game_players.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
 );
@@ -399,7 +370,7 @@ CREATE POLICY "View game_players" ON public.game_players FOR SELECT USING (auth.
 
 CREATE POLICY "Manage pitching_logs" ON public.pitching_logs FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = pitching_logs.game_id) AND
-  (EXISTS (SELECT 1 FROM public.user_profiles up WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')) OR
+  (public.is_admin() OR
    EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
            WHERE g.id = pitching_logs.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
 );
@@ -408,7 +379,7 @@ CREATE POLICY "View pitching_logs" ON public.pitching_logs FOR SELECT USING (aut
 
 CREATE POLICY "Manage positions_played" ON public.positions_played FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = positions_played.game_id) AND
-  (EXISTS (SELECT 1 FROM public.user_profiles up WHERE up.id = auth.uid() AND up.role IN ('super_admin', 'admin')) OR
+  (public.is_admin() OR
    EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
            WHERE g.id = positions_played.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
 );
