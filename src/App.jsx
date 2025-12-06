@@ -95,5 +95,5 @@ export default function App() {
   }
 
   // Logged in and ready
-  return <Dashboard user={session.user} profile={profile} />
+  return profile ? <Dashboard user={session.user} profile={profile} /> : null
 }
