@@ -26,7 +26,7 @@ CREATE TABLE public.seasons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL, -- e.g., "2025 Season"
   start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
+  end_date DATE,
   is_active BOOLEAN DEFAULT false,
   created_by UUID REFERENCES public.user_profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

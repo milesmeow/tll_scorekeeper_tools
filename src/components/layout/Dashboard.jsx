@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import UserManagement from '../admin/UserManagement'
+import SeasonManagement from '../seasons/SeasonManagement'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -113,7 +114,7 @@ export default function Dashboard({ user, profile }) {
           <main className="flex-1">
             {currentView === 'home' && <HomeView profile={profile} />}
             {currentView === 'users' && profile.role === 'super_admin' && <UserManagement />}
-            {currentView === 'seasons' && <ComingSoon feature="Season Management" />}
+            {currentView === 'seasons' && <SeasonManagement />}
             {currentView === 'teams' && <ComingSoon feature="Team Management" />}
             {currentView === 'games' && <ComingSoon feature="Game Entry" />}
             {currentView === 'reports' && <ComingSoon feature="Reports" />}
