@@ -440,7 +440,7 @@ function ManageCoachesModal({ team, onClose, onSuccess, onError }) {
                         {assignment.role.replace('_', ' ')}
                       </span>
                       <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded">
-                        {assignment.can_edit ? 'Can Edit' : 'Read Only'}
+                        Read Only
                       </span>
                     </div>
                   </div>
@@ -495,7 +495,7 @@ function AddCoachForm({ teamId, coaches, existingAssignments, onSuccess, onCance
   const [formData, setFormData] = useState({
     user_id: '',
     role: 'head_coach',
-    can_edit: true
+    // can_edit: false
   })
   const [loading, setLoading] = useState(false)
 
@@ -513,7 +513,7 @@ function AddCoachForm({ teamId, coaches, existingAssignments, onSuccess, onCance
           team_id: teamId,
           user_id: formData.user_id,
           role: formData.role,
-          can_edit: formData.can_edit
+          can_edit: false // coaches can READ ONLY
         }])
 
       if (error) throw error
@@ -565,18 +565,6 @@ function AddCoachForm({ teamId, coaches, existingAssignments, onSuccess, onCance
         >
           <option value="head_coach">Head Coach</option>
           <option value="assistant">Assistant Coach</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="label">Permissions *</label>
-        <select
-          className="input"
-          value={formData.can_edit ? 'edit' : 'readonly'}
-          onChange={(e) => setFormData({ ...formData, can_edit: e.target.value === 'edit' })}
-        >
-          <option value="edit">Can Edit (Read/Write)</option>
-          <option value="readonly">Read Only</option>
         </select>
       </div>
 
