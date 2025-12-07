@@ -308,10 +308,12 @@ function PlayerModal({ player, teamId, onClose, onSuccess, onError }) {
     jersey_number: player?.jersey_number || ''
   })
   const [loading, setLoading] = useState(false)
+  const [modalError, setModalError] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setModalError(null)
 
     try {
       const playerData = {
@@ -328,7 +330,13 @@ function PlayerModal({ player, teamId, onClose, onSuccess, onError }) {
           .update(playerData)
           .eq('id', player.id)
 
-        if (error) throw error
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error('Jersey number already exists on this team')
+          }
+          throw error
+        }
+
       } else {
         // Create new player
         const { error } = await supabase
@@ -345,7 +353,7 @@ function PlayerModal({ player, teamId, onClose, onSuccess, onError }) {
 
       onSuccess()
     } catch (err) {
-      onError(err.message)
+      setModalError(err.message)
     } finally {
       setLoading(false)
     }
@@ -357,6 +365,12 @@ function PlayerModal({ player, teamId, onClose, onSuccess, onError }) {
         <h3 className="text-xl font-bold mb-4">
           {player ? 'Edit Player' : 'Add New Player'}
         </h3>
+
+        {modalError && (
+          <div className="alert alert-error mb-4">
+            {modalError}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -421,13 +435,16 @@ function PlayerModal({ player, teamId, onClose, onSuccess, onError }) {
   )
 }
 
+
 function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
   const [csvData, setCsvData] = useState('')
   const [loading, setLoading] = useState(false)
+  const [modalError, setModalError] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setModalError(null)
 
     try {
       // Parse CSV data
@@ -481,7 +498,7 @@ function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
 
       onSuccess(players.length)
     } catch (err) {
-      onError(err.message)
+      setModalError(err.message)
     } finally {
       setLoading(false)
     }
@@ -491,6 +508,12 @@ function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
         <h3 className="text-xl font-bold mb-4">Bulk Add Players (CSV)</h3>
+
+        {modalError && (
+          <div className="alert alert-error mb-4">
+            {modalError}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
