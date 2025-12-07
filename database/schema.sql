@@ -124,6 +124,7 @@ CREATE TABLE public.games (
   home_score INTEGER,
   away_score INTEGER,
   scorekeeper_name TEXT NOT NULL,
+  scorekeeper_team_id UUID REFERENCES public.teams(id);
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -134,6 +135,12 @@ CREATE INDEX idx_games_season ON public.games(season_id);
 CREATE INDEX idx_games_date ON public.games(game_date);
 CREATE INDEX idx_games_home_team ON public.games(home_team_id);
 CREATE INDEX idx_games_away_team ON public.games(away_team_id);
+
+-- Add scorekeeper fields to games table
+ALTER TABLE public.games 
+-- Add comment to clarify the field
+COMMENT ON COLUMN public.games.scorekeeper_team_id IS 'The team that the scorekeeper belongs to';
+
 
 -- =====================================================
 -- 7. GAME PLAYERS (Attendance)
