@@ -5,6 +5,7 @@ import SeasonManagement from '../seasons/SeasonManagement'
 import TeamManagement from '../teams/TeamManagement'
 import PlayerManagement from '../players/PlayerManagement'
 import CoachManagement from '../coaches/CoachManagement'
+import GameEntry from '../games/GameEntry'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -143,7 +144,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'teams' && <TeamManagement />}
             {currentView === 'players' && <PlayerManagement />}
             {currentView === 'coaches' && <CoachManagement />}
-            {currentView === 'games' && <ComingSoon feature="Game Entry" />}
+            {currentView === 'games' && <GameEntry />}
             {currentView === 'reports' && <ComingSoon feature="Reports" />}
           </main>
         </div>
