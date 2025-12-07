@@ -208,6 +208,7 @@ export default function GameEntry() {
 function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
   const [gameId, setGameId] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('')
   const [formData, setFormData] = useState({
     game_date: '',
     scorekeeper_name: '',
@@ -221,6 +222,11 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
   const [awayPlayers, setAwayPlayers] = useState([])
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
+
+  // Filter teams by selected division
+  const filteredTeams = selectedDivision
+    ? teams.filter(team => team.division === selectedDivision)
+    : []
 
   const handleBasicInfoSubmit = async (e) => {
     e.preventDefault()
@@ -429,8 +435,33 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
               {modalError}
             </div>
           )}
-          
+
           <form onSubmit={handleBasicInfoSubmit} className="space-y-6">
+            {/* Division Selector */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="label">Select Division *</label>
+              <select
+                className="input"
+                value={selectedDivision}
+                onChange={(e) => {
+                  setSelectedDivision(e.target.value)
+                  // Reset team selections when division changes
+                  setFormData({
+                    ...formData,
+                    scorekeeper_team_id: '',
+                    home_team_id: '',
+                    away_team_id: ''
+                  })
+                }}
+                required
+              >
+                <option value="">-- Select Division --</option>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </select>
+            </div>
+
             <div>
               <label className="label">Game Date *</label>
               <input
@@ -461,14 +492,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                   value={formData.scorekeeper_team_id}
                   onChange={(e) => setFormData({ ...formData, scorekeeper_team_id: e.target.value })}
                   required
+                  disabled={!selectedDivision}
                 >
                   <option value="">-- Select Team --</option>
-                  {teams.map((team) => (
+                  {filteredTeams.map((team) => (
                     <option key={team.id} value={team.id}>
-                      {team.name} ({team.division})
+                      {team.name}
                     </option>
                   ))}
                 </select>
+                {!selectedDivision && (
+                  <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                )}
               </div>
             </div>
 
@@ -483,14 +518,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       value={formData.home_team_id}
                       onChange={(e) => setFormData({ ...formData, home_team_id: e.target.value })}
                       required
+                      disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {teams.map((team) => (
+                      {filteredTeams.map((team) => (
                         <option key={team.id} value={team.id}>
-                          {team.name} ({team.division})
+                          {team.name}
                         </option>
                       ))}
                     </select>
+                    {!selectedDivision && (
+                      <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Home Score *</label>
@@ -514,14 +553,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       value={formData.away_team_id}
                       onChange={(e) => setFormData({ ...formData, away_team_id: e.target.value })}
                       required
+                      disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {teams.map((team) => (
+                      {filteredTeams.map((team) => (
                         <option key={team.id} value={team.id}>
-                          {team.name} ({team.division})
+                          {team.name}
                         </option>
                       ))}
                     </select>
+                    {!selectedDivision && (
+                      <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Away Score *</label>
