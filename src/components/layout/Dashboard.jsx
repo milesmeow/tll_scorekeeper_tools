@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import UserManagement from '../admin/UserManagement'
 import SeasonManagement from '../seasons/SeasonManagement'
 import TeamManagement from '../teams/TeamManagement'
+import PlayerManagement from '../players/PlayerManagement'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -88,6 +89,17 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
+                onClick={() => setCurrentView('players')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'players'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                👥 Players
+              </button>
+
+              <button
                 onClick={() => setCurrentView('games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'games'
@@ -117,6 +129,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'users' && profile.role === 'super_admin' && <UserManagement />}
             {currentView === 'seasons' && <SeasonManagement />}
             {currentView === 'teams' && <TeamManagement />}
+            {currentView === 'players' && <PlayerManagement />}
             {currentView === 'games' && <ComingSoon feature="Game Entry" />}
             {currentView === 'reports' && <ComingSoon feature="Reports" />}
           </main>

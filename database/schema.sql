@@ -90,6 +90,14 @@ CREATE TABLE public.players (
 CREATE INDEX idx_players_team ON public.players(team_id);
 CREATE INDEX idx_players_age ON public.players(age);
 
+-- Add unique constraint on team_id + jersey_number
+-- This ensures jersey numbers are unique per team
+ALTER TABLE public.players 
+ADD CONSTRAINT unique_jersey_per_team 
+UNIQUE (team_id, jersey_number);
+
+
+
 -- =====================================================
 -- 6. GAMES
 -- =====================================================
