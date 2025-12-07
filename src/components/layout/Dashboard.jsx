@@ -4,6 +4,7 @@ import UserManagement from '../admin/UserManagement'
 import SeasonManagement from '../seasons/SeasonManagement'
 import TeamManagement from '../teams/TeamManagement'
 import PlayerManagement from '../players/PlayerManagement'
+import CoachManagement from '../coaches/CoachManagement'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -100,6 +101,17 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
+                onClick={() => setCurrentView('coaches')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'coaches'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                👨‍🏫 Coaches
+              </button>
+
+              <button
                 onClick={() => setCurrentView('games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'games'
@@ -130,6 +142,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'seasons' && <SeasonManagement />}
             {currentView === 'teams' && <TeamManagement />}
             {currentView === 'players' && <PlayerManagement />}
+            {currentView === 'coaches' && <CoachManagement />}
             {currentView === 'games' && <ComingSoon feature="Game Entry" />}
             {currentView === 'reports' && <ComingSoon feature="Reports" />}
           </main>
