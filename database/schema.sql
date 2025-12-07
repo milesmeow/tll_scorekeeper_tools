@@ -11,12 +11,17 @@ CREATE TABLE public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin', 'coach', 'scorekeeper')),
+  role TEXT NOT NULL CHECK (role IN ('super_admin', 'admin', 'coach')),
   is_active BOOLEAN DEFAULT true,
   must_change_password BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.user_profiles 
+ADD CONSTRAINT user_profiles_role_check 
+CHECK (role IN ('super_admin', 'admin', 'coach'));
+
 
 -- =====================================================
 -- 2. SEASONS
@@ -64,7 +69,7 @@ CREATE TABLE public.team_coaches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('head_coach', 'assistant', 'scorekeeper')),
+  role TEXT NOT NULL CHECK (role IN ('head_coach', 'assistant')),
   can_edit BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(team_id, user_id)
@@ -72,6 +77,14 @@ CREATE TABLE public.team_coaches (
 
 CREATE INDEX idx_team_coaches_user ON public.team_coaches(user_id);
 CREATE INDEX idx_team_coaches_team ON public.team_coaches(team_id);
+
+-- Update the check constraint on team_coaches to remove scorekeeper
+ALTER TABLE public.team_coaches 
+DROP CONSTRAINT IF EXISTS team_coaches_role_check;
+
+ALTER TABLE public.team_coaches 
+ADD CONSTRAINT team_coaches_role_check 
+CHECK (role IN ('head_coach', 'assistant'));
 
 -- =====================================================
 -- 5. PLAYERS

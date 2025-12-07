@@ -161,36 +161,41 @@ function AddUserModal({ onClose, onUserAdded, onError }) {
     setLoading(true)
 
     try {
-      // This is a simplified version - in production, you'd want a server-side function
-      // to create users since the anon key can't create auth users directly
+      // Get current user's session token
+      const { data: { session } } = await supabase.auth.getSession()
       
-      // For now, we'll show instructions to create the user manually
-      alert(`
-To add this user:
+      if (!session) {
+        throw new Error('No active session')
+      }
 
-1. Go to Supabase Dashboard > Authentication > Users
-2. Click "Add user" > "Create new user"
-3. Enter:
-   - Email: ${formData.email}
-   - Password: ${formData.tempPassword}
-   - Auto Confirm User: ✓
-4. Copy the User UUID
-5. Go to Table Editor > user_profiles > Insert row
-6. Fill in:
-   - id: [paste UUID]
-   - email: ${formData.email}
-   - name: ${formData.name}
-   - role: ${formData.role}
-   - is_active: true
-   - must_change_password: true
-7. Click Save
+      // Call the Edge Function
+      const response = await fetch(
+        'https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/create-user',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.tempPassword,
+            name: formData.name,
+            role: formData.role
+          })
+        }
+      )
 
-The user can then log in with:
-Email: ${formData.email}
-Password: ${formData.tempPassword}
-      `)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create user')
+      }
+
+      // Show success with temp password
+      alert(`User created successfully!\n\nEmail: ${formData.email}\nTemporary Password: ${formData.tempPassword}\n\nThe user must change this password on first login.`)
       
-      onClose()
+      onUserAdded()
     } catch (err) {
       onError(err.message)
     } finally {
@@ -234,7 +239,6 @@ Password: ${formData.tempPassword}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
             >
               <option value="coach">Coach</option>
-              <option value="scorekeeper">Scorekeeper</option>
               <option value="admin">Admin</option>
               <option value="super_admin">Super Admin</option>
             </select>
@@ -264,10 +268,6 @@ Password: ${formData.tempPassword}
             </p>
           </div>
 
-          <div className="alert alert-info text-sm">
-            <strong>Note:</strong> Due to Supabase security, you'll need to manually create this user in the dashboard. Instructions will be shown after clicking "Add User".
-          </div>
-
           <div className="flex gap-2">
             <button
               type="button"
@@ -281,7 +281,7 @@ Password: ${formData.tempPassword}
               className="btn btn-primary flex-1"
               disabled={loading}
             >
-              {loading ? 'Adding...' : 'Add User'}
+              {loading ? 'Creating...' : 'Create User'}
             </button>
           </div>
         </form>
