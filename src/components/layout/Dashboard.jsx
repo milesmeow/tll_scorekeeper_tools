@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import UserManagement from '../admin/UserManagement'
+import SeasonManagement from '../seasons/SeasonManagement'
+import TeamManagement from '../teams/TeamManagement'
+import PlayerManagement from '../players/PlayerManagement'
+import CoachManagement from '../coaches/CoachManagement'
+import GameEntry from '../games/GameEntry'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -86,6 +91,28 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
+                onClick={() => setCurrentView('players')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'players'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                👥 Players
+              </button>
+
+              <button
+                onClick={() => setCurrentView('coaches')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'coaches'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                👨‍🏫 Coaches
+              </button>
+
+              <button
                 onClick={() => setCurrentView('games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'games'
@@ -113,9 +140,11 @@ export default function Dashboard({ user, profile }) {
           <main className="flex-1">
             {currentView === 'home' && <HomeView profile={profile} />}
             {currentView === 'users' && profile.role === 'super_admin' && <UserManagement />}
-            {currentView === 'seasons' && <ComingSoon feature="Season Management" />}
-            {currentView === 'teams' && <ComingSoon feature="Team Management" />}
-            {currentView === 'games' && <ComingSoon feature="Game Entry" />}
+            {currentView === 'seasons' && <SeasonManagement />}
+            {currentView === 'teams' && <TeamManagement />}
+            {currentView === 'players' && <PlayerManagement />}
+            {currentView === 'coaches' && <CoachManagement />}
+            {currentView === 'games' && <GameEntry />}
             {currentView === 'reports' && <ComingSoon feature="Reports" />}
           </main>
         </div>

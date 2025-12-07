@@ -2,143 +2,226 @@
 
 A comprehensive web application for managing baseball teams, tracking pitch counts, monitoring player compliance with Pitch Smart guidelines, and managing game data.
 
-## Features
+## Current Status: Phase 2 Complete + Phase 3 In Progress
 
-### Phase 1 (Current) ✅
-- **User Authentication** - Secure login with Supabase
-- **User Management** - Super admins can create and manage users
-- **Role-Based Access Control** - Super Admin, Admin, Coach, Scorekeeper roles
-- **Password Management** - Forced password change on first login
+### ✅ Completed Features
 
-### Phase 2 (Next)
-- **Season Management** - Create and manage seasons
-- **Team Management** - Organize teams by division (Training, Minor, Major)
-- **Player Rosters** - Track players with ages and jersey numbers
-- **Coach Assignments** - Assign coaches to teams with permissions
+#### Phase 1: Foundation (Complete)
+- **User Authentication** - Supabase-based login with forced password change
+- **User Management** - Super admins can create users via Edge Function
+- **Role-Based Access Control** - Super Admin, Admin, Coach roles
+- **Database Schema** - Complete with RLS policies (fixed for production)
 
-### Phase 3 (Upcoming)
-- **Game Entry** - Record scores, attendance, positions
-- **Pitch Count Tracking** - Log pitch counts per game
-- **Attendance Tracking** - Mark players present/absent with notes
+#### Phase 2: Data Management (Complete)
+- **Season Management** - Create, edit, delete seasons; set active season
+- **Team Management** - Organize by division (Training, Minor, Major)
+- **Player Management** - Individual add, bulk CSV import, edit/delete
+- **Coach Management** - View coaches and their team assignments
+- **Coach Assignments** - Assign coaches to teams (always read-only access)
 
-### Phase 4 (Upcoming)
-- **Rules Engine** - Automatic Pitch Smart compliance checking
-- **Rest Day Calculations** - Track mandatory rest based on pitch counts
-- **Violation Warnings** - Flag rule violations (4 innings catching → no pitching)
+#### Phase 3: Game Entry (In Progress)
+- **Basic Game Entry** - Date, teams, scores, scorekeeper info
+- **Player Data Entry** - Attendance, innings pitched/caught, pitch counts
+- ⏳ **Game Viewing/Editing** - Still to be built
+- ⏳ **Rules Validation** - Still to be built
 
-### Phase 5 (Upcoming)
-- **PDF Reports** - Export season data in readable format
-- **Player Statistics** - Absences, pitch counts, playing time
-- **Compliance Reports** - Track rule adherence
+### 🚧 Upcoming Features
+
+#### Phase 4: Rules Engine (Planned)
+- Automatic Pitch Smart compliance checking
+- Rest day calculations based on pitch counts and age
+- Violation warnings (e.g., 4 innings catching → can't pitch)
+- Rule flags on game entry
+
+#### Phase 5: Reporting (Planned)
+- PDF exports of season data
+- Player statistics (absences, pitch counts, playing time)
+- Compliance reports
+
+## Key Design Decisions
+
+### User Roles & Permissions
+
+**Login Accounts (user_profiles):**
+- **Super Admin** - Full access + user management
+- **Admin** - Full data access, no user management
+- **Coach** - Read-only access to assigned teams only
+
+**Non-Login Entities:**
+- **Scorekeepers** - Just names (text field) when entering game data, not user accounts
+
+### Important Constraints
+
+1. **Jersey Numbers** - Unique per team (database constraint enforced)
+2. **Coaches** - Always read-only, no edit permissions
+3. **Season End Dates** - Optional (NULL allowed)
+4. **Active Season** - Only one season can be active at a time (unique partial index)
+5. **Deletion Rules**:
+   - Can't delete season if it has teams/games
+   - Can't delete team if it has players/games
+   - Can't delete player if they have game records
+
+### Edge Functions
+
+**create-user** - Deployed Supabase Edge Function
+- URL: `https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/create-user`
+- Purpose: Allows super admins to create users from the app
+- Auth: Requires super_admin role
+- Creates both auth.users entry and user_profiles entry atomically
 
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite
 - **Backend**: Supabase (PostgreSQL + Auth + Row Level Security)
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS 3.4.1 (NOT v4 - causes PostCSS issues)
 - **Hosting**: Vercel (frontend) + Supabase (backend)
+- **Cost**: $0/month on free tiers
 
-## Quick Start
+## Database Schema
 
-See [SETUP.md](./SETUP.md) for detailed setup instructions.
+### Core Tables (10 total)
 
-### Prerequisites
-- Node.js 18+
-- Supabase account
+1. **user_profiles** - User accounts and roles (NO RLS to avoid recursion)
+2. **seasons** - Season definitions with unique active season constraint
+3. **teams** - Teams within seasons (by division)
+4. **team_coaches** - Coach-to-team assignments (always can_edit=false)
+5. **players** - Player rosters (unique jersey per team)
+6. **games** - Game records with scorekeeper info
+7. **game_players** - Attendance tracking with absence notes
+8. **pitching_logs** - Pitch counts (final + penultimate batter)
+9. **positions_played** - Position tracking by inning (pitcher/catcher)
+10. **pitch_count_rules** - Pitch Smart guidelines (reference data)
 
-### Installation
+### Key Schema Changes from Original Design
 
-1. **Clone the repository**
-```bash
-git clone <your-repo-url>
-cd baseball-app
+1. **seasons.end_date** - Changed to allow NULL (optional)
+2. **games.scorekeeper_team_id** - Added to track which team scorekeeper belongs to
+3. **user_profiles.role** - Removed 'scorekeeper' option (scorekeepers are not users)
+4. **team_coaches.role** - Removed 'scorekeeper' option
+5. **players** - Added unique constraint: `(team_id, jersey_number)`
+6. **seasons.is_active** - Enforced via unique partial index instead of CHECK constraint
+
+### RLS Policy Approach
+
+**Helper Functions (avoids recursion):**
+```sql
+public.is_admin() -- Returns true if user is super_admin or admin
+public.is_super_admin() -- Returns true if user is super_admin
 ```
 
-2. **Install dependencies**
-```bash
-npm install
-```
-
-3. **Set up Supabase**
-- Create a new Supabase project
-- Run `database/schema.sql` in SQL Editor
-- Get your API keys from Settings > API
-
-4. **Configure environment**
-```bash
-cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
-```
-
-5. **Create your first super admin**
-Follow instructions in SETUP.md Step 3
-
-6. **Start development server**
-```bash
-npm run dev
-```
-
-Visit `http://localhost:5173`
+**Security Model:**
+- user_profiles: NO RLS (protected by authentication)
+- All other tables: RLS enabled with policies using helper functions
+- Coaches get read-only access to assigned teams
+- Admins get full access to everything
 
 ## Project Structure
 
 ```
 baseball-app/
 ├── database/
-│   └── schema.sql              # Database schema
+│   └── schema.sql              # Complete DB schema with fixed RLS
 ├── src/
 │   ├── components/
-│   │   ├── auth/              # Authentication components
-│   │   ├── admin/             # Admin features
-│   │   ├── layout/            # Layout components
-│   │   └── (more coming)      # Features for future phases
+│   │   ├── auth/
+│   │   │   ├── Login.jsx       # Authentication
+│   │   │   └── ChangePassword.jsx
+│   │   ├── admin/
+│   │   │   └── UserManagement.jsx  # Create/manage users (uses Edge Function)
+│   │   ├── layout/
+│   │   │   └── Dashboard.jsx   # Main layout with navigation
+│   │   ├── seasons/
+│   │   │   └── SeasonManagement.jsx  # CRUD seasons
+│   │   ├── teams/
+│   │   │   └── TeamManagement.jsx    # CRUD teams + coach assignments
+│   │   ├── players/
+│   │   │   └── PlayerManagement.jsx  # CRUD players + CSV bulk import
+│   │   ├── coaches/
+│   │   │   └── CoachManagement.jsx   # View coaches and assignments
+│   │   └── games/
+│   │       └── GameEntry.jsx         # Two-step game entry form
 │   ├── lib/
-│   │   └── supabase.js        # Supabase client
-│   ├── App.jsx                # Main app component
-│   ├── main.jsx               # Entry point
-│   └── index.css              # Global styles
-├── .env.example               # Environment template
-├── .gitignore
+│   │   └── supabase.js         # API client
+│   ├── App.jsx                 # Main app with auth flow
+│   ├── main.jsx                # Entry point
+│   └── index.css               # Tailwind + custom styles
+├── .env.local                  # Supabase credentials (not in repo)
 ├── package.json
 ├── vite.config.js
 └── tailwind.config.js
 ```
 
-## User Roles
+## Quick Start
 
-### Super Admin
-- Create and manage all users
-- Full access to all features
-- Can't be deactivated by other users
+### Prerequisites
+- Node.js 18+
+- Supabase account
 
-### Admin
-- Full read/write access to all teams and games
-- Cannot manage users
+### Setup (10 minutes)
 
-### Coach / Scorekeeper
-- Assigned to specific teams
-- Can have read-only or read-write access
-- Permissions set by admins
+1. **Clone repo and install**
+```bash
+git clone <repo-url>
+cd baseball-app
+npm install
+```
 
-## Database Schema
+2. **Set up Supabase**
+- Create Supabase project
+- Run `database/schema.sql` in SQL Editor
+- Get API keys from Settings → API
 
-### Core Tables
-- `user_profiles` - User accounts and roles
-- `seasons` - Season definitions
-- `teams` - Teams within seasons
-- `team_coaches` - Coach assignments and permissions
-- `players` - Player rosters
-- `games` - Game records
-- `game_players` - Attendance tracking
-- `pitching_logs` - Pitch count data
-- `positions_played` - Position tracking by inning
-- `pitch_count_rules` - Pitch Smart guidelines
+3. **Configure environment**
+```bash
+# Create .env.local
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJxxx...
+```
 
-See `database/schema.sql` for complete schema with Row Level Security policies.
+4. **Deploy Edge Function**
+- Go to Edge Functions in Supabase Dashboard
+- Create function named `create-user`
+- Paste code from edge function docs
+- Deploy
 
-## Pitch Smart Guidelines
+5. **Create first super admin**
+```sql
+-- In Supabase: Authentication → Users → Add user
+-- Then in SQL Editor:
+INSERT INTO user_profiles (id, email, name, role, is_active, must_change_password)
+VALUES (
+  'UUID_FROM_AUTH_USERS',
+  'your@email.com',
+  'Your Name',
+  'super_admin',
+  true,
+  false
+);
+```
 
-The app enforces MLB/USA Baseball Pitch Smart Guidelines:
+6. **Start app**
+```bash
+npm run dev
+```
+
+## Known Issues & Solutions
+
+### Issue: Tailwind PostCSS Error
+**Solution**: Must use Tailwind v3.4.1 (NOT v4)
+```bash
+npm install tailwindcss@3.4.1 -D
+```
+
+### Issue: RLS Infinite Recursion
+**Solution**: user_profiles table has NO RLS, uses helper functions for other tables
+
+### Issue: Can't Create Users from App
+**Solution**: Edge Function `create-user` uses service role key securely
+
+### Issue: Duplicate Jersey Numbers
+**Solution**: Database constraint `unique_jersey_per_team` enforces uniqueness
+
+## Pitch Smart Guidelines (Embedded in Database)
 
 | Age   | Max Pitches | Rest Days by Pitch Count |
 |-------|-------------|--------------------------|
@@ -150,25 +233,40 @@ The app enforces MLB/USA Baseball Pitch Smart Guidelines:
 | 17-18 | 105         | 1-30: 0d, 31-45: 1d, 46-60: 2d, 61-80: 3d, 81+: 4d |
 | 19-22 | 120         | 1-30: 0d, 31-45: 1d, 46-60: 2d, 61-80: 3d, 81-105: 4d, 106+: 5d |
 
-## Development Roadmap
+## Development Workflow
 
-- [x] Phase 1: Authentication & User Management
-- [ ] Phase 2: Seasons, Teams & Players
-- [ ] Phase 3: Game Entry & Data Collection
-- [ ] Phase 4: Rules Engine & Validation
-- [ ] Phase 5: Reports & Exports
+### Incremental Development Pattern
+We follow a step-by-step approach:
+1. Build one feature at a time
+2. Test immediately after each addition
+3. Make incremental commits
+4. Get feedback before moving to next feature
 
-## Contributing
+### File Modification Pattern
+Changes are provided as:
+- Specific file paths
+- Exact code changes (not full file downloads)
+- Clear before/after snippets
+- Works well with Git workflow
 
-This is a custom application. For questions or feature requests, contact the development team.
+## Next Steps (Phase 3 Continuation)
+
+1. **Game Viewing** - Display entered games with all details
+2. **Game Editing** - Allow corrections to game data
+3. **Rules Validation** - Real-time Pitch Smart compliance checking
+4. **Warning System** - Flag rule violations during data entry
+
+## Support & Documentation
+
+- **Setup Issues**: See QUICKSTART.md
+- **Architecture**: See ARCHITECTURE.md  
+- **Summary**: See PROJECT_SUMMARY.md
+- **Database**: See database/schema.sql with comments
 
 ## License
 
 Private/Proprietary
 
-## Support
+---
 
-For issues or questions:
-1. Check SETUP.md for setup issues
-2. Review database schema in schema.sql
-3. Contact the development team
+**Current Version**: Phase 2 Complete, Phase 3 In Progress (as of Dec 2024)

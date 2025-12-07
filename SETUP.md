@@ -153,20 +153,24 @@ baseball-app/
 Once everything is running:
 
 1. **Phase 1** ✓ (You are here)
+
    - Database created
    - Authentication working
    - User management working
 
 2. **Phase 2** (Next)
+
    - Create seasons
    - Create teams
    - Add players
 
 3. **Phase 3**
+
    - Game entry forms
    - Pitch count tracking
 
 4. **Phase 4**
+
    - Rules engine
    - Validation warnings
 
@@ -179,20 +183,24 @@ Once everything is running:
 ## Troubleshooting
 
 ### "Invalid API key" error
+
 - Double-check your `.env.local` file
 - Make sure you copied the **anon/public** key, not the service role key
 - Restart the dev server after changing `.env.local`
 
 ### "Row Level Security" errors
+
 - Make sure you ran the entire `schema.sql` file
 - Check that your user has `super_admin` role in the `user_profiles` table
 
 ### Can't log in
+
 - Verify the user exists in **Authentication** > **Users**
 - Verify the user profile exists in **user_profiles** table with matching UUID
 - Check that `is_active` is `true`
 
 ### Need help?
+
 Share the specific error message and I'll help you debug!
 
 ---
@@ -202,10 +210,12 @@ Share the specific error message and I'll help you debug!
 When you're ready to deploy:
 
 1. **Update Supabase Auth URLs**:
+
    - Site URL: your production domain
    - Redirect URLs: your production domain
 
 2. **Deploy Frontend**:
+
    - Vercel (recommended): automatic React deployment
    - Add environment variables in Vercel dashboard
 
