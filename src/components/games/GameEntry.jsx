@@ -219,6 +219,7 @@ export default function GameEntry() {
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
+          defaultDivision={selectedDivision !== 'All' ? selectedDivision : ''}
           onClose={() => setShowGameForm(false)}
           onSuccess={() => {
             setShowGameForm(false)
@@ -233,10 +234,10 @@ export default function GameEntry() {
   )
 }
 
-function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
+function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, onError }) {
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
   const [gameId, setGameId] = useState(null)
-  const [selectedDivision, setSelectedDivision] = useState('')
+  const [selectedDivision, setSelectedDivision] = useState(defaultDivision || '')
   const [formData, setFormData] = useState({
     game_date: '',
     scorekeeper_name: '',
