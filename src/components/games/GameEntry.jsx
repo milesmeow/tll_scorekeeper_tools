@@ -232,6 +232,10 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
     ? teams.filter(team => team.division === selectedDivision)
     : []
 
+  // Filter out already selected teams from home/away dropdowns
+  const availableHomeTeams = filteredTeams.filter(team => team.id !== formData.away_team_id)
+  const availableAwayTeams = filteredTeams.filter(team => team.id !== formData.home_team_id)
+
   const handleBasicInfoSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -561,7 +565,7 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {filteredTeams.map((team) => (
+                      {availableHomeTeams.map((team) => (
                         <option key={team.id} value={team.id}>
                           {team.name}
                         </option>
@@ -596,7 +600,7 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {filteredTeams.map((team) => (
+                      {availableAwayTeams.map((team) => (
                         <option key={team.id} value={team.id}>
                           {team.name}
                         </option>
