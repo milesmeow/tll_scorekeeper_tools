@@ -11,6 +11,8 @@ export default function GameEntry() {
   const [games, setGames] = useState([])
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
+  const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
 
   useEffect(() => {
     fetchSeasons()
@@ -79,6 +81,30 @@ export default function GameEntry() {
       setGames(data)
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  const handleDeleteGame = async () => {
+    if (!gameToDelete || deleteConfirmText.toLowerCase() !== 'delete') return
+
+    try {
+      const { error } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', gameToDelete.id)
+
+      if (error) throw error
+
+      // Refresh games list
+      await fetchGames()
+      setSuccess('Game deleted successfully!')
+      setTimeout(() => setSuccess(null), 3000)
+      setGameToDelete(null)
+      setDeleteConfirmText('')
+    } catch (err) {
+      setError(err.message)
+      setGameToDelete(null)
+      setDeleteConfirmText('')
     }
   }
 
@@ -207,6 +233,12 @@ export default function GameEntry() {
                     <button className="text-blue-600 hover:text-blue-800 text-sm">
                       View Details
                     </button>
+                    <button
+                      onClick={() => setGameToDelete(game)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -229,6 +261,69 @@ export default function GameEntry() {
           }}
           onError={(err) => setError(err)}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {gameToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>
+
+            <div className="mb-4">
+              <p className="text-gray-700 mb-2">
+                You are about to delete this game:
+              </p>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <p className="font-semibold">
+                  {gameToDelete.home_team?.name} vs {gameToDelete.away_team?.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {new Date(gameToDelete.game_date).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Score: {gameToDelete.home_score} - {gameToDelete.away_score}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-2">
+                This will permanently delete the game and all player data (attendance, pitch counts, positions played).
+              </p>
+              <p className="text-sm font-semibold text-red-600 mb-2">
+                This action cannot be undone!
+              </p>
+              <label className="label">Type "delete" to confirm:</label>
+              <input
+                type="text"
+                className="input"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type delete here"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setGameToDelete(null)
+                  setDeleteConfirmText('')
+                }}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteGame}
+                disabled={deleteConfirmText.toLowerCase() !== 'delete'}
+                className="btn bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+              >
+                Delete Game
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
