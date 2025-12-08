@@ -220,10 +220,10 @@ export default function GameEntry() {
                       {new Date(game.game_date).toLocaleDateString()}
                     </p>
                     <p className="font-semibold text-lg">
-                      {game.home_team.name} vs {game.away_team.name}
+                      {game.away_team.name} at {game.home_team.name}
                     </p>
                     <p className="text-gray-700 mt-1">
-                      Score: {game.home_score} - {game.away_score}
+                      Score: {game.away_score} - {game.home_score}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
                       Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
@@ -275,13 +275,13 @@ export default function GameEntry() {
               </p>
               <div className="bg-gray-50 p-3 rounded border border-gray-200">
                 <p className="font-semibold">
-                  {gameToDelete.home_team?.name} vs {gameToDelete.away_team?.name}
+                  {gameToDelete.away_team?.name} at {gameToDelete.home_team?.name}
                 </p>
                 <p className="text-sm text-gray-600">
                   {new Date(gameToDelete.game_date).toLocaleDateString()}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Score: {gameToDelete.home_score} - {gameToDelete.away_score}
+                  Score: {gameToDelete.away_score} - {gameToDelete.home_score}
                 </p>
               </div>
             </div>
