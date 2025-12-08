@@ -218,8 +218,12 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
     home_score: '',
     away_score: ''
   })
-  const [homePlayers, setHomePlayers] = useState([])
-  const [awayPlayers, setAwayPlayers] = useState([])
+  const [allHomePlayers, setAllHomePlayers] = useState([]) // All available players
+  const [allAwayPlayers, setAllAwayPlayers] = useState([]) // All available players
+  const [selectedHomePlayerIds, setSelectedHomePlayerIds] = useState([]) // Selected player IDs
+  const [selectedAwayPlayerIds, setSelectedAwayPlayerIds] = useState([]) // Selected player IDs
+  const [homePlayers, setHomePlayers] = useState([]) // Player data for selected players
+  const [awayPlayers, setAwayPlayers] = useState([]) // Player data for selected players
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
 
@@ -289,28 +293,64 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
 
       if (awayError) throw awayError
 
-      // Initialize player data with empty values
-      setHomePlayers(homeData.map(p => ({
-        ...p,
-        was_present: true,
-        absence_note: '',
-        innings_pitched: [],
-        innings_caught: [],
-        penultimate_pitch_count: '',
-        final_pitch_count: ''
-      })))
+      // Store all available players
+      setAllHomePlayers(homeData)
+      setAllAwayPlayers(awayData)
 
-      setAwayPlayers(awayData.map(p => ({
-        ...p,
-        was_present: true,
-        absence_note: '',
-        innings_pitched: [],
-        innings_caught: [],
-        penultimate_pitch_count: '',
-        final_pitch_count: ''
-      })))
+      // Initialize with no players selected
+      setSelectedHomePlayerIds([])
+      setSelectedAwayPlayerIds([])
+      setHomePlayers([])
+      setAwayPlayers([])
     } catch (err) {
       setModalError(err.message)
+    }
+  }
+
+  // Handle player selection toggle
+  const togglePlayerSelection = (playerId, isHome) => {
+    if (isHome) {
+      setSelectedHomePlayerIds(prev => {
+        if (prev.includes(playerId)) {
+          // Deselect player - remove from both selected IDs and player data
+          setHomePlayers(homePlayers.filter(p => p.id !== playerId))
+          return prev.filter(id => id !== playerId)
+        } else {
+          // Select player - add to selected IDs and initialize data
+          const player = allHomePlayers.find(p => p.id === playerId)
+          setHomePlayers([...homePlayers, {
+            ...player,
+            was_present: true,
+            absence_note: '',
+            innings_pitched: [],
+            innings_caught: [],
+            penultimate_pitch_count: '',
+            final_pitch_count: ''
+          }])
+          return [...prev, playerId]
+        }
+      })
+    } else {
+      setSelectedAwayPlayerIds(prev => {
+        if (prev.includes(playerId)) {
+          // Deselect player
+          setAwayPlayers(awayPlayers.filter(p => p.id !== playerId))
+          return prev.filter(id => id !== playerId)
+        } else {
+          // Select player
+          const player = allAwayPlayers.find(p => p.id === playerId)
+          setAwayPlayers([...awayPlayers, {
+            ...player,
+            was_present: true,
+            absence_note: '',
+            innings_pitched: [],
+            innings_caught: [],
+            penultimate_pitch_count: '',
+            final_pitch_count: ''
+          }])
+          return [...prev, playerId]
+        }
+      })
     }
   }
 
@@ -623,8 +663,11 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
           {/* Home Team Section */}
           <TeamPlayerDataSection
             team={homeTeam}
+            allPlayers={allHomePlayers}
+            selectedPlayerIds={selectedHomePlayerIds}
             players={homePlayers}
             isHome={true}
+            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
           />
@@ -632,8 +675,11 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
           {/* Away Team Section */}
           <TeamPlayerDataSection
             team={awayTeam}
+            allPlayers={allAwayPlayers}
+            selectedPlayerIds={selectedAwayPlayerIds}
             players={awayPlayers}
             isHome={false}
+            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
           />
@@ -660,15 +706,42 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
   )
 }
 
-function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdateField }) {
+function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, isHome, onTogglePlayerSelection, onToggleInning, onUpdateField }) {
   const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
 
   return (
     <div className="border rounded-lg p-4">
       <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
-      
+
+      {/* Player Selection Section */}
+      <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h5 className="font-semibold text-sm mb-3">Select Players Who Participated:</h5>
+        {allPlayers.length === 0 ? (
+          <p className="text-gray-500 text-sm">No players on this team's roster.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {allPlayers.map((player) => (
+              <label key={player.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 p-2 rounded">
+                <input
+                  type="checkbox"
+                  checked={selectedPlayerIds.includes(player.id)}
+                  onChange={() => onTogglePlayerSelection(player.id, isHome)}
+                />
+                <span>
+                  {player.name}
+                  {player.jersey_number && ` #${player.jersey_number}`}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Player Data Entry Forms (only for selected players) */}
       {players.length === 0 ? (
-        <p className="text-gray-500 text-sm">No players on this team's roster.</p>
+        <p className="text-gray-500 text-sm italic text-center py-4">
+          Select players above to enter their game data
+        </p>
       ) : (
         <div className="space-y-4">
           {players.map((player, index) => (
