@@ -5,11 +5,14 @@ export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('All') // Division filter
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
+  const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
 
   useEffect(() => {
     fetchSeasons()
@@ -81,6 +84,30 @@ export default function GameEntry() {
     }
   }
 
+  const handleDeleteGame = async () => {
+    if (!gameToDelete || deleteConfirmText.toLowerCase() !== 'delete') return
+
+    try {
+      const { error } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', gameToDelete.id)
+
+      if (error) throw error
+
+      // Refresh games list
+      await fetchGames()
+      setSuccess('Game deleted successfully!')
+      setTimeout(() => setSuccess(null), 3000)
+      setGameToDelete(null)
+      setDeleteConfirmText('')
+    } catch (err) {
+      setError(err.message)
+      setGameToDelete(null)
+      setDeleteConfirmText('')
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading...</div>
   }
@@ -101,6 +128,11 @@ export default function GameEntry() {
     )
   }
 
+  // Filter games by selected division
+  const filteredGames = selectedDivision === 'All'
+    ? games
+    : games.filter(game => game.home_team.division === selectedDivision)
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -113,20 +145,35 @@ export default function GameEntry() {
         </button>
       </div>
 
-      {/* Season Selector */}
-      <div className="mb-6">
-        <label className="label">Select Season</label>
-        <select
-          className="input max-w-md"
-          value={selectedSeason || ''}
-          onChange={(e) => setSelectedSeason(e.target.value)}
-        >
-          {seasons.map((season) => (
-            <option key={season.id} value={season.id}>
-              {season.name} {season.is_active ? '(Active)' : ''}
-            </option>
-          ))}
-        </select>
+      {/* Season and Division Selectors */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Select Season</label>
+          <select
+            className="input"
+            value={selectedSeason || ''}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} {season.is_active ? '(Active)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Filter by Division</label>
+          <select
+            className="input"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+          >
+            <option value="All">All Divisions</option>
+            <option value="Training">Training</option>
+            <option value="Minor">Minor</option>
+            <option value="Major">Major</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -142,20 +189,27 @@ export default function GameEntry() {
       )}
 
       {/* Games List */}
-      {games.length === 0 ? (
+      {filteredGames.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No games entered yet for this season.</p>
-          <button
-            onClick={() => setShowGameForm(true)}
-            className="btn btn-primary"
-          >
-            Enter First Game
-          </button>
+          <p className="text-gray-600 mb-4">
+            {games.length === 0
+              ? 'No games entered yet for this season.'
+              : `No games found for ${selectedDivision} division.`
+            }
+          </p>
+          {games.length === 0 && (
+            <button
+              onClick={() => setShowGameForm(true)}
+              className="btn btn-primary"
+            >
+              Enter First Game
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">
           <div className="space-y-4">
-            {games.map((game) => (
+            {filteredGames.map((game) => (
               <div
                 key={game.id}
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
@@ -166,10 +220,10 @@ export default function GameEntry() {
                       {new Date(game.game_date).toLocaleDateString()}
                     </p>
                     <p className="font-semibold text-lg">
-                      {game.home_team.name} vs {game.away_team.name}
+                      {game.away_team.name} at {game.home_team.name}
                     </p>
                     <p className="text-gray-700 mt-1">
-                      Score: {game.home_score} - {game.away_score}
+                      Score: {game.away_score} - {game.home_score}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
                       Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
@@ -178,6 +232,12 @@ export default function GameEntry() {
                   <div className="flex gap-2">
                     <button className="text-blue-600 hover:text-blue-800 text-sm">
                       View Details
+                    </button>
+                    <button
+                      onClick={() => setGameToDelete(game)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -191,6 +251,7 @@ export default function GameEntry() {
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
+          defaultDivision={selectedDivision !== 'All' ? selectedDivision : ''}
           onClose={() => setShowGameForm(false)}
           onSuccess={() => {
             setShowGameForm(false)
@@ -201,13 +262,77 @@ export default function GameEntry() {
           onError={(err) => setError(err)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {gameToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>
+
+            <div className="mb-4">
+              <p className="text-gray-700 mb-2">
+                You are about to delete this game:
+              </p>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <p className="font-semibold">
+                  {gameToDelete.away_team?.name} at {gameToDelete.home_team?.name}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {new Date(gameToDelete.game_date).toLocaleDateString()}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Score: {gameToDelete.away_score} - {gameToDelete.home_score}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-2">
+                This will permanently delete the game and all player data (attendance, pitch counts, positions played).
+              </p>
+              <p className="text-sm font-semibold text-red-600 mb-2">
+                This action cannot be undone!
+              </p>
+              <label className="label">Type "delete" to confirm:</label>
+              <input
+                type="text"
+                className="input"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type delete here"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setGameToDelete(null)
+                  setDeleteConfirmText('')
+                }}
+                className="btn btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteGame}
+                disabled={deleteConfirmText.toLowerCase() !== 'delete'}
+                className="btn bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+              >
+                Delete Game
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
+function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, onError }) {
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
   const [gameId, setGameId] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState(defaultDivision || '')
   const [formData, setFormData] = useState({
     game_date: '',
     scorekeeper_name: '',
@@ -217,10 +342,23 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
     home_score: '',
     away_score: ''
   })
-  const [homePlayers, setHomePlayers] = useState([])
-  const [awayPlayers, setAwayPlayers] = useState([])
+  const [allHomePlayers, setAllHomePlayers] = useState([]) // All available players
+  const [allAwayPlayers, setAllAwayPlayers] = useState([]) // All available players
+  const [selectedHomePlayerIds, setSelectedHomePlayerIds] = useState([]) // Selected player IDs
+  const [selectedAwayPlayerIds, setSelectedAwayPlayerIds] = useState([]) // Selected player IDs
+  const [homePlayers, setHomePlayers] = useState([]) // Player data for selected players
+  const [awayPlayers, setAwayPlayers] = useState([]) // Player data for selected players
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
+
+  // Filter teams by selected division
+  const filteredTeams = selectedDivision
+    ? teams.filter(team => team.division === selectedDivision)
+    : []
+
+  // Filter out already selected teams from home/away dropdowns
+  const availableHomeTeams = filteredTeams.filter(team => team.id !== formData.away_team_id)
+  const availableAwayTeams = filteredTeams.filter(team => team.id !== formData.home_team_id)
 
   const handleBasicInfoSubmit = async (e) => {
     e.preventDefault()
@@ -283,28 +421,64 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
 
       if (awayError) throw awayError
 
-      // Initialize player data with empty values
-      setHomePlayers(homeData.map(p => ({
-        ...p,
-        was_present: true,
-        absence_note: '',
-        innings_pitched: [],
-        innings_caught: [],
-        penultimate_pitch_count: '',
-        final_pitch_count: ''
-      })))
+      // Store all available players
+      setAllHomePlayers(homeData)
+      setAllAwayPlayers(awayData)
 
-      setAwayPlayers(awayData.map(p => ({
-        ...p,
-        was_present: true,
-        absence_note: '',
-        innings_pitched: [],
-        innings_caught: [],
-        penultimate_pitch_count: '',
-        final_pitch_count: ''
-      })))
+      // Initialize with no players selected
+      setSelectedHomePlayerIds([])
+      setSelectedAwayPlayerIds([])
+      setHomePlayers([])
+      setAwayPlayers([])
     } catch (err) {
       setModalError(err.message)
+    }
+  }
+
+  // Handle player selection toggle
+  const togglePlayerSelection = (playerId, isHome) => {
+    if (isHome) {
+      setSelectedHomePlayerIds(prev => {
+        if (prev.includes(playerId)) {
+          // Deselect player - remove from both selected IDs and player data
+          setHomePlayers(homePlayers.filter(p => p.id !== playerId))
+          return prev.filter(id => id !== playerId)
+        } else {
+          // Select player - add to selected IDs and initialize data
+          const player = allHomePlayers.find(p => p.id === playerId)
+          setHomePlayers([...homePlayers, {
+            ...player,
+            was_present: true,
+            absence_note: '',
+            innings_pitched: [],
+            innings_caught: [],
+            penultimate_pitch_count: '',
+            final_pitch_count: ''
+          }])
+          return [...prev, playerId]
+        }
+      })
+    } else {
+      setSelectedAwayPlayerIds(prev => {
+        if (prev.includes(playerId)) {
+          // Deselect player
+          setAwayPlayers(awayPlayers.filter(p => p.id !== playerId))
+          return prev.filter(id => id !== playerId)
+        } else {
+          // Select player
+          const player = allAwayPlayers.find(p => p.id === playerId)
+          setAwayPlayers([...awayPlayers, {
+            ...player,
+            was_present: true,
+            absence_note: '',
+            innings_pitched: [],
+            innings_caught: [],
+            penultimate_pitch_count: '',
+            final_pitch_count: ''
+          }])
+          return [...prev, playerId]
+        }
+      })
     }
   }
 
@@ -429,8 +603,33 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
               {modalError}
             </div>
           )}
-          
+
           <form onSubmit={handleBasicInfoSubmit} className="space-y-6">
+            {/* Division Selector */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="label">Select Division *</label>
+              <select
+                className="input"
+                value={selectedDivision}
+                onChange={(e) => {
+                  setSelectedDivision(e.target.value)
+                  // Reset team selections when division changes
+                  setFormData({
+                    ...formData,
+                    scorekeeper_team_id: '',
+                    home_team_id: '',
+                    away_team_id: ''
+                  })
+                }}
+                required
+              >
+                <option value="">-- Select Division --</option>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </select>
+            </div>
+
             <div>
               <label className="label">Game Date *</label>
               <input
@@ -461,14 +660,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                   value={formData.scorekeeper_team_id}
                   onChange={(e) => setFormData({ ...formData, scorekeeper_team_id: e.target.value })}
                   required
+                  disabled={!selectedDivision}
                 >
                   <option value="">-- Select Team --</option>
-                  {teams.map((team) => (
+                  {filteredTeams.map((team) => (
                     <option key={team.id} value={team.id}>
-                      {team.name} ({team.division})
+                      {team.name}
                     </option>
                   ))}
                 </select>
+                {!selectedDivision && (
+                  <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                )}
               </div>
             </div>
 
@@ -483,14 +686,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       value={formData.home_team_id}
                       onChange={(e) => setFormData({ ...formData, home_team_id: e.target.value })}
                       required
+                      disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {teams.map((team) => (
+                      {availableHomeTeams.map((team) => (
                         <option key={team.id} value={team.id}>
-                          {team.name} ({team.division})
+                          {team.name}
                         </option>
                       ))}
                     </select>
+                    {!selectedDivision && (
+                      <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Home Score *</label>
@@ -514,14 +721,18 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
                       value={formData.away_team_id}
                       onChange={(e) => setFormData({ ...formData, away_team_id: e.target.value })}
                       required
+                      disabled={!selectedDivision}
                     >
                       <option value="">-- Select Team --</option>
-                      {teams.map((team) => (
+                      {availableAwayTeams.map((team) => (
                         <option key={team.id} value={team.id}>
-                          {team.name} ({team.division})
+                          {team.name}
                         </option>
                       ))}
                     </select>
+                    {!selectedDivision && (
+                      <p className="text-sm text-gray-500 mt-1">Select a division first</p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Away Score *</label>
@@ -580,8 +791,11 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
           {/* Home Team Section */}
           <TeamPlayerDataSection
             team={homeTeam}
+            allPlayers={allHomePlayers}
+            selectedPlayerIds={selectedHomePlayerIds}
             players={homePlayers}
             isHome={true}
+            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
           />
@@ -589,8 +803,11 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
           {/* Away Team Section */}
           <TeamPlayerDataSection
             team={awayTeam}
+            allPlayers={allAwayPlayers}
+            selectedPlayerIds={selectedAwayPlayerIds}
             players={awayPlayers}
             isHome={false}
+            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
           />
@@ -617,15 +834,42 @@ function GameFormModal({ seasonId, teams, onClose, onSuccess, onError }) {
   )
 }
 
-function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdateField }) {
+function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, isHome, onTogglePlayerSelection, onToggleInning, onUpdateField }) {
   const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
 
   return (
     <div className="border rounded-lg p-4">
       <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
-      
+
+      {/* Player Selection Section */}
+      <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h5 className="font-semibold text-sm mb-3">Select Players Who Participated:</h5>
+        {allPlayers.length === 0 ? (
+          <p className="text-gray-500 text-sm">No players on this team's roster.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {allPlayers.map((player) => (
+              <label key={player.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 p-2 rounded">
+                <input
+                  type="checkbox"
+                  checked={selectedPlayerIds.includes(player.id)}
+                  onChange={() => onTogglePlayerSelection(player.id, isHome)}
+                />
+                <span>
+                  {player.name}
+                  {player.jersey_number && ` #${player.jersey_number}`}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Player Data Entry Forms (only for selected players) */}
       {players.length === 0 ? (
-        <p className="text-gray-500 text-sm">No players on this team's roster.</p>
+        <p className="text-gray-500 text-sm italic text-center py-4">
+          Select players above to enter their game data
+        </p>
       ) : (
         <div className="space-y-4">
           {players.map((player, index) => (
