@@ -5,6 +5,7 @@ export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('All') // Division filter
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
@@ -101,6 +102,11 @@ export default function GameEntry() {
     )
   }
 
+  // Filter games by selected division
+  const filteredGames = selectedDivision === 'All'
+    ? games
+    : games.filter(game => game.home_team.division === selectedDivision)
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -113,20 +119,35 @@ export default function GameEntry() {
         </button>
       </div>
 
-      {/* Season Selector */}
-      <div className="mb-6">
-        <label className="label">Select Season</label>
-        <select
-          className="input max-w-md"
-          value={selectedSeason || ''}
-          onChange={(e) => setSelectedSeason(e.target.value)}
-        >
-          {seasons.map((season) => (
-            <option key={season.id} value={season.id}>
-              {season.name} {season.is_active ? '(Active)' : ''}
-            </option>
-          ))}
-        </select>
+      {/* Season and Division Selectors */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Select Season</label>
+          <select
+            className="input"
+            value={selectedSeason || ''}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} {season.is_active ? '(Active)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Filter by Division</label>
+          <select
+            className="input"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+          >
+            <option value="All">All Divisions</option>
+            <option value="Training">Training</option>
+            <option value="Minor">Minor</option>
+            <option value="Major">Major</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -142,20 +163,27 @@ export default function GameEntry() {
       )}
 
       {/* Games List */}
-      {games.length === 0 ? (
+      {filteredGames.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No games entered yet for this season.</p>
-          <button
-            onClick={() => setShowGameForm(true)}
-            className="btn btn-primary"
-          >
-            Enter First Game
-          </button>
+          <p className="text-gray-600 mb-4">
+            {games.length === 0
+              ? 'No games entered yet for this season.'
+              : `No games found for ${selectedDivision} division.`
+            }
+          </p>
+          {games.length === 0 && (
+            <button
+              onClick={() => setShowGameForm(true)}
+              className="btn btn-primary"
+            >
+              Enter First Game
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">
           <div className="space-y-4">
-            {games.map((game) => (
+            {filteredGames.map((game) => (
               <div
                 key={game.id}
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
