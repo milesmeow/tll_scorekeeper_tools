@@ -385,6 +385,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
 
+  // Save original game data for comparison when editing
+  const [originalGameData, setOriginalGameData] = useState(null)
+
   // Load existing player data when editing
   useEffect(() => {
     if (isEditMode && gameToEdit) {
@@ -456,6 +459,14 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       setHomePlayers(homePlayerData)
       setAwayPlayers(awayPlayerData)
+
+      // Save original game data for comparison when teams change
+      setOriginalGameData({
+        homeTeamId: gameToEdit.home_team_id,
+        awayTeamId: gameToEdit.away_team_id,
+        homePlayers: homePlayerData,
+        awayPlayers: awayPlayerData
+      })
     } catch (err) {
       setModalError(err.message)
     } finally {
@@ -485,8 +496,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       if (isEditMode) {
         // For edit mode: Don't save yet, handle player data based on team changes
-        const oldHomeId = gameToEdit.home_team_id
-        const oldAwayId = gameToEdit.away_team_id
+        const oldHomeId = originalGameData.homeTeamId
+        const oldAwayId = originalGameData.awayTeamId
         const newHomeId = formData.home_team_id
         const newAwayId = formData.away_team_id
 
@@ -505,7 +516,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           // If teams unchanged, keep player data as-is
         } else {
           // Teams changed - need to handle intelligently
-          // Figure out which team is new and which to keep
+          // Use ORIGINAL game data to determine which teams to keep
           const homeTeamKept = (newHomeId === oldHomeId || newHomeId === oldAwayId)
           const awayTeamKept = (newAwayId === oldHomeId || newAwayId === oldAwayId)
 
@@ -513,12 +524,12 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           let newAwayPlayers = []
 
           if (homeTeamKept) {
-            // Home team is from the original game - keep its data
+            // Home team is from the original game - get its ORIGINAL data
             if (newHomeId === oldHomeId) {
-              newHomePlayers = homePlayers
+              newHomePlayers = originalGameData.homePlayers
             } else {
               // newHomeId === oldAwayId
-              newHomePlayers = awayPlayers
+              newHomePlayers = originalGameData.awayPlayers
             }
           } else {
             // Home team is new - fetch players
@@ -542,12 +553,12 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           }
 
           if (awayTeamKept) {
-            // Away team is from the original game - keep its data
+            // Away team is from the original game - get its ORIGINAL data
             if (newAwayId === oldAwayId) {
-              newAwayPlayers = awayPlayers
+              newAwayPlayers = originalGameData.awayPlayers
             } else {
               // newAwayId === oldHomeId
-              newAwayPlayers = homePlayers
+              newAwayPlayers = originalGameData.homePlayers
             }
           } else {
             // Away team is new - fetch players
