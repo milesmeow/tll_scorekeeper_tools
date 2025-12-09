@@ -5,7 +5,7 @@ export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
-  const [selectedDivision, setSelectedDivision] = useState('All') // Division filter
+  const [selectedDivision, setSelectedDivision] = useState('') // Division filter
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
@@ -131,9 +131,9 @@ export default function GameEntry() {
   }
 
   // Filter games by selected division
-  const filteredGames = selectedDivision === 'All'
-    ? games
-    : games.filter(game => game.home_team.division === selectedDivision)
+  const filteredGames = selectedDivision
+    ? games.filter(game => game.home_team.division === selectedDivision)
+    : games
 
   return (
     <div>
@@ -170,7 +170,7 @@ export default function GameEntry() {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="All">All Divisions</option>
+            <option value="">-- Select Division --</option>
             <option value="Training">Training</option>
             <option value="Minor">Minor</option>
             <option value="Major">Major</option>
@@ -262,7 +262,7 @@ export default function GameEntry() {
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
-          defaultDivision={selectedDivision !== 'All' ? selectedDivision : ''}
+          defaultDivision={selectedDivision}
           onClose={() => setShowGameForm(false)}
           onSuccess={() => {
             setShowGameForm(false)
