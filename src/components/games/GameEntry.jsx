@@ -810,9 +810,11 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           <form onSubmit={handleBasicInfoSubmit} className="space-y-6">
             {/* Division Selector */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="label">Select Division *</label>
+              <label className="label">
+                {isEditMode ? 'Division' : 'Select Division *'}
+              </label>
               <select
-                className="input"
+                className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
                 value={selectedDivision}
                 onChange={(e) => {
                   setSelectedDivision(e.target.value)
@@ -825,12 +827,16 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
                   })
                 }}
                 required
+                disabled={isEditMode}
               >
                 <option value="">-- Select Division --</option>
                 <option value="Training">Training</option>
                 <option value="Minor">Minor</option>
                 <option value="Major">Major</option>
               </select>
+              {isEditMode && (
+                <p className="text-sm text-gray-600 mt-2">Division cannot be changed when editing</p>
+              )}
             </div>
 
             <div>
