@@ -484,32 +484,27 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       }
 
       if (isEditMode) {
-        // For edit mode: Update game immediately
-        const gameData = {
-          season_id: seasonId,
-          game_date: formData.game_date,
-          scorekeeper_name: formData.scorekeeper_name,
-          scorekeeper_team_id: formData.scorekeeper_team_id,
-          home_team_id: formData.home_team_id,
-          away_team_id: formData.away_team_id,
-          home_score: parseInt(formData.home_score),
-          away_score: parseInt(formData.away_score)
-        }
+        // For edit mode: Don't save yet, handle player data based on team changes
+        const oldHomeId = gameToEdit.home_team_id
+        const oldAwayId = gameToEdit.away_team_id
+        const newHomeId = formData.home_team_id
+        const newAwayId = formData.away_team_id
 
-        const { error } = await supabase
-          .from('games')
-          .update(gameData)
-          .eq('id', gameId)
+        // Check if teams are exactly the same (including swap)
+        const sameTeams = (oldHomeId === newHomeId && oldAwayId === newAwayId) ||
+                         (oldHomeId === newAwayId && oldAwayId === newHomeId)
 
-        if (error) throw error
-
-        // Check if teams changed - if so, need to reload player data
-        if (formData.home_team_id !== gameToEdit.home_team_id ||
-            formData.away_team_id !== gameToEdit.away_team_id) {
-          // Teams changed - delete old player data and fetch new players
-          await supabase.from('game_players').delete().eq('game_id', gameId)
-          await supabase.from('pitching_logs').delete().eq('game_id', gameId)
-          await supabase.from('positions_played').delete().eq('game_id', gameId)
+        if (sameTeams) {
+          // Teams are the same (possibly swapped) - reorganize existing player data
+          if (oldHomeId === newAwayId && oldAwayId === newHomeId) {
+            // Teams were swapped - just swap the player arrays
+            const temp = homePlayers
+            setHomePlayers(awayPlayers)
+            setAwayPlayers(temp)
+          }
+          // If teams unchanged, keep player data as-is
+        } else {
+          // Different teams - need to fetch new player data
           await fetchPlayers(formData.home_team_id, formData.away_team_id)
         }
       } else {
@@ -581,19 +576,19 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       const allPlayers = [...homePlayers, ...awayPlayers]
       let finalGameId = gameId
 
-      // If creating new game, insert game record now (along with player data)
-      if (!isEditMode) {
-        const gameData = {
-          season_id: seasonId,
-          game_date: formData.game_date,
-          scorekeeper_name: formData.scorekeeper_name,
-          scorekeeper_team_id: formData.scorekeeper_team_id,
-          home_team_id: formData.home_team_id,
-          away_team_id: formData.away_team_id,
-          home_score: parseInt(formData.home_score),
-          away_score: parseInt(formData.away_score)
-        }
+      const gameData = {
+        season_id: seasonId,
+        game_date: formData.game_date,
+        scorekeeper_name: formData.scorekeeper_name,
+        scorekeeper_team_id: formData.scorekeeper_team_id,
+        home_team_id: formData.home_team_id,
+        away_team_id: formData.away_team_id,
+        home_score: parseInt(formData.home_score),
+        away_score: parseInt(formData.away_score)
+      }
 
+      if (!isEditMode) {
+        // Creating new game - insert game record
         const { data, error } = await supabase
           .from('games')
           .insert([gameData])
@@ -605,7 +600,15 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         finalGameId = data.id
         setGameId(finalGameId)
       } else {
-        // If editing, delete existing player data first
+        // Editing game - update game record and delete old player data
+        const { error } = await supabase
+          .from('games')
+          .update(gameData)
+          .eq('id', gameId)
+
+        if (error) throw error
+
+        // Delete existing player data
         await supabase.from('game_players').delete().eq('game_id', gameId)
         await supabase.from('pitching_logs').delete().eq('game_id', gameId)
         await supabase.from('positions_played').delete().eq('game_id', gameId)
