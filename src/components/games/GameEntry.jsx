@@ -219,7 +219,7 @@ export default function GameEntry() {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">
-                      {new Date(game.game_date).toLocaleDateString()}
+                      {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
                     </p>
                     <p className="font-semibold text-lg">
                       {game.away_team.name} at {game.home_team.name}
