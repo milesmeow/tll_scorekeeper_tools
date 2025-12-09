@@ -5,7 +5,7 @@ export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
-  const [selectedDivision, setSelectedDivision] = useState('') // Division filter
+  const [selectedDivision, setSelectedDivision] = useState('Major') // Default to Major division
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
@@ -264,35 +264,20 @@ export default function GameEntry() {
         </button>
       </div>
 
-      {/* Season and Division Selectors */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="label">Select Season</label>
-          <select
-            className="input"
-            value={selectedSeason || ''}
-            onChange={(e) => setSelectedSeason(e.target.value)}
-          >
-            {seasons.map((season) => (
-              <option key={season.id} value={season.id}>
-                {season.name} {season.is_active ? '(Active)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Filter by Division</label>
-          <select
-            className="input"
-            value={selectedDivision}
-            onChange={(e) => setSelectedDivision(e.target.value)}
-          >
-            <option value="">-- Select Division --</option>
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
-          </select>
-        </div>
+      {/* Season Selector */}
+      <div className="mb-6">
+        <label className="label">Select Season</label>
+        <select
+          className="input max-w-md"
+          value={selectedSeason || ''}
+          onChange={(e) => setSelectedSeason(e.target.value)}
+        >
+          {seasons.map((season) => (
+            <option key={season.id} value={season.id}>
+              {season.name} {season.is_active ? '(Active)' : ''}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && (
