@@ -446,7 +446,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             .filter(p => p.position === 'catcher')
             .map(p => p.inning_number)
             .sort((a, b) => a - b),
-          penultimate_pitch_count: playerPitching?.penultimate_batter_count?.toString() || '',
+          penultimate_batter_count: playerPitching?.penultimate_batter_count?.toString() || '',
           final_pitch_count: playerPitching?.final_pitch_count?.toString() || ''
         }
 
@@ -547,7 +547,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               absence_note: '',
               innings_pitched: [],
               innings_caught: [],
-              penultimate_pitch_count: '',
+              penultimate_batter_count: '',
               final_pitch_count: ''
             }))
           }
@@ -576,7 +576,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               absence_note: '',
               innings_pitched: [],
               innings_caught: [],
-              penultimate_pitch_count: '',
+              penultimate_batter_count: '',
               final_pitch_count: ''
             }))
           }
@@ -623,7 +623,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         absence_note: '',
         innings_pitched: [],
         innings_caught: [],
-        penultimate_pitch_count: '',
+        penultimate_batter_count: '',
         final_pitch_count: ''
       }))
 
@@ -633,7 +633,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         absence_note: '',
         innings_pitched: [],
         innings_caught: [],
-        penultimate_pitch_count: '',
+        penultimate_batter_count: '',
         final_pitch_count: ''
       }))
 
@@ -712,7 +712,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           game_id: finalGameId,
           player_id: p.id,
           final_pitch_count: parseInt(p.final_pitch_count),
-          penultimate_batter_count: parseInt(p.penultimate_pitch_count || 0)
+          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0)
         }))
 
       if (pitchingData.length > 0) {
@@ -794,6 +794,32 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       }
     }
     return false
+  }
+
+  // Helper function to get effective pitch count (penultimate + 1)
+  const getEffectivePitchCount = (player) => {
+    if (!player.penultimate_batter_count || player.penultimate_batter_count === '') {
+      return 0
+    }
+    return parseInt(player.penultimate_batter_count) + 1
+  }
+
+  // Helper function to check Rule 2: 41+ pitches -> cannot catch
+  const cannotCatchDueToHighPitchCount = (player) => {
+    const effectivePitches = getEffectivePitchCount(player)
+    return player.innings_pitched.length > 0 && effectivePitches >= 41
+  }
+
+  // Helper function to check Rule 3: 4+ innings catching -> cannot pitch
+  const cannotPitchDueToFourInningsCatching = (player) => {
+    return player.innings_caught.length >= 4
+  }
+
+  // Helper function to check Rule 4: 1-3 innings catching + 21+ pitches -> cannot catch again
+  const cannotCatchAgainDueToCombined = (player) => {
+    const caughtInnings = player.innings_caught.length
+    const effectivePitches = getEffectivePitchCount(player)
+    return caughtInnings >= 1 && caughtInnings <= 3 && effectivePitches >= 21
   }
 
   const updatePlayerField = (playerIndex, isHome, field, value) => {
@@ -1021,6 +1047,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
             hasInningsGap={hasInningsGap}
+            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           {/* Away Team Section */}
@@ -1031,6 +1061,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
             hasInningsGap={hasInningsGap}
+            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
@@ -1055,7 +1089,18 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   )
 }
 
-function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdateField, hasInningsGap }) {
+function TeamPlayerDataSection({
+  team,
+  players,
+  isHome,
+  onToggleInning,
+  onUpdateField,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  getEffectivePitchCount
+}) {
   const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
 
   return (
@@ -1071,6 +1116,10 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
         <div className="space-y-4">
           {players.map((player, index) => {
             const hasPitchingGap = hasInningsGap(player.innings_pitched)
+            const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
+            const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
+            const violationCombinedRule = cannotCatchAgainDueToCombined(player)
+            const effectivePitches = getEffectivePitchCount(player)
 
             return (
             <div key={player.id} className="border rounded p-4 bg-gray-50">
@@ -1131,6 +1180,13 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                         </p>
                       </div>
                     )}
+                    {violationFourInningsCatching && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player caught {player.innings_caught.length} innings and cannot pitch in this game.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Pitch Counts (only if pitched) */}
@@ -1145,8 +1201,8 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                           className="input text-sm"
                           placeholder="0"
                           min="0"
-                          value={player.penultimate_pitch_count}
-                          onChange={(e) => onUpdateField(index, isHome, 'penultimate_pitch_count', e.target.value)}
+                          value={player.penultimate_batter_count}
+                          onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
                         />
                       </div>
                       <div>
@@ -1181,6 +1237,20 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                         </label>
                       ))}
                     </div>
+                    {violationHighPitchCount && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
+                        </p>
+                      </div>
+                    )}
+                    {violationCombinedRule && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player caught {player.innings_caught.length} inning{player.innings_caught.length !== 1 ? 's' : ''} and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
