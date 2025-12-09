@@ -13,6 +13,7 @@ export default function GameEntry() {
   const [success, setSuccess] = useState(null)
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
+  const [gameToView, setGameToView] = useState(null) // For viewing game details
 
   useEffect(() => {
     fetchSeasons()
@@ -230,7 +231,10 @@ export default function GameEntry() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-blue-600 hover:text-blue-800 text-sm">
+                    <button
+                      onClick={() => setGameToView(game)}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
                       View Details
                     </button>
                     <button
@@ -260,6 +264,14 @@ export default function GameEntry() {
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
+        />
+      )}
+
+      {/* Game Detail Modal */}
+      {gameToView && (
+        <GameDetailModal
+          game={gameToView}
+          onClose={() => setGameToView(null)}
         />
       )}
 
@@ -883,7 +895,7 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
                       <span className="text-sm text-gray-600">#{player.jersey_number}</span>
                     )}
                   </div>
-                  
+
                   {/* Attendance */}
                   <div className="flex items-center gap-4 mt-2">
                     <label className="flex items-center gap-2 text-sm">
@@ -980,6 +992,283 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function GameDetailModal({ game, onClose }) {
+  const [loading, setLoading] = useState(true)
+  const [gameData, setGameData] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetchGameDetails()
+  }, [])
+
+  const fetchGameDetails = async () => {
+    try {
+      // Fetch game_players with player info
+      const { data: gamePlayers, error: playersError } = await supabase
+        .from('game_players')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (playersError) throw playersError
+
+      // Fetch pitching_logs with player info
+      const { data: pitchingLogs, error: pitchingError } = await supabase
+        .from('pitching_logs')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (pitchingError) throw pitchingError
+
+      // Fetch positions_played with player info
+      const { data: positionsPlayed, error: positionsError } = await supabase
+        .from('positions_played')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (positionsError) throw positionsError
+
+      // Organize data by team and player
+      const homePlayerData = []
+      const awayPlayerData = []
+
+      gamePlayers.forEach(gp => {
+        const playerData = {
+          ...gp,
+          pitching: pitchingLogs.find(pl => pl.player_id === gp.player_id),
+          positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id)
+        }
+
+        if (gp.player.team_id === game.home_team_id) {
+          homePlayerData.push(playerData)
+        } else {
+          awayPlayerData.push(playerData)
+        }
+      })
+
+      setGameData({
+        homePlayers: homePlayerData,
+        awayPlayers: awayPlayerData
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
+            <p className="text-gray-600 mt-1">
+              {new Date(game.game_date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+            <p className="text-lg font-semibold mt-2">
+              Final Score: {game.away_score} - {game.home_score}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {error && (
+          <div className="alert alert-error mb-4">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Loading game details...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Home Team Section */}
+            <TeamDetailSection
+              teamName={game.home_team.name}
+              players={gameData.homePlayers}
+              isHome={true}
+            />
+
+            {/* Away Team Section */}
+            <TeamDetailSection
+              teamName={game.away_team.name}
+              players={gameData.awayPlayers}
+              isHome={false}
+            />
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6 pt-4 border-t">
+          <button
+            onClick={onClose}
+            className="btn btn-secondary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TeamDetailSection({ teamName, players, isHome }) {
+  // Separate players by attendance
+  const presentPlayers = players.filter(p => p.was_present)
+  const absentPlayers = players.filter(p => !p.was_present)
+
+  return (
+    <div className="border rounded-lg p-4">
+      <h4 className="text-lg font-bold mb-4 bg-blue-50 -m-4 p-4 rounded-t-lg border-b">
+        {teamName} {isHome ? '(Home)' : '(Away)'}
+      </h4>
+
+      {/* Present Players */}
+      {presentPlayers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-green-700">Present ({presentPlayers.length})</h5>
+          <div className="space-y-3">
+            {presentPlayers.map(playerData => {
+              const pitchedInnings = playerData.positions
+                .filter(p => p.position === 'pitcher')
+                .map(p => p.inning_number)
+                .sort((a, b) => a - b)
+
+              const caughtInnings = playerData.positions
+                .filter(p => p.position === 'catcher')
+                .map(p => p.inning_number)
+                .sort((a, b) => a - b)
+
+              return (
+                <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h6 className="font-semibold">{playerData.player.name}</h6>
+                        <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
+                        {playerData.player.jersey_number && (
+                          <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {/* Pitching Info */}
+                        {pitchedInnings.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700">Pitched: </span>
+                            <span className="text-gray-600">
+                              {pitchedInnings.length === 1
+                                ? `Inning ${pitchedInnings[0]}`
+                                : `Innings ${pitchedInnings.join(', ')}`
+                              }
+                            </span>
+                            {playerData.pitching && (
+                              <div className="mt-1 pl-2 border-l-2 border-blue-300">
+                                <div>
+                                  <span className="font-medium text-gray-700">Final Pitch Count: </span>
+                                  <span className="text-blue-700 font-semibold">
+                                    {playerData.pitching.final_pitch_count}
+                                  </span>
+                                </div>
+                                {playerData.pitching.penultimate_batter_count > 0 && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Before Last Batter: </span>
+                                    <span className="text-gray-600">
+                                      {playerData.pitching.penultimate_batter_count}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Catching Info */}
+                        {caughtInnings.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700">Caught: </span>
+                            <span className="text-gray-600">
+                              {caughtInnings.length === 1
+                                ? `Inning ${caughtInnings[0]}`
+                                : `Innings ${caughtInnings.join(', ')}`
+                              }
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {pitchedInnings.length === 0 && caughtInnings.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">
+                          No pitching or catching recorded
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Absent Players */}
+      {absentPlayers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
+          <div className="space-y-2">
+            {absentPlayers.map(playerData => (
+              <div key={playerData.player_id} className="bg-red-50 border border-red-200 rounded p-3">
+                <div className="flex items-center gap-3">
+                  <h6 className="font-semibold text-gray-800">{playerData.player.name}</h6>
+                  <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
+                  {playerData.player.jersey_number && (
+                    <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
+                  )}
+                </div>
+                {playerData.absence_note && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">Reason: </span>
+                    {playerData.absence_note}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {players.length === 0 && (
+        <p className="text-gray-500 text-sm italic text-center py-4">
+          No player data recorded for this team
+        </p>
       )}
     </div>
   )
