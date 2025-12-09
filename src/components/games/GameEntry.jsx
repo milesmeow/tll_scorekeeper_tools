@@ -1341,6 +1341,51 @@ function GameDetailModal({ game, onClose }) {
     fetchGameDetails()
   }, [])
 
+  // Validation helper functions (same as in form)
+  const getEffectivePitchCount = (penultimate) => {
+    if (!penultimate || penultimate === 0) return 0
+    return penultimate + 1
+  }
+
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+    const sorted = [...innings].sort((a, b) => a - b)
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] - sorted[i] !== 1) {
+        return true
+      }
+    }
+    return false
+  }
+
+  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) {
+      return false
+    }
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    return caughtInnings.some(inning => inning > maxPitchingInning)
+  }
+
+  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
+    if (caughtInnings.length < 4 || pitchedInnings.length === 0) {
+      return false
+    }
+    const sortedCatchingInnings = [...caughtInnings].sort((a, b) => a - b)
+    const fourthCatchingInning = sortedCatchingInnings[3]
+    return pitchedInnings.some(inning => inning > fourthCatchingInning)
+  }
+
+  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) {
+      return false
+    }
+    const minPitchingInning = Math.min(...pitchedInnings)
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
+    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
+    return hasCaughtBeforePitching && hasReturnedToCatch
+  }
+
   const fetchGameDetails = async () => {
     try {
       // Fetch game_players with player info
@@ -1451,6 +1496,11 @@ function GameDetailModal({ game, onClose }) {
               teamName={game.home_team.name}
               players={gameData.homePlayers}
               isHome={true}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
             />
 
             {/* Away Team Section */}
@@ -1458,6 +1508,11 @@ function GameDetailModal({ game, onClose }) {
               teamName={game.away_team.name}
               players={gameData.awayPlayers}
               isHome={false}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
             />
           </div>
         )}
@@ -1475,7 +1530,16 @@ function GameDetailModal({ game, onClose }) {
   )
 }
 
-function TeamDetailSection({ teamName, players, isHome }) {
+function TeamDetailSection({
+  teamName,
+  players,
+  isHome,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  getEffectivePitchCount
+}) {
   // Only show players who pitched, caught, or were absent
   const pitchersAndCatchers = players.filter(p => p.was_present && p.positions.length > 0)
   const absentPlayers = players.filter(p => !p.was_present)
@@ -1501,6 +1565,13 @@ function TeamDetailSection({ teamName, players, isHome }) {
                 .filter(p => p.position === 'catcher')
                 .map(p => p.inning_number)
                 .sort((a, b) => a - b)
+
+              // Calculate violations
+              const effectivePitches = getEffectivePitchCount(playerData.pitching?.penultimate_batter_count || 0)
+              const hasPitchingGap = hasInningsGap(pitchedInnings)
+              const violationHighPitchCount = cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)
+              const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
+              const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
 
               return (
                 <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
@@ -1564,6 +1635,36 @@ function TeamDetailSection({ teamName, players, isHome }) {
                         <p className="text-sm text-gray-500 italic">
                           No pitching or catching recorded
                         </p>
+                      )}
+
+                      {/* Violation Warnings */}
+                      {hasPitchingGap && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
+                          </p>
+                        </div>
+                      )}
+                      {violationFourInningsCatching && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player caught {caughtInnings.length} innings and cannot pitch in this game.
+                          </p>
+                        </div>
+                      )}
+                      {violationHighPitchCount && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
+                          </p>
+                        </div>
+                      )}
+                      {violationCombinedRule && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
