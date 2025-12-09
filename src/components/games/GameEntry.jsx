@@ -9,6 +9,7 @@ export default function GameEntry() {
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
+  const [gameViolations, setGameViolations] = useState({}) // Track which games have violations
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
@@ -81,9 +82,125 @@ export default function GameEntry() {
 
       if (error) throw error
       setGames(data)
+
+      // Check violations for all games
+      checkGameViolations(data)
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  const checkGameViolations = async (gamesToCheck) => {
+    if (gamesToCheck.length === 0) {
+      setGameViolations({})
+      return
+    }
+
+    try {
+      const gameIds = gamesToCheck.map(g => g.id)
+
+      // Fetch all positions and pitching data for all games in bulk (much faster!)
+      const [positionsRes, pitchingRes] = await Promise.all([
+        supabase.from('positions_played').select('*').in('game_id', gameIds),
+        supabase.from('pitching_logs').select('*').in('game_id', gameIds)
+      ])
+
+      if (positionsRes.error || pitchingRes.error) {
+        setGameViolations({})
+        return
+      }
+
+      const allPositions = positionsRes.data
+      const allPitchingLogs = pitchingRes.data
+
+      // Group data by game and player
+      const violations = {}
+
+      for (const gameId of gameIds) {
+        violations[gameId] = checkGameHasViolations(
+          gameId,
+          allPositions.filter(p => p.game_id === gameId),
+          allPitchingLogs.filter(p => p.game_id === gameId)
+        )
+      }
+
+      setGameViolations(violations)
+    } catch (err) {
+      setGameViolations({})
+    }
+  }
+
+  const checkGameHasViolations = (gameId, positions, pitchingLogs) => {
+    // Group by player
+    const playerData = {}
+
+    positions.forEach(pos => {
+      if (!playerData[pos.player_id]) {
+        playerData[pos.player_id] = { pitched: [], caught: [], pitching: null }
+      }
+      if (pos.position === 'pitcher') {
+        playerData[pos.player_id].pitched.push(pos.inning_number)
+      } else if (pos.position === 'catcher') {
+        playerData[pos.player_id].caught.push(pos.inning_number)
+      }
+    })
+
+    pitchingLogs.forEach(log => {
+      if (playerData[log.player_id]) {
+        playerData[log.player_id].pitching = log
+      }
+    })
+
+    // Check each player for violations
+    for (const player of Object.values(playerData)) {
+      const pitchedInnings = player.pitched.sort((a, b) => a - b)
+      const caughtInnings = player.caught.sort((a, b) => a - b)
+      const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
+
+      // Check Rule 1: Consecutive innings
+      if (hasInningsGap(pitchedInnings)) return true
+
+      // Check Rule 2: 41+ pitches -> cannot catch after
+      if (cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)) return true
+
+      // Check Rule 3: 4 innings catching -> cannot pitch after
+      if (cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)) return true
+
+      // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
+      if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
+    }
+
+    return false
+  }
+
+  // Validation helper functions
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+    for (let i = 0; i < innings.length - 1; i++) {
+      if (innings[i + 1] - innings[i] !== 1) return true
+    }
+    return false
+  }
+
+  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) return false
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    return caughtInnings.some(inning => inning > maxPitchingInning)
+  }
+
+  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
+    if (caughtInnings.length < 4 || pitchedInnings.length === 0) return false
+    const fourthCatchingInning = [...caughtInnings].sort((a, b) => a - b)[3]
+    return pitchedInnings.some(inning => inning > fourthCatchingInning)
+  }
+
+  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) return false
+    const minPitchingInning = Math.min(...pitchedInnings)
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
+    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
+    return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
   const handleDeleteGame = async () => {
@@ -217,10 +334,17 @@ export default function GameEntry() {
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-600">
+                        {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
+                      </p>
+                      {gameViolations[game.id] && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                          ⚠️ Rule Violation
+                        </span>
+                      )}
+                    </div>
                     <p className="font-semibold text-lg">
                       {game.away_team.name} at {game.home_team.name}
                     </p>
