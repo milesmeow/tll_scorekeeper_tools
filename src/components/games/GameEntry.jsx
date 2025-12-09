@@ -768,13 +768,45 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     const players = isHome ? [...homePlayers] : [...awayPlayers]
     const player = players[playerIndex]
     const arrayKey = type === 'pitch' ? 'innings_pitched' : 'innings_caught'
-    
-    if (player[arrayKey].includes(inningNum)) {
-      player[arrayKey] = player[arrayKey].filter(i => i !== inningNum)
-    } else {
-      player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
+
+    const currentInnings = [...player[arrayKey]]
+    const isAdding = !currentInnings.includes(inningNum)
+
+    // Validation for pitching: no gaps allowed (pitchers can't return after being taken out)
+    if (type === 'pitch') {
+      if (isAdding) {
+        // Adding an inning
+        const newInnings = [...currentInnings, inningNum].sort((a, b) => a - b)
+
+        // Check for gaps in the sequence
+        if (newInnings.length > 1) {
+          for (let i = 0; i < newInnings.length - 1; i++) {
+            if (newInnings[i + 1] - newInnings[i] !== 1) {
+              // There's a gap - not allowed
+              setModalError(`A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6). You cannot pitch inning ${inningNum} with gaps in between.`)
+              setTimeout(() => setModalError(null), 5000)
+              return
+            }
+          }
+        }
+      } else {
+        // Removing an inning - only allow removing from the end
+        const maxInning = Math.max(...currentInnings)
+        if (inningNum !== maxInning) {
+          setModalError(`You can only remove the last inning pitched. To remove inning ${inningNum}, first remove all innings after it.`)
+          setTimeout(() => setModalError(null), 5000)
+          return
+        }
+      }
     }
-    
+
+    // If validation passed, toggle the inning
+    if (currentInnings.includes(inningNum)) {
+      player[arrayKey] = currentInnings.filter(i => i !== inningNum)
+    } else {
+      player[arrayKey] = [...currentInnings, inningNum].sort((a, b) => a - b)
+    }
+
     if (isHome) {
       setHomePlayers(players)
     } else {
