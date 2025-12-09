@@ -483,19 +483,19 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         throw new Error('Home and away teams must be different')
       }
 
-      const gameData = {
-        season_id: seasonId,
-        game_date: formData.game_date,
-        scorekeeper_name: formData.scorekeeper_name,
-        scorekeeper_team_id: formData.scorekeeper_team_id,
-        home_team_id: formData.home_team_id,
-        away_team_id: formData.away_team_id,
-        home_score: parseInt(formData.home_score),
-        away_score: parseInt(formData.away_score)
-      }
-
       if (isEditMode) {
-        // Update existing game
+        // For edit mode: Update game immediately
+        const gameData = {
+          season_id: seasonId,
+          game_date: formData.game_date,
+          scorekeeper_name: formData.scorekeeper_name,
+          scorekeeper_team_id: formData.scorekeeper_team_id,
+          home_team_id: formData.home_team_id,
+          away_team_id: formData.away_team_id,
+          home_score: parseInt(formData.home_score),
+          away_score: parseInt(formData.away_score)
+        }
+
         const { error } = await supabase
           .from('games')
           .update(gameData)
@@ -513,18 +513,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           await fetchPlayers(formData.home_team_id, formData.away_team_id)
         }
       } else {
-        // Create new game
-        const { data, error } = await supabase
-          .from('games')
-          .insert([gameData])
-          .select()
-          .single()
-
-        if (error) throw error
-
-        setGameId(data.id)
-
-        // Fetch players for both teams
+        // For new game: Don't save to database yet, just fetch players
+        // Game will be created in Step 2 along with player data
         await fetchPlayers(formData.home_team_id, formData.away_team_id)
       }
 
@@ -589,9 +579,33 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     try {
       const allPlayers = [...homePlayers, ...awayPlayers]
+      let finalGameId = gameId
 
-      // If editing, delete existing player data first
-      if (isEditMode) {
+      // If creating new game, insert game record now (along with player data)
+      if (!isEditMode) {
+        const gameData = {
+          season_id: seasonId,
+          game_date: formData.game_date,
+          scorekeeper_name: formData.scorekeeper_name,
+          scorekeeper_team_id: formData.scorekeeper_team_id,
+          home_team_id: formData.home_team_id,
+          away_team_id: formData.away_team_id,
+          home_score: parseInt(formData.home_score),
+          away_score: parseInt(formData.away_score)
+        }
+
+        const { data, error } = await supabase
+          .from('games')
+          .insert([gameData])
+          .select()
+          .single()
+
+        if (error) throw error
+
+        finalGameId = data.id
+        setGameId(finalGameId)
+      } else {
+        // If editing, delete existing player data first
         await supabase.from('game_players').delete().eq('game_id', gameId)
         await supabase.from('pitching_logs').delete().eq('game_id', gameId)
         await supabase.from('positions_played').delete().eq('game_id', gameId)
@@ -599,7 +613,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       // Insert game_players (attendance)
       const attendanceData = allPlayers.map(p => ({
-        game_id: gameId,
+        game_id: finalGameId,
         player_id: p.id,
         was_present: p.was_present,
         absence_note: p.was_present ? null : p.absence_note
@@ -615,7 +629,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       const pitchingData = allPlayers
         .filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
         .map(p => ({
-          game_id: gameId,
+          game_id: finalGameId,
           player_id: p.id,
           final_pitch_count: parseInt(p.final_pitch_count),
           penultimate_batter_count: parseInt(p.penultimate_pitch_count || 0)
@@ -631,22 +645,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       // Insert positions played (pitching and catching)
       const positionsData = []
-      
+
       allPlayers.forEach(p => {
         // Add pitching positions
         p.innings_pitched.forEach(inning => {
           positionsData.push({
-            game_id: gameId,
+            game_id: finalGameId,
             player_id: p.id,
             inning_number: inning,
             position: 'pitcher'
           })
         })
-        
+
         // Add catching positions
         p.innings_caught.forEach(inning => {
           positionsData.push({
-            game_id: gameId,
+            game_id: finalGameId,
             player_id: p.id,
             inning_number: inning,
             position: 'catcher'
