@@ -504,8 +504,74 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           }
           // If teams unchanged, keep player data as-is
         } else {
-          // Different teams - need to fetch new player data
-          await fetchPlayers(formData.home_team_id, formData.away_team_id)
+          // Teams changed - need to handle intelligently
+          // Figure out which team is new and which to keep
+          const homeTeamKept = (newHomeId === oldHomeId || newHomeId === oldAwayId)
+          const awayTeamKept = (newAwayId === oldHomeId || newAwayId === oldAwayId)
+
+          let newHomePlayers = []
+          let newAwayPlayers = []
+
+          if (homeTeamKept) {
+            // Home team is from the original game - keep its data
+            if (newHomeId === oldHomeId) {
+              newHomePlayers = homePlayers
+            } else {
+              // newHomeId === oldAwayId
+              newHomePlayers = awayPlayers
+            }
+          } else {
+            // Home team is new - fetch players
+            const { data, error } = await supabase
+              .from('players')
+              .select('*')
+              .eq('team_id', newHomeId)
+              .order('name')
+
+            if (error) throw error
+
+            newHomePlayers = data.map(player => ({
+              ...player,
+              was_present: true,
+              absence_note: '',
+              innings_pitched: [],
+              innings_caught: [],
+              penultimate_pitch_count: '',
+              final_pitch_count: ''
+            }))
+          }
+
+          if (awayTeamKept) {
+            // Away team is from the original game - keep its data
+            if (newAwayId === oldAwayId) {
+              newAwayPlayers = awayPlayers
+            } else {
+              // newAwayId === oldHomeId
+              newAwayPlayers = homePlayers
+            }
+          } else {
+            // Away team is new - fetch players
+            const { data, error } = await supabase
+              .from('players')
+              .select('*')
+              .eq('team_id', newAwayId)
+              .order('name')
+
+            if (error) throw error
+
+            newAwayPlayers = data.map(player => ({
+              ...player,
+              was_present: true,
+              absence_note: '',
+              innings_pitched: [],
+              innings_caught: [],
+              penultimate_pitch_count: '',
+              final_pitch_count: ''
+            }))
+          }
+
+          setHomePlayers(newHomePlayers)
+          setAwayPlayers(newAwayPlayers)
         }
       } else {
         // For new game: Don't save to database yet, just fetch players
