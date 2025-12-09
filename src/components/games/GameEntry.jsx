@@ -1127,7 +1127,7 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                     {hasPitchingGap && (
                       <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
                         <p className="text-sm text-red-700">
-                          ⚠️ Invalid: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
+                          ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
                         </p>
                       </div>
                     )}
