@@ -1074,8 +1074,8 @@ function GameDetailModal({ game, onClose }) {
 }
 
 function TeamDetailSection({ teamName, players, isHome }) {
-  // Separate players by attendance
-  const presentPlayers = players.filter(p => p.was_present)
+  // Only show players who pitched, caught, or were absent
+  const pitchersAndCatchers = players.filter(p => p.was_present && p.positions.length > 0)
   const absentPlayers = players.filter(p => !p.was_present)
 
   return (
@@ -1084,12 +1084,12 @@ function TeamDetailSection({ teamName, players, isHome }) {
         {teamName} {isHome ? '(Home)' : '(Away)'}
       </h4>
 
-      {/* Present Players */}
-      {presentPlayers.length > 0 && (
+      {/* Pitchers and Catchers */}
+      {pitchersAndCatchers.length > 0 && (
         <div className="mt-4">
-          <h5 className="font-semibold mb-3 text-green-700">Present ({presentPlayers.length})</h5>
+          <h5 className="font-semibold mb-3 text-blue-700">Pitchers & Catchers</h5>
           <div className="space-y-3">
-            {presentPlayers.map(playerData => {
+            {pitchersAndCatchers.map(playerData => {
               const pitchedInnings = playerData.positions
                 .filter(p => p.position === 'pitcher')
                 .map(p => p.inning_number)
@@ -1198,9 +1198,9 @@ function TeamDetailSection({ teamName, players, isHome }) {
         </div>
       )}
 
-      {players.length === 0 && (
+      {pitchersAndCatchers.length === 0 && absentPlayers.length === 0 && (
         <p className="text-gray-500 text-sm italic text-center py-4">
-          No player data recorded for this team
+          No pitchers, catchers, or absences recorded
         </p>
       )}
     </div>
