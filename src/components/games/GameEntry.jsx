@@ -1295,7 +1295,7 @@ function TeamPlayerDataSection({
                     {violationCombinedRule && (
                       <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
                         <p className="text-sm text-red-700">
-                          ⚠️ Violation: Player caught {player.innings_caught.length} inning{player.innings_caught.length !== 1 ? 's' : ''} and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                          ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
                         </p>
                       </div>
                     )}
