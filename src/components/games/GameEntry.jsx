@@ -14,6 +14,7 @@ export default function GameEntry() {
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
+  const [gameToEdit, setGameToEdit] = useState(null) // For editing game
 
   useEffect(() => {
     fetchSeasons()
@@ -238,6 +239,12 @@ export default function GameEntry() {
                       View Details
                     </button>
                     <button
+                      onClick={() => setGameToEdit(game)}
+                      className="text-green-600 hover:text-green-800 text-sm"
+                    >
+                      Edit
+                    </button>
+                    <button
                       onClick={() => setGameToDelete(game)}
                       className="text-red-600 hover:text-red-800 text-sm"
                     >
@@ -272,6 +279,24 @@ export default function GameEntry() {
         <GameDetailModal
           game={gameToView}
           onClose={() => setGameToView(null)}
+        />
+      )}
+
+      {/* Edit Game Modal */}
+      {gameToEdit && (
+        <GameFormModal
+          seasonId={selectedSeason}
+          teams={teams}
+          gameToEdit={gameToEdit}
+          defaultDivision={gameToEdit.home_team.division}
+          onClose={() => setGameToEdit(null)}
+          onSuccess={() => {
+            setGameToEdit(null)
+            fetchGames()
+            setSuccess('Game updated successfully!')
+            setTimeout(() => setSuccess(null), 3000)
+          }}
+          onError={(err) => setError(err)}
         />
       )}
 
@@ -341,23 +366,102 @@ export default function GameEntry() {
   )
 }
 
-function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, onError }) {
+function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, onSuccess, onError }) {
+  const isEditMode = !!gameToEdit
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
-  const [gameId, setGameId] = useState(null)
+  const [gameId, setGameId] = useState(gameToEdit?.id || null)
   const [selectedDivision, setSelectedDivision] = useState(defaultDivision || '')
   const [formData, setFormData] = useState({
-    game_date: '',
-    scorekeeper_name: '',
-    scorekeeper_team_id: '',
-    home_team_id: '',
-    away_team_id: '',
-    home_score: '',
-    away_score: ''
+    game_date: gameToEdit?.game_date || '',
+    scorekeeper_name: gameToEdit?.scorekeeper_name || '',
+    scorekeeper_team_id: gameToEdit?.scorekeeper_team_id || '',
+    home_team_id: gameToEdit?.home_team_id || '',
+    away_team_id: gameToEdit?.away_team_id || '',
+    home_score: gameToEdit?.home_score?.toString() || '',
+    away_score: gameToEdit?.away_score?.toString() || ''
   })
   const [homePlayers, setHomePlayers] = useState([]) // Player data for home team
   const [awayPlayers, setAwayPlayers] = useState([]) // Player data for away team
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
+
+  // Load existing player data when editing
+  useEffect(() => {
+    if (isEditMode && gameToEdit) {
+      loadExistingGameData()
+    }
+  }, [])
+
+  const loadExistingGameData = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch game_players with player info
+      const { data: gamePlayers, error: playersError } = await supabase
+        .from('game_players')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', gameToEdit.id)
+
+      if (playersError) throw playersError
+
+      // Fetch pitching_logs
+      const { data: pitchingLogs, error: pitchingError } = await supabase
+        .from('pitching_logs')
+        .select('*')
+        .eq('game_id', gameToEdit.id)
+
+      if (pitchingError) throw pitchingError
+
+      // Fetch positions_played
+      const { data: positionsPlayed, error: positionsError } = await supabase
+        .from('positions_played')
+        .select('*')
+        .eq('game_id', gameToEdit.id)
+
+      if (positionsError) throw positionsError
+
+      // Organize player data by team
+      const homePlayerData = []
+      const awayPlayerData = []
+
+      gamePlayers.forEach(gp => {
+        const playerPitching = pitchingLogs.find(pl => pl.player_id === gp.player_id)
+        const playerPositions = positionsPlayed.filter(pp => pp.player_id === gp.player_id)
+
+        const playerData = {
+          ...gp.player,
+          was_present: gp.was_present,
+          absence_note: gp.absence_note || '',
+          innings_pitched: playerPositions
+            .filter(p => p.position === 'pitcher')
+            .map(p => p.inning_number)
+            .sort((a, b) => a - b),
+          innings_caught: playerPositions
+            .filter(p => p.position === 'catcher')
+            .map(p => p.inning_number)
+            .sort((a, b) => a - b),
+          penultimate_pitch_count: playerPitching?.penultimate_batter_count?.toString() || '',
+          final_pitch_count: playerPitching?.final_pitch_count?.toString() || ''
+        }
+
+        if (gp.player.team_id === gameToEdit.home_team_id) {
+          homePlayerData.push(playerData)
+        } else {
+          awayPlayerData.push(playerData)
+        }
+      })
+
+      setHomePlayers(homePlayerData)
+      setAwayPlayers(awayPlayerData)
+    } catch (err) {
+      setModalError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter teams by selected division
   const filteredTeams = selectedDivision
@@ -390,19 +494,40 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
         away_score: parseInt(formData.away_score)
       }
 
-      const { data, error } = await supabase
-        .from('games')
-        .insert([gameData])
-        .select()
-        .single()
+      if (isEditMode) {
+        // Update existing game
+        const { error } = await supabase
+          .from('games')
+          .update(gameData)
+          .eq('id', gameId)
 
-      if (error) throw error
+        if (error) throw error
 
-      setGameId(data.id)
-      
-      // Fetch players for both teams
-      await fetchPlayers(formData.home_team_id, formData.away_team_id)
-      
+        // Check if teams changed - if so, need to reload player data
+        if (formData.home_team_id !== gameToEdit.home_team_id ||
+            formData.away_team_id !== gameToEdit.away_team_id) {
+          // Teams changed - delete old player data and fetch new players
+          await supabase.from('game_players').delete().eq('game_id', gameId)
+          await supabase.from('pitching_logs').delete().eq('game_id', gameId)
+          await supabase.from('positions_played').delete().eq('game_id', gameId)
+          await fetchPlayers(formData.home_team_id, formData.away_team_id)
+        }
+      } else {
+        // Create new game
+        const { data, error } = await supabase
+          .from('games')
+          .insert([gameData])
+          .select()
+          .single()
+
+        if (error) throw error
+
+        setGameId(data.id)
+
+        // Fetch players for both teams
+        await fetchPlayers(formData.home_team_id, formData.away_team_id)
+      }
+
       setStep(2)
     } catch (err) {
       setModalError(err.message)
@@ -464,6 +589,13 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
 
     try {
       const allPlayers = [...homePlayers, ...awayPlayers]
+
+      // If editing, delete existing player data first
+      if (isEditMode) {
+        await supabase.from('game_players').delete().eq('game_id', gameId)
+        await supabase.from('pitching_logs').delete().eq('game_id', gameId)
+        await supabase.from('positions_played').delete().eq('game_id', gameId)
+      }
 
       // Insert game_players (attendance)
       const attendanceData = allPlayers.map(p => ({
@@ -571,7 +703,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
         <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8">
-          <h3 className="text-xl font-bold mb-4">Enter New Game - Step 1: Basic Info</h3>
+          <h3 className="text-xl font-bold mb-4">
+            {isEditMode ? 'Edit Game - Step 1: Basic Info' : 'Enter New Game - Step 1: Basic Info'}
+          </h3>
 
           {modalError && (
             <div className="alert alert-error mb-4">
@@ -754,7 +888,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
       <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-bold mb-4">Enter New Game - Step 2: Player Data</h3>
+        <h3 className="text-xl font-bold mb-4">
+          {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
+        </h3>
 
         {modalError && (
           <div className="alert alert-error mb-4">
@@ -794,7 +930,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
               className="btn btn-primary flex-1"
               disabled={loading}
             >
-              {loading ? 'Saving Game Data...' : 'Complete & Save Game'}
+              {loading ? 'Saving Game Data...' : (isEditMode ? 'Update Game' : 'Complete & Save Game')}
             </button>
           </div>
         </form>
