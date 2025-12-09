@@ -47,22 +47,39 @@ const hasInningsGap = (innings) => {
 ---
 
 ### 2. High Pitch Count Catching Restriction
-**Status**: ⏳ **Planned** (Phase 4)
+**Status**: ✅ **Implemented** (validation warnings shown)
 
-**Rule**: If a player throws 41+ pitches in a game, they cannot catch for the remainder of that day.
+**Rule**: If a player throws 41+ pitches in a game, they cannot catch AFTER pitching.
+
+**Key Point**: The violation occurs when a player catches AFTER pitching 41+. The sequence matters - catching innings must occur AFTER pitching innings.
 
 **Rationale**: Protects arm health by preventing excessive throwing stress in a single day.
 
-**Example**:
-- Player pitches 45 total pitches in innings 1-3
-- ❌ Player cannot catch in innings 4, 5, 6, or 7
-- ✅ Player can play other positions (1B, 2B, 3B, SS, OF)
+**Example 1 - VIOLATION**:
+- Player pitches innings 1, 2, 3 with 45 pitches (penultimate = 44, so 44+1 = 45)
+- Player tries to catch innings 4, 5, 6, or 7
+- ❌ **VIOLATION**: Pitched 41+ then caught
 
-**Implementation Notes**:
-- Check total pitches thrown by player in current game
-- If >= 41 pitches, block catching checkbox selection
-- Display warning: "Cannot catch: Player threw 41+ pitches this game"
-- Alternative: Allow selection but show violation warning
+**Example 2 - NO VIOLATION**:
+- Player catches innings 1, 2
+- Player pitches innings 3, 4 with 45 pitches
+- ✅ **OK**: Catching occurred BEFORE pitching, not after
+
+**Implementation Details**:
+- Location: `src/components/games/GameEntry.jsx` (lines ~807-827)
+- Uses penultimate batter count + 1 for pitch threshold (41+)
+- Checks if catching innings occur AFTER the last pitching inning (by inning number)
+- Display warning: "⚠️ Violation: Player threw [X] pitches (41+) and cannot catch for the remainder of this game."
+- Validation is non-blocking - checkboxes remain clickable
+
+**Technical Logic**:
+```javascript
+// Only violates if:
+// 1. Pitched 41+ (using penultimate + 1)
+// 2. Has catching innings after pitching innings
+const maxPitchingInning = Math.max(...player.innings_pitched)
+const hasCaughtAfterPitching = player.innings_caught.some(inning => inning > maxPitchingInning)
+```
 
 ---
 

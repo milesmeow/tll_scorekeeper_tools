@@ -804,11 +804,26 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     return parseInt(player.penultimate_batter_count) + 1
   }
 
-  // Helper function to check Rule 2: 41+ pitches -> cannot catch
-  // Only show violation if player has 41+ pitches AND is actually catching
+  // Helper function to check Rule 2: 41+ pitches -> cannot catch AFTER pitching
+  // Only show violation if player pitched 41+ AND catches AFTER pitching
   const cannotCatchDueToHighPitchCount = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
-    return player.innings_pitched.length > 0 && effectivePitches >= 41 && player.innings_caught.length > 0
+
+    // Must have pitched 41+ and have catching innings
+    if (effectivePitches < 41 || player.innings_caught.length === 0) {
+      return false
+    }
+
+    // Must have pitched to violate this rule
+    if (player.innings_pitched.length === 0) {
+      return false
+    }
+
+    // Check if there are catching innings that occur AFTER pitching innings
+    const maxPitchingInning = Math.max(...player.innings_pitched)
+    const hasCaughtAfterPitching = player.innings_caught.some(inning => inning > maxPitchingInning)
+
+    return hasCaughtAfterPitching
   }
 
   // Helper function to check Rule 3: 4+ innings catching -> cannot pitch
