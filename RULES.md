@@ -86,35 +86,54 @@ const hasInningsGap = (innings) => {
 
 ---
 
-### 4. Combined Catching and Pitching Restriction
-**Status**: ⏳ **Planned** (Phase 4)
+### 4. Combined Catching and Pitching Restriction (Cannot RETURN to Catch)
+**Status**: ✅ **Implemented** (validation warnings shown)
 
-**Rule**: If a player catches 1, 2, or 3 innings AND then throws 21+ pitches, they cannot catch again in that game.
+**Rule**: "A player who played the position of catcher for three (3) innings or less, moves to the pitcher position, and delivers 21 pitches or more in the same day, may not RETURN to the catcher position on that calendar day."
+
+**Key Point**: The violation occurs when a player RETURNS to catching after pitching. The sequence matters - they must have catching innings that occur AFTER pitching innings.
 
 **Rationale**: Limits cumulative throwing stress from both catching and pitching.
 
-**Example Scenario 1**:
+**Example Scenario 1 - VIOLATION**:
 - Player catches innings 1, 2 (2 innings)
-- Player pitches inning 3 with 25 pitches
-- ❌ Player cannot catch innings 4, 5, 6, or 7
-- ✅ Player can continue pitching (if consecutive) or play other positions
+- Player pitches innings 3, 4 with 25 pitches (penultimate = 24, so 24+1 = 25)
+- Player tries to catch inning 5
+- ❌ **VIOLATION**: Player returned to catch after pitching 21+
 
-**Example Scenario 2**:
+**Example Scenario 2 - NO VIOLATION (under 21 pitches)**:
 - Player catches inning 1 (1 inning)
 - Player pitches innings 2, 3 with 15 pitches total
-- ✅ Player can catch again (under 21 pitches)
+- Player catches inning 4
+- ✅ **OK**: Under 21 pitches, can return to catch
 
-**Example Scenario 3**:
+**Example Scenario 3 - VIOLATION**:
 - Player catches innings 1, 2, 3 (3 innings)
 - Player pitches innings 4, 5 with 30 pitches total
-- ❌ Player cannot catch again (3 innings + 21+ pitches)
+- Player tries to catch inning 6
+- ❌ **VIOLATION**: Caught 3 innings, pitched 21+, returned to catch
 
-**Implementation Notes**:
-- Track both innings caught AND total pitches thrown
-- Check if: `(innings_caught >= 1 AND innings_caught <= 3) AND (total_pitches >= 21)`
-- If true, disable catching checkboxes for remaining innings
-- Display warning: "Cannot catch again: Player caught [X] innings and threw 21+ pitches"
-- This is a dynamic rule - must recalculate after any pitch count or position change
+**Example Scenario 4 - NO VIOLATION (not returning)**:
+- Player pitches innings 1, 2 with 30 pitches
+- Player catches innings 3, 4, 5 (3 innings)
+- ✅ **OK**: Not "returning" to catch, just catching after pitching
+
+**Implementation Details**:
+- Location: `src/components/games/GameEntry.jsx` (lines ~820-844)
+- Uses penultimate batter count + 1 for pitch threshold
+- Checks if catching innings occur AFTER the last pitching inning (by inning number)
+- Display warning: "⚠️ Violation: Player caught [X] inning(s) and threw [Y] pitches (21+). Cannot catch again in this game."
+- Validation is non-blocking - checkboxes remain clickable
+
+**Technical Logic**:
+```javascript
+// Only violates if:
+// 1. Caught 1-3 innings total
+// 2. Pitched 21+ (using penultimate + 1)
+// 3. Has catching innings after pitching innings
+const maxPitchingInning = Math.max(...pitchedInnings)
+const hasReturnedToCatch = player.innings_caught.some(inning => inning > maxPitchingInning)
+```
 
 ---
 
