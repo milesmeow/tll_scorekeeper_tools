@@ -132,15 +132,20 @@ const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning 
 
 **Rule**: "A player who played the position of catcher for three (3) innings or less, moves to the pitcher position, and delivers 21 pitches or more in the same day, may not RETURN to the catcher position on that calendar day."
 
-**Key Point**: The violation occurs when a player RETURNS to catching after pitching. The sequence matters - they must have catching innings that occur AFTER pitching innings.
+**Key Point**: The violation requires THREE phases in sequence:
+1. **Catch** 1-3 innings (BEFORE pitching)
+2. **THEN Pitch** 21+ pitches
+3. **THEN Return to Catch** (AFTER pitching)
+
+All three must occur for a violation. Just catching after pitching is not enough - they must have also caught BEFORE pitching.
 
 **Rationale**: Limits cumulative throwing stress from both catching and pitching.
 
 **Example Scenario 1 - VIOLATION**:
-- Player catches innings 1, 2 (2 innings)
+- Player catches innings 1, 2 (2 innings) ← Caught BEFORE
 - Player pitches innings 3, 4 with 25 pitches (penultimate = 24, so 24+1 = 25)
-- Player tries to catch inning 5
-- ❌ **VIOLATION**: Player returned to catch after pitching 21+
+- Player catches inning 5 ← Returned to catch AFTER
+- ❌ **VIOLATION**: Caught before, pitched 21+, returned to catch
 
 **Example Scenario 2 - NO VIOLATION (under 21 pitches)**:
 - Player catches inning 1 (1 inning)
@@ -149,31 +154,40 @@ const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning 
 - ✅ **OK**: Under 21 pitches, can return to catch
 
 **Example Scenario 3 - VIOLATION**:
-- Player catches innings 1, 2, 3 (3 innings)
+- Player catches innings 1, 2, 3 (3 innings) ← Caught BEFORE
 - Player pitches innings 4, 5 with 30 pitches total
-- Player tries to catch inning 6
-- ❌ **VIOLATION**: Caught 3 innings, pitched 21+, returned to catch
+- Player catches inning 6 ← Returned to catch AFTER
+- ❌ **VIOLATION**: Caught 3 innings before, pitched 21+, returned to catch
 
-**Example Scenario 4 - NO VIOLATION (not returning)**:
+**Example Scenario 4 - NO VIOLATION (didn't catch before pitching)**:
 - Player pitches innings 1, 2 with 30 pitches
-- Player catches innings 3, 4, 5 (3 innings)
-- ✅ **OK**: Not "returning" to catch, just catching after pitching
+- Player catches innings 3, 4, 5 (3 innings) ← Only caught AFTER, never before
+- ✅ **OK**: Not "returning" to catch because they never caught before pitching
+
+**Example Scenario 5 - NO VIOLATION (didn't return after pitching)**:
+- Player catches innings 1, 2, 3 (3 innings) ← Caught BEFORE
+- Player pitches innings 4, 5 with 30 pitches
+- ✅ **OK**: Caught before and pitched, but didn't return to catch after
 
 **Implementation Details**:
-- Location: `src/components/games/GameEntry.jsx` (lines ~820-844)
+- Location: `src/components/games/GameEntry.jsx` (lines ~847-877)
 - Uses penultimate batter count + 1 for pitch threshold
-- Checks if catching innings occur AFTER the last pitching inning (by inning number)
-- Display warning: "⚠️ Violation: Player caught [X] inning(s) and threw [Y] pitches (21+). Cannot catch again in this game."
+- Checks for catching BEFORE pitching AND catching AFTER pitching
+- Display warning: "⚠️ Violation: Player caught 1-3 innings and threw [X] pitches (21+). Cannot catch again in this game."
 - Validation is non-blocking - checkboxes remain clickable
 
 **Technical Logic**:
 ```javascript
-// Only violates if:
+// Only violates if ALL conditions are met:
 // 1. Caught 1-3 innings total
 // 2. Pitched 21+ (using penultimate + 1)
-// 3. Has catching innings after pitching innings
+// 3. Has catching innings BEFORE pitching started
+// 4. Has catching innings AFTER pitching ended
+const minPitchingInning = Math.min(...pitchedInnings)
 const maxPitchingInning = Math.max(...pitchedInnings)
+const hasCaughtBeforePitching = player.innings_caught.some(inning => inning < minPitchingInning)
 const hasReturnedToCatch = player.innings_caught.some(inning => inning > maxPitchingInning)
+return hasCaughtBeforePitching && hasReturnedToCatch
 ```
 
 ---

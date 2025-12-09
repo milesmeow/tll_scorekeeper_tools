@@ -847,6 +847,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   // Helper function to check Rule 4: Catcher ≤3 innings + 21+ pitches -> cannot RETURN to catch
   // "A player who played catcher for three innings or less, moves to pitcher position,
   // and delivers 21 pitches or more, may not RETURN to the catcher position"
+  // Must have: Catch (1-3) THEN Pitch (21+) THEN Return to Catch
   const cannotCatchAgainDueToCombined = (player) => {
     const caughtInnings = player.innings_caught.length
     const pitchedInnings = player.innings_pitched
@@ -862,12 +863,17 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       return false
     }
 
-    // Check if there are catching innings that occur AFTER pitching innings
-    // This means they "returned" to catch after pitching
+    const minPitchingInning = Math.min(...pitchedInnings)
     const maxPitchingInning = Math.max(...pitchedInnings)
+
+    // Check if there are catching innings BEFORE pitching started
+    const hasCaughtBeforePitching = player.innings_caught.some(inning => inning < minPitchingInning)
+
+    // Check if there are catching innings AFTER pitching ended
     const hasReturnedToCatch = player.innings_caught.some(inning => inning > maxPitchingInning)
 
-    return hasReturnedToCatch
+    // Violation only if they caught BEFORE pitching AND AFTER pitching (the "return")
+    return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
   const updatePlayerField = (playerIndex, isHome, field, value) => {
