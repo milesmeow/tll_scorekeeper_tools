@@ -651,6 +651,21 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     try {
       const allPlayers = [...homePlayers, ...awayPlayers]
+
+      // Validate pitch counts before saving
+      for (const player of allPlayers) {
+        if (player.innings_pitched.length > 0 && player.final_pitch_count) {
+          const penultimate = parseInt(player.penultimate_batter_count || 0)
+          const final = parseInt(player.final_pitch_count)
+
+          if (penultimate > final) {
+            throw new Error(
+              `Invalid pitch counts for ${player.name}: Pitch count before last batter (${penultimate}) cannot be greater than final pitch count (${final}).`
+            )
+          }
+        }
+      }
+
       let finalGameId = gameId
 
       const gameData = {
