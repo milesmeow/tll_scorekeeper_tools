@@ -22,16 +22,17 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 #### Phase 3: Game Entry (In Progress)
 - **Basic Game Entry** - Date, teams, scores, scorekeeper info
 - **Player Data Entry** - Attendance, innings pitched/caught, pitch counts
-- ⏳ **Game Viewing/Editing** - Still to be built
-- ⏳ **Rules Validation** - Still to be built
+- ✅ **Game Viewing/Editing** - Game detail modal + full edit capability
+- ⏳ **Rules Validation** - Consecutive pitching implemented, others planned (see RULES.md)
 
 ### 🚧 Upcoming Features
 
 #### Phase 4: Rules Engine (Planned)
 - Automatic Pitch Smart compliance checking
 - Rest day calculations based on pitch counts and age
-- Violation warnings (e.g., 4 innings catching → can't pitch)
+- Violation warnings (e.g., 4 innings catching → can't pitch, 41+ pitches → can't catch)
 - Rule flags on game entry
+- **See RULES.md for complete rule documentation**
 
 #### Phase 5: Reporting (Planned)
 - PDF exports of season data
@@ -259,8 +260,9 @@ Changes are provided as:
 ## Support & Documentation
 
 - **Setup Issues**: See QUICKSTART.md
-- **Architecture**: See ARCHITECTURE.md  
+- **Architecture**: See ARCHITECTURE.md
 - **Summary**: See PROJECT_SUMMARY.md
+- **Game Rules**: See RULES.md (pitching/catching restrictions, Pitch Smart guidelines)
 - **Database**: See database/schema.sql with comments
 
 ## License
