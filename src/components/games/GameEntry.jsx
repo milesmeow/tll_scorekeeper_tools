@@ -805,21 +805,24 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   }
 
   // Helper function to check Rule 2: 41+ pitches -> cannot catch
+  // Only show violation if player has 41+ pitches AND is actually catching
   const cannotCatchDueToHighPitchCount = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
-    return player.innings_pitched.length > 0 && effectivePitches >= 41
+    return player.innings_pitched.length > 0 && effectivePitches >= 41 && player.innings_caught.length > 0
   }
 
   // Helper function to check Rule 3: 4+ innings catching -> cannot pitch
+  // Only show violation if player caught 4+ innings AND is actually pitching
   const cannotPitchDueToFourInningsCatching = (player) => {
-    return player.innings_caught.length >= 4
+    return player.innings_caught.length >= 4 && player.innings_pitched.length > 0
   }
 
   // Helper function to check Rule 4: 1-3 innings catching + 21+ pitches -> cannot catch again
+  // Only show violation if player has the conditions AND is actually catching
   const cannotCatchAgainDueToCombined = (player) => {
     const caughtInnings = player.innings_caught.length
     const effectivePitches = getEffectivePitchCount(player)
-    return caughtInnings >= 1 && caughtInnings <= 3 && effectivePitches >= 21
+    return caughtInnings >= 1 && caughtInnings <= 3 && effectivePitches >= 21 && player.innings_caught.length > 0
   }
 
   const updatePlayerField = (playerIndex, isHome, field, value) => {
