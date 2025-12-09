@@ -84,22 +84,46 @@ const hasCaughtAfterPitching = player.innings_caught.some(inning => inning > max
 ---
 
 ### 3. Four Inning Catching Restriction
-**Status**: ⏳ **Planned** (Phase 4)
+**Status**: ✅ **Implemented** (validation warnings shown)
 
-**Rule**: If a player catches 4 innings in a game, they cannot pitch in that game.
+**Rule**: If a player catches 4 innings in a game, they cannot pitch AFTER catching 4 innings.
+
+**Key Point**: The violation occurs when a player pitches AFTER catching 4 innings. Once they reach 4 caught innings, they cannot pitch any innings after that point.
 
 **Rationale**: Prevents excessive throwing stress by limiting combined catching and pitching.
 
-**Example**:
-- Player catches innings 1, 2, 3, 4
-- ❌ Player cannot pitch in any inning
-- ✅ Player can continue catching or play other positions
+**Example 1 - VIOLATION**:
+- Player catches innings 1, 2, 3, 4 (reached 4 catches at inning 4)
+- Player tries to pitch inning 5 or later
+- ❌ **VIOLATION**: Pitched after catching 4 innings
 
-**Implementation Notes**:
-- Count total innings caught by player
-- If >= 4 innings, block pitching checkbox selection
-- Display warning: "Cannot pitch: Player caught 4+ innings this game"
-- Must check both before allowing pitch selection AND after catching selection changes
+**Example 2 - NO VIOLATION**:
+- Player pitches innings 1, 2
+- Player catches innings 3, 4, 5, 6 (4 innings)
+- ✅ **OK**: Pitching occurred BEFORE catching 4 innings
+
+**Example 3 - NO VIOLATION (partial)**:
+- Player catches innings 1, 2
+- Player pitches inning 3
+- Player catches innings 4, 5 (now has 4 total catches, reached at inning 5)
+- ✅ **OK**: Pitching at inning 3 was before reaching 4 catches (which happened at inning 5)
+
+**Implementation Details**:
+- Location: `src/components/games/GameEntry.jsx` (lines ~829-845)
+- Finds the 4th catching inning chronologically (when they reached the 4-inning limit)
+- Checks if any pitching innings occur after that point
+- Display warning: "⚠️ Violation: Player caught [X] innings and cannot pitch in this game."
+- Validation is non-blocking - checkboxes remain clickable
+
+**Technical Logic**:
+```javascript
+// Only violates if:
+// 1. Caught 4+ innings
+// 2. Has pitching innings that occur after the 4th catching inning
+const sortedCatchingInnings = [...player.innings_caught].sort((a, b) => a - b)
+const fourthCatchingInning = sortedCatchingInnings[3] // When they reached 4 catches
+const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning > fourthCatchingInning)
+```
 
 ---
 

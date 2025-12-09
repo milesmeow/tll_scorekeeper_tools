@@ -826,10 +826,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     return hasCaughtAfterPitching
   }
 
-  // Helper function to check Rule 3: 4+ innings catching -> cannot pitch
-  // Only show violation if player caught 4+ innings AND is actually pitching
+  // Helper function to check Rule 3: 4+ innings catching -> cannot pitch AFTER catching
+  // Only show violation if player caught 4+ innings AND pitches AFTER catching 4
   const cannotPitchDueToFourInningsCatching = (player) => {
-    return player.innings_caught.length >= 4 && player.innings_pitched.length > 0
+    // Must have caught 4+ innings and have pitching innings
+    if (player.innings_caught.length < 4 || player.innings_pitched.length === 0) {
+      return false
+    }
+
+    // Find when they reached 4 innings caught (the 4th catching inning chronologically)
+    const sortedCatchingInnings = [...player.innings_caught].sort((a, b) => a - b)
+    const fourthCatchingInning = sortedCatchingInnings[3] // 0-indexed, so [3] is the 4th element
+
+    // Check if any pitching innings occur after they reached 4 catches
+    const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning > fourthCatchingInning)
+
+    return hasPitchedAfterFourCatches
   }
 
   // Helper function to check Rule 4: Catcher ≤3 innings + 21+ pitches -> cannot RETURN to catch
