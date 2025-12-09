@@ -769,42 +769,11 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     const player = players[playerIndex]
     const arrayKey = type === 'pitch' ? 'innings_pitched' : 'innings_caught'
 
-    const currentInnings = [...player[arrayKey]]
-    const isAdding = !currentInnings.includes(inningNum)
-
-    // Validation for pitching: no gaps allowed (pitchers can't return after being taken out)
-    if (type === 'pitch') {
-      if (isAdding) {
-        // Adding an inning
-        const newInnings = [...currentInnings, inningNum].sort((a, b) => a - b)
-
-        // Check for gaps in the sequence
-        if (newInnings.length > 1) {
-          for (let i = 0; i < newInnings.length - 1; i++) {
-            if (newInnings[i + 1] - newInnings[i] !== 1) {
-              // There's a gap - not allowed
-              setModalError(`A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6). You cannot pitch inning ${inningNum} with gaps in between.`)
-              setTimeout(() => setModalError(null), 5000)
-              return
-            }
-          }
-        }
-      } else {
-        // Removing an inning - only allow removing from the end
-        const maxInning = Math.max(...currentInnings)
-        if (inningNum !== maxInning) {
-          setModalError(`You can only remove the last inning pitched. To remove inning ${inningNum}, first remove all innings after it.`)
-          setTimeout(() => setModalError(null), 5000)
-          return
-        }
-      }
-    }
-
-    // If validation passed, toggle the inning
-    if (currentInnings.includes(inningNum)) {
-      player[arrayKey] = currentInnings.filter(i => i !== inningNum)
+    // Toggle the inning
+    if (player[arrayKey].includes(inningNum)) {
+      player[arrayKey] = player[arrayKey].filter(i => i !== inningNum)
     } else {
-      player[arrayKey] = [...currentInnings, inningNum].sort((a, b) => a - b)
+      player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
     }
 
     if (isHome) {
@@ -812,6 +781,19 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     } else {
       setAwayPlayers(players)
     }
+  }
+
+  // Helper function to check if innings are consecutive (for validation display)
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+
+    const sorted = [...innings].sort((a, b) => a - b)
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] - sorted[i] !== 1) {
+        return true
+      }
+    }
+    return false
   }
 
   const updatePlayerField = (playerIndex, isHome, field, value) => {
@@ -1038,6 +1020,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={true}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
+            hasInningsGap={hasInningsGap}
           />
 
           {/* Away Team Section */}
@@ -1047,6 +1030,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={false}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
+            hasInningsGap={hasInningsGap}
           />
 
           <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
@@ -1071,7 +1055,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   )
 }
 
-function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdateField }) {
+function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdateField, hasInningsGap }) {
   const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
 
   return (
@@ -1085,7 +1069,10 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
         </p>
       ) : (
         <div className="space-y-4">
-          {players.map((player, index) => (
+          {players.map((player, index) => {
+            const hasPitchingGap = hasInningsGap(player.innings_pitched)
+
+            return (
             <div key={player.id} className="border rounded p-4 bg-gray-50">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -1137,6 +1124,13 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                         </label>
                       ))}
                     </div>
+                    {hasPitchingGap && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Invalid: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Pitch Counts (only if pitched) */}
@@ -1191,7 +1185,8 @@ function TeamPlayerDataSection({ team, players, isHome, onToggleInning, onUpdate
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
