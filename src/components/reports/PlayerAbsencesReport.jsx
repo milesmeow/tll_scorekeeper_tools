@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import GameDetailModal from '../games/GameDetailModal'
 
 export default function PlayerAbsencesReport() {
   const [seasons, setSeasons] = useState([])
@@ -8,6 +9,7 @@ export default function PlayerAbsencesReport() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filterDivision, setFilterDivision] = useState('All')
+  const [gameToView, setGameToView] = useState(null)
 
   useEffect(() => {
     fetchSeasons()
@@ -141,6 +143,28 @@ export default function PlayerAbsencesReport() {
     })
   }
 
+  const handleViewGame = async (gameId) => {
+    try {
+      // Fetch full game details with team information
+      const { data, error } = await supabase
+        .from('games')
+        .select(`
+          *,
+          home_team:teams!games_home_team_id_fkey(name, division),
+          away_team:teams!games_away_team_id_fkey(name, division),
+          scorekeeper_team:teams!games_scorekeeper_team_id_fkey(name)
+        `)
+        .eq('id', gameId)
+        .single()
+
+      if (error) throw error
+
+      setGameToView(data)
+    } catch (err) {
+      setError('Failed to load game details: ' + err.message)
+    }
+  }
+
   const selectedSeasonData = seasons.find(s => s.id === selectedSeason)
 
   return (
@@ -244,10 +268,7 @@ export default function PlayerAbsencesReport() {
                       {player.absences.map((absence, idx) => (
                         <button
                           key={idx}
-                          onClick={() => {
-                            // TODO: Navigate to game detail
-                            alert(`Game ID: ${absence.gameId}\nDate: ${formatDate(absence.gameDate)}\n${absence.awayTeam} @ ${absence.homeTeam}${absence.note ? '\nNote: ' + absence.note : ''}`)
-                          }}
+                          onClick={() => handleViewGame(absence.gameId)}
                           className="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:border-blue-300 border border-gray-300 rounded text-sm transition-colors"
                           title={`${absence.awayTeam} @ ${absence.homeTeam}${absence.note ? '\nNote: ' + absence.note : ''}`}
                         >
@@ -272,6 +293,14 @@ export default function PlayerAbsencesReport() {
           <div className="text-4xl mb-4">📊</div>
           <p className="text-gray-600">Select a season to view player absences</p>
         </div>
+      )}
+
+      {/* Game Detail Modal */}
+      {gameToView && (
+        <GameDetailModal
+          game={gameToView}
+          onClose={() => setGameToView(null)}
+        />
       )}
     </div>
   )
