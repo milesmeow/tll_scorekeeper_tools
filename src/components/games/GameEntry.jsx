@@ -255,7 +255,7 @@ export default function GameEntry() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Game Entry</h2>
+        <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
         <button
           onClick={() => setShowGameForm(true)}
           className="btn btn-primary"

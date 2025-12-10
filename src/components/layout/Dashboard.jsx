@@ -98,7 +98,7 @@ export default function Dashboard({ user, profile }) {
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                👥 Players
+                🧢 Players
               </button>
 
               <button
@@ -109,7 +109,7 @@ export default function Dashboard({ user, profile }) {
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                👨‍🏫 Coaches
+                📋 Coaches
               </button>
 
               <button

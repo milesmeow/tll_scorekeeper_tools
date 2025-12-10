@@ -59,7 +59,7 @@ export default function CoachManagement() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Coach Management</h2>
+        <h2 className="text-2xl font-bold">📋 Coach Management</h2>
         <p className="text-sm text-gray-600">
           To add a new coach, go to User Management and create a user with role "Coach"
         </p>
