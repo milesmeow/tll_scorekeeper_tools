@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import GamesListReport from './GamesListReport'
+import PlayerAbsencesReport from './PlayerAbsencesReport'
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState(null)
@@ -12,6 +13,13 @@ export default function Reports() {
       description: 'View all games with dates, scores, and scorekeeper information',
       icon: '📋',
       component: GamesListReport
+    },
+    {
+      id: 'player-absences',
+      name: 'Player Absences',
+      description: 'View players with absences, total absence count, and dates',
+      icon: '🚫',
+      component: PlayerAbsencesReport
     },
     // Future reports can be added here
     // {
