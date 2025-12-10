@@ -5,6 +5,7 @@ export default function CoachManagement() {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('Major')
 
   useEffect(() => {
     fetchCoaches()
@@ -56,13 +57,35 @@ export default function CoachManagement() {
     return <div className="text-center py-8">Loading coaches...</div>
   }
 
+  // Filter coaches by division
+  const filteredCoaches = selectedDivision === 'All'
+    ? coaches
+    : coaches.filter(coach =>
+        coach.assignments.some(assignment => assignment.teams.division === selectedDivision)
+      )
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Coach Management</h2>
+        <h2 className="text-2xl font-bold">📋 Coach Management</h2>
         <p className="text-sm text-gray-600">
           To add a new coach, go to User Management and create a user with role "Coach"
         </p>
+      </div>
+
+      {/* Division Selector */}
+      <div className="mb-6">
+        <label className="label">Filter by Division</label>
+        <select
+          className="input max-w-md"
+          value={selectedDivision}
+          onChange={(e) => setSelectedDivision(e.target.value)}
+        >
+          <option value="All">All Divisions</option>
+          <option value="Training">Training</option>
+          <option value="Minor">Minor</option>
+          <option value="Major">Major</option>
+        </select>
       </div>
 
       {error && (
@@ -75,9 +98,13 @@ export default function CoachManagement() {
         <div className="card text-center py-12">
           <p className="text-gray-600">No coaches found. Create coach users in User Management.</p>
         </div>
+      ) : filteredCoaches.length === 0 ? (
+        <div className="card text-center py-12">
+          <p className="text-gray-600">No coaches found for {selectedDivision} division.</p>
+        </div>
       ) : (
         <div className="space-y-4">
-          {coaches.map((coach) => (
+          {filteredCoaches.map((coach) => (
             <div key={coach.id} className="card">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

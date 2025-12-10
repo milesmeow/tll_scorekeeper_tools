@@ -138,7 +138,7 @@ export default function PlayerManagement() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Player Management</h2>
+        <h2 className="text-2xl font-bold">🧢 Player Management</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setShowBulkModal(true)}

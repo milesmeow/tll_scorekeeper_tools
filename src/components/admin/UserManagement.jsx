@@ -28,18 +28,31 @@ export default function UserManagement() {
     }
   }
 
-  const handleToggleActive = async (userId, currentStatus) => {
+  const handleToggleActive = async (userId, currentStatus, userRole) => {
     try {
+      // Prevent deactivating the last super admin
+      if (currentStatus && userRole === 'super_admin') {
+        const activeSuperAdmins = users.filter(
+          u => u.role === 'super_admin' && u.is_active
+        )
+
+        if (activeSuperAdmins.length === 1) {
+          setError('Cannot deactivate the last super admin. At least one super admin must remain active.')
+          setTimeout(() => setError(null), 5000)
+          return
+        }
+      }
+
       const { error } = await supabase
         .from('user_profiles')
         .update({ is_active: !currentStatus })
         .eq('id', userId)
 
       if (error) throw error
-      
+
       setSuccess(`User ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
       fetchUsers()
-      
+
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError(err.message)
@@ -50,10 +63,24 @@ export default function UserManagement() {
     return <div className="text-center py-8">Loading users...</div>
   }
 
+  // Check if deactivation should be disabled for a user
+  const isDeactivationDisabled = (user) => {
+    if (!user.is_active) return false // Activation is always allowed
+
+    if (user.role === 'super_admin') {
+      const activeSuperAdmins = users.filter(
+        u => u.role === 'super_admin' && u.is_active
+      )
+      return activeSuperAdmins.length === 1
+    }
+
+    return false
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">User Management</h2>
+        <h2 className="text-2xl font-bold">👥 User Management</h2>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn btn-primary"
@@ -109,8 +136,10 @@ export default function UserManagement() {
                   </td>
                   <td className="py-3 px-4">
                     <button
-                      onClick={() => handleToggleActive(user.id, user.is_active)}
-                      className="text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => handleToggleActive(user.id, user.is_active, user.role)}
+                      disabled={isDeactivationDisabled(user)}
+                      className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      title={isDeactivationDisabled(user) ? 'Cannot deactivate the last super admin' : ''}
                     >
                       {user.is_active ? 'Deactivate' : 'Activate'}
                     </button>

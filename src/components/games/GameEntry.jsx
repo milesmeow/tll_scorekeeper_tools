@@ -5,14 +5,17 @@ export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
-  const [selectedDivision, setSelectedDivision] = useState('All') // Division filter
+  const [selectedDivision, setSelectedDivision] = useState('Major') // Default to Major division
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
+  const [gameViolations, setGameViolations] = useState({}) // Track which games have violations
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
+  const [gameToView, setGameToView] = useState(null) // For viewing game details
+  const [gameToEdit, setGameToEdit] = useState(null) // For editing game
 
   useEffect(() => {
     fetchSeasons()
@@ -79,9 +82,125 @@ export default function GameEntry() {
 
       if (error) throw error
       setGames(data)
+
+      // Check violations for all games
+      checkGameViolations(data)
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  const checkGameViolations = async (gamesToCheck) => {
+    if (gamesToCheck.length === 0) {
+      setGameViolations({})
+      return
+    }
+
+    try {
+      const gameIds = gamesToCheck.map(g => g.id)
+
+      // Fetch all positions and pitching data for all games in bulk (much faster!)
+      const [positionsRes, pitchingRes] = await Promise.all([
+        supabase.from('positions_played').select('*').in('game_id', gameIds),
+        supabase.from('pitching_logs').select('*').in('game_id', gameIds)
+      ])
+
+      if (positionsRes.error || pitchingRes.error) {
+        setGameViolations({})
+        return
+      }
+
+      const allPositions = positionsRes.data
+      const allPitchingLogs = pitchingRes.data
+
+      // Group data by game and player
+      const violations = {}
+
+      for (const gameId of gameIds) {
+        violations[gameId] = checkGameHasViolations(
+          gameId,
+          allPositions.filter(p => p.game_id === gameId),
+          allPitchingLogs.filter(p => p.game_id === gameId)
+        )
+      }
+
+      setGameViolations(violations)
+    } catch (err) {
+      setGameViolations({})
+    }
+  }
+
+  const checkGameHasViolations = (gameId, positions, pitchingLogs) => {
+    // Group by player
+    const playerData = {}
+
+    positions.forEach(pos => {
+      if (!playerData[pos.player_id]) {
+        playerData[pos.player_id] = { pitched: [], caught: [], pitching: null }
+      }
+      if (pos.position === 'pitcher') {
+        playerData[pos.player_id].pitched.push(pos.inning_number)
+      } else if (pos.position === 'catcher') {
+        playerData[pos.player_id].caught.push(pos.inning_number)
+      }
+    })
+
+    pitchingLogs.forEach(log => {
+      if (playerData[log.player_id]) {
+        playerData[log.player_id].pitching = log
+      }
+    })
+
+    // Check each player for violations
+    for (const player of Object.values(playerData)) {
+      const pitchedInnings = player.pitched.sort((a, b) => a - b)
+      const caughtInnings = player.caught.sort((a, b) => a - b)
+      const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
+
+      // Check Rule 1: Consecutive innings
+      if (hasInningsGap(pitchedInnings)) return true
+
+      // Check Rule 2: 41+ pitches -> cannot catch after
+      if (cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)) return true
+
+      // Check Rule 3: 4 innings catching -> cannot pitch after
+      if (cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)) return true
+
+      // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
+      if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
+    }
+
+    return false
+  }
+
+  // Validation helper functions
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+    for (let i = 0; i < innings.length - 1; i++) {
+      if (innings[i + 1] - innings[i] !== 1) return true
+    }
+    return false
+  }
+
+  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) return false
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    return caughtInnings.some(inning => inning > maxPitchingInning)
+  }
+
+  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
+    if (caughtInnings.length < 4 || pitchedInnings.length === 0) return false
+    const fourthCatchingInning = [...caughtInnings].sort((a, b) => a - b)[3]
+    return pitchedInnings.some(inning => inning > fourthCatchingInning)
+  }
+
+  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) return false
+    const minPitchingInning = Math.min(...pitchedInnings)
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
+    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
+    return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
   const handleDeleteGame = async () => {
@@ -129,14 +248,14 @@ export default function GameEntry() {
   }
 
   // Filter games by selected division
-  const filteredGames = selectedDivision === 'All'
-    ? games
-    : games.filter(game => game.home_team.division === selectedDivision)
+  const filteredGames = selectedDivision
+    ? games.filter(game => game.home_team.division === selectedDivision)
+    : games
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Game Entry</h2>
+        <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
         <button
           onClick={() => setShowGameForm(true)}
           className="btn btn-primary"
@@ -162,13 +281,12 @@ export default function GameEntry() {
           </select>
         </div>
         <div>
-          <label className="label">Filter by Division</label>
+          <label className="label">Select Division</label>
           <select
             className="input"
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="All">All Divisions</option>
             <option value="Training">Training</option>
             <option value="Minor">Minor</option>
             <option value="Major">Major</option>
@@ -215,10 +333,17 @@ export default function GameEntry() {
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">
-                      {new Date(game.game_date).toLocaleDateString()}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-600">
+                        {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
+                      </p>
+                      {gameViolations[game.id] && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+                          ⚠️ Rule Violation
+                        </span>
+                      )}
+                    </div>
                     <p className="font-semibold text-lg">
                       {game.away_team.name} at {game.home_team.name}
                     </p>
@@ -230,8 +355,17 @@ export default function GameEntry() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-blue-600 hover:text-blue-800 text-sm">
+                    <button
+                      onClick={() => setGameToView(game)}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
                       View Details
+                    </button>
+                    <button
+                      onClick={() => setGameToEdit(game)}
+                      className="text-green-600 hover:text-green-800 text-sm"
+                    >
+                      Edit
                     </button>
                     <button
                       onClick={() => setGameToDelete(game)}
@@ -251,12 +385,38 @@ export default function GameEntry() {
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
-          defaultDivision={selectedDivision !== 'All' ? selectedDivision : ''}
+          defaultDivision={selectedDivision}
           onClose={() => setShowGameForm(false)}
           onSuccess={() => {
             setShowGameForm(false)
             fetchGames()
             setSuccess('Game entered successfully!')
+            setTimeout(() => setSuccess(null), 3000)
+          }}
+          onError={(err) => setError(err)}
+        />
+      )}
+
+      {/* Game Detail Modal */}
+      {gameToView && (
+        <GameDetailModal
+          game={gameToView}
+          onClose={() => setGameToView(null)}
+        />
+      )}
+
+      {/* Edit Game Modal */}
+      {gameToEdit && (
+        <GameFormModal
+          seasonId={selectedSeason}
+          teams={teams}
+          gameToEdit={gameToEdit}
+          defaultDivision={gameToEdit.home_team.division}
+          onClose={() => setGameToEdit(null)}
+          onSuccess={() => {
+            setGameToEdit(null)
+            fetchGames()
+            setSuccess('Game updated successfully!')
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
@@ -329,27 +489,113 @@ export default function GameEntry() {
   )
 }
 
-function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, onError }) {
+function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, onSuccess, onError }) {
+  const isEditMode = !!gameToEdit
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
-  const [gameId, setGameId] = useState(null)
+  const [gameId, setGameId] = useState(gameToEdit?.id || null)
   const [selectedDivision, setSelectedDivision] = useState(defaultDivision || '')
   const [formData, setFormData] = useState({
-    game_date: '',
-    scorekeeper_name: '',
-    scorekeeper_team_id: '',
-    home_team_id: '',
-    away_team_id: '',
-    home_score: '',
-    away_score: ''
+    game_date: gameToEdit?.game_date || '',
+    scorekeeper_name: gameToEdit?.scorekeeper_name || '',
+    scorekeeper_team_id: gameToEdit?.scorekeeper_team_id || '',
+    home_team_id: gameToEdit?.home_team_id || '',
+    away_team_id: gameToEdit?.away_team_id || '',
+    home_score: gameToEdit?.home_score?.toString() || '',
+    away_score: gameToEdit?.away_score?.toString() || ''
   })
-  const [allHomePlayers, setAllHomePlayers] = useState([]) // All available players
-  const [allAwayPlayers, setAllAwayPlayers] = useState([]) // All available players
-  const [selectedHomePlayerIds, setSelectedHomePlayerIds] = useState([]) // Selected player IDs
-  const [selectedAwayPlayerIds, setSelectedAwayPlayerIds] = useState([]) // Selected player IDs
-  const [homePlayers, setHomePlayers] = useState([]) // Player data for selected players
-  const [awayPlayers, setAwayPlayers] = useState([]) // Player data for selected players
+  const [homePlayers, setHomePlayers] = useState([]) // Player data for home team
+  const [awayPlayers, setAwayPlayers] = useState([]) // Player data for away team
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
+
+  // Save original game data for comparison when editing
+  const [originalGameData, setOriginalGameData] = useState(null)
+
+  // Load existing player data when editing
+  useEffect(() => {
+    if (isEditMode && gameToEdit) {
+      loadExistingGameData()
+    }
+  }, [])
+
+  const loadExistingGameData = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch game_players with player info
+      const { data: gamePlayers, error: playersError } = await supabase
+        .from('game_players')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', gameToEdit.id)
+
+      if (playersError) throw playersError
+
+      // Fetch pitching_logs
+      const { data: pitchingLogs, error: pitchingError } = await supabase
+        .from('pitching_logs')
+        .select('*')
+        .eq('game_id', gameToEdit.id)
+
+      if (pitchingError) throw pitchingError
+
+      // Fetch positions_played
+      const { data: positionsPlayed, error: positionsError } = await supabase
+        .from('positions_played')
+        .select('*')
+        .eq('game_id', gameToEdit.id)
+
+      if (positionsError) throw positionsError
+
+      // Organize player data by team
+      const homePlayerData = []
+      const awayPlayerData = []
+
+      gamePlayers.forEach(gp => {
+        const playerPitching = pitchingLogs.find(pl => pl.player_id === gp.player_id)
+        const playerPositions = positionsPlayed.filter(pp => pp.player_id === gp.player_id)
+
+        const playerData = {
+          ...gp.player,
+          was_present: gp.was_present,
+          absence_note: gp.absence_note || '',
+          innings_pitched: playerPositions
+            .filter(p => p.position === 'pitcher')
+            .map(p => p.inning_number)
+            .sort((a, b) => a - b),
+          innings_caught: playerPositions
+            .filter(p => p.position === 'catcher')
+            .map(p => p.inning_number)
+            .sort((a, b) => a - b),
+          penultimate_batter_count: playerPitching?.penultimate_batter_count?.toString() || '',
+          final_pitch_count: playerPitching?.final_pitch_count?.toString() || ''
+        }
+
+        if (gp.player.team_id === gameToEdit.home_team_id) {
+          homePlayerData.push(playerData)
+        } else {
+          awayPlayerData.push(playerData)
+        }
+      })
+
+      setHomePlayers(homePlayerData)
+      setAwayPlayers(awayPlayerData)
+
+      // Save original game data for comparison when teams change
+      setOriginalGameData({
+        homeTeamId: gameToEdit.home_team_id,
+        awayTeamId: gameToEdit.away_team_id,
+        homePlayers: homePlayerData,
+        awayPlayers: awayPlayerData
+      })
+    } catch (err) {
+      setModalError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter teams by selected division
   const filteredTeams = selectedDivision
@@ -371,30 +617,102 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
         throw new Error('Home and away teams must be different')
       }
 
-      const gameData = {
-        season_id: seasonId,
-        game_date: formData.game_date,
-        scorekeeper_name: formData.scorekeeper_name,
-        scorekeeper_team_id: formData.scorekeeper_team_id,
-        home_team_id: formData.home_team_id,
-        away_team_id: formData.away_team_id,
-        home_score: parseInt(formData.home_score),
-        away_score: parseInt(formData.away_score)
+      if (isEditMode) {
+        // For edit mode: Don't save yet, handle player data based on team changes
+        const oldHomeId = originalGameData.homeTeamId
+        const oldAwayId = originalGameData.awayTeamId
+        const newHomeId = formData.home_team_id
+        const newAwayId = formData.away_team_id
+
+        // Check if teams are exactly the same (including swap)
+        const sameTeams = (oldHomeId === newHomeId && oldAwayId === newAwayId) ||
+                         (oldHomeId === newAwayId && oldAwayId === newHomeId)
+
+        if (sameTeams) {
+          // Teams are the same (possibly swapped) - reorganize existing player data
+          if (oldHomeId === newAwayId && oldAwayId === newHomeId) {
+            // Teams were swapped - just swap the player arrays
+            const temp = homePlayers
+            setHomePlayers(awayPlayers)
+            setAwayPlayers(temp)
+          }
+          // If teams unchanged, keep player data as-is
+        } else {
+          // Teams changed - need to handle intelligently
+          // Use ORIGINAL game data to determine which teams to keep
+          const homeTeamKept = (newHomeId === oldHomeId || newHomeId === oldAwayId)
+          const awayTeamKept = (newAwayId === oldHomeId || newAwayId === oldAwayId)
+
+          let newHomePlayers = []
+          let newAwayPlayers = []
+
+          if (homeTeamKept) {
+            // Home team is from the original game - get its ORIGINAL data
+            if (newHomeId === oldHomeId) {
+              newHomePlayers = originalGameData.homePlayers
+            } else {
+              // newHomeId === oldAwayId
+              newHomePlayers = originalGameData.awayPlayers
+            }
+          } else {
+            // Home team is new - fetch players
+            const { data, error } = await supabase
+              .from('players')
+              .select('*')
+              .eq('team_id', newHomeId)
+              .order('name')
+
+            if (error) throw error
+
+            newHomePlayers = data.map(player => ({
+              ...player,
+              was_present: true,
+              absence_note: '',
+              innings_pitched: [],
+              innings_caught: [],
+              penultimate_batter_count: '',
+              final_pitch_count: ''
+            }))
+          }
+
+          if (awayTeamKept) {
+            // Away team is from the original game - get its ORIGINAL data
+            if (newAwayId === oldAwayId) {
+              newAwayPlayers = originalGameData.awayPlayers
+            } else {
+              // newAwayId === oldHomeId
+              newAwayPlayers = originalGameData.homePlayers
+            }
+          } else {
+            // Away team is new - fetch players
+            const { data, error } = await supabase
+              .from('players')
+              .select('*')
+              .eq('team_id', newAwayId)
+              .order('name')
+
+            if (error) throw error
+
+            newAwayPlayers = data.map(player => ({
+              ...player,
+              was_present: true,
+              absence_note: '',
+              innings_pitched: [],
+              innings_caught: [],
+              penultimate_batter_count: '',
+              final_pitch_count: ''
+            }))
+          }
+
+          setHomePlayers(newHomePlayers)
+          setAwayPlayers(newAwayPlayers)
+        }
+      } else {
+        // For new game: Don't save to database yet, just fetch players
+        // Game will be created in Step 2 along with player data
+        await fetchPlayers(formData.home_team_id, formData.away_team_id)
       }
 
-      const { data, error } = await supabase
-        .from('games')
-        .insert([gameData])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      setGameId(data.id)
-      
-      // Fetch players for both teams
-      await fetchPlayers(formData.home_team_id, formData.away_team_id)
-      
       setStep(2)
     } catch (err) {
       setModalError(err.message)
@@ -421,64 +739,31 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
 
       if (awayError) throw awayError
 
-      // Store all available players
-      setAllHomePlayers(homeData)
-      setAllAwayPlayers(awayData)
+      // Initialize ALL players with default data (all assumed present)
+      const initializedHomePlayers = homeData.map(player => ({
+        ...player,
+        was_present: true,
+        absence_note: '',
+        innings_pitched: [],
+        innings_caught: [],
+        penultimate_batter_count: '',
+        final_pitch_count: ''
+      }))
 
-      // Initialize with no players selected
-      setSelectedHomePlayerIds([])
-      setSelectedAwayPlayerIds([])
-      setHomePlayers([])
-      setAwayPlayers([])
+      const initializedAwayPlayers = awayData.map(player => ({
+        ...player,
+        was_present: true,
+        absence_note: '',
+        innings_pitched: [],
+        innings_caught: [],
+        penultimate_batter_count: '',
+        final_pitch_count: ''
+      }))
+
+      setHomePlayers(initializedHomePlayers)
+      setAwayPlayers(initializedAwayPlayers)
     } catch (err) {
       setModalError(err.message)
-    }
-  }
-
-  // Handle player selection toggle
-  const togglePlayerSelection = (playerId, isHome) => {
-    if (isHome) {
-      setSelectedHomePlayerIds(prev => {
-        if (prev.includes(playerId)) {
-          // Deselect player - remove from both selected IDs and player data
-          setHomePlayers(homePlayers.filter(p => p.id !== playerId))
-          return prev.filter(id => id !== playerId)
-        } else {
-          // Select player - add to selected IDs and initialize data
-          const player = allHomePlayers.find(p => p.id === playerId)
-          setHomePlayers([...homePlayers, {
-            ...player,
-            was_present: true,
-            absence_note: '',
-            innings_pitched: [],
-            innings_caught: [],
-            penultimate_pitch_count: '',
-            final_pitch_count: ''
-          }])
-          return [...prev, playerId]
-        }
-      })
-    } else {
-      setSelectedAwayPlayerIds(prev => {
-        if (prev.includes(playerId)) {
-          // Deselect player
-          setAwayPlayers(awayPlayers.filter(p => p.id !== playerId))
-          return prev.filter(id => id !== playerId)
-        } else {
-          // Select player
-          const player = allAwayPlayers.find(p => p.id === playerId)
-          setAwayPlayers([...awayPlayers, {
-            ...player,
-            was_present: true,
-            absence_note: '',
-            innings_pitched: [],
-            innings_caught: [],
-            penultimate_pitch_count: '',
-            final_pitch_count: ''
-          }])
-          return [...prev, playerId]
-        }
-      })
     }
   }
 
@@ -490,9 +775,63 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
     try {
       const allPlayers = [...homePlayers, ...awayPlayers]
 
+      // Validate pitch counts before saving
+      for (const player of allPlayers) {
+        if (player.innings_pitched.length > 0 && player.final_pitch_count) {
+          const penultimate = parseInt(player.penultimate_batter_count || 0)
+          const final = parseInt(player.final_pitch_count)
+
+          if (penultimate > final) {
+            throw new Error(
+              `Invalid pitch counts for ${player.name}: Pitch count before last batter (${penultimate}) cannot be greater than final pitch count (${final}).`
+            )
+          }
+        }
+      }
+
+      let finalGameId = gameId
+
+      const gameData = {
+        season_id: seasonId,
+        game_date: formData.game_date,
+        scorekeeper_name: formData.scorekeeper_name,
+        scorekeeper_team_id: formData.scorekeeper_team_id,
+        home_team_id: formData.home_team_id,
+        away_team_id: formData.away_team_id,
+        home_score: parseInt(formData.home_score),
+        away_score: parseInt(formData.away_score)
+      }
+
+      if (!isEditMode) {
+        // Creating new game - insert game record
+        const { data, error } = await supabase
+          .from('games')
+          .insert([gameData])
+          .select()
+          .single()
+
+        if (error) throw error
+
+        finalGameId = data.id
+        setGameId(finalGameId)
+      } else {
+        // Editing game - update game record and delete old player data
+        const { error } = await supabase
+          .from('games')
+          .update(gameData)
+          .eq('id', gameId)
+
+        if (error) throw error
+
+        // Delete existing player data
+        await supabase.from('game_players').delete().eq('game_id', gameId)
+        await supabase.from('pitching_logs').delete().eq('game_id', gameId)
+        await supabase.from('positions_played').delete().eq('game_id', gameId)
+      }
+
       // Insert game_players (attendance)
       const attendanceData = allPlayers.map(p => ({
-        game_id: gameId,
+        game_id: finalGameId,
         player_id: p.id,
         was_present: p.was_present,
         absence_note: p.was_present ? null : p.absence_note
@@ -508,10 +847,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
       const pitchingData = allPlayers
         .filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
         .map(p => ({
-          game_id: gameId,
+          game_id: finalGameId,
           player_id: p.id,
           final_pitch_count: parseInt(p.final_pitch_count),
-          penultimate_batter_count: parseInt(p.penultimate_pitch_count || 0)
+          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0)
         }))
 
       if (pitchingData.length > 0) {
@@ -524,22 +863,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
 
       // Insert positions played (pitching and catching)
       const positionsData = []
-      
+
       allPlayers.forEach(p => {
         // Add pitching positions
         p.innings_pitched.forEach(inning => {
           positionsData.push({
-            game_id: gameId,
+            game_id: finalGameId,
             player_id: p.id,
             inning_number: inning,
             position: 'pitcher'
           })
         })
-        
+
         // Add catching positions
         p.innings_caught.forEach(inning => {
           positionsData.push({
-            game_id: gameId,
+            game_id: finalGameId,
             player_id: p.id,
             inning_number: inning,
             position: 'catcher'
@@ -567,18 +906,112 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
     const players = isHome ? [...homePlayers] : [...awayPlayers]
     const player = players[playerIndex]
     const arrayKey = type === 'pitch' ? 'innings_pitched' : 'innings_caught'
-    
+
+    // Toggle the inning
     if (player[arrayKey].includes(inningNum)) {
       player[arrayKey] = player[arrayKey].filter(i => i !== inningNum)
     } else {
       player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
     }
-    
+
     if (isHome) {
       setHomePlayers(players)
     } else {
       setAwayPlayers(players)
     }
+  }
+
+  // Helper function to check if innings are consecutive (for validation display)
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+
+    const sorted = [...innings].sort((a, b) => a - b)
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] - sorted[i] !== 1) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Helper function to get effective pitch count (penultimate + 1)
+  const getEffectivePitchCount = (player) => {
+    if (!player.penultimate_batter_count || player.penultimate_batter_count === '') {
+      return 0
+    }
+    return parseInt(player.penultimate_batter_count) + 1
+  }
+
+  // Helper function to check Rule 2: 41+ pitches -> cannot catch AFTER pitching
+  // Only show violation if player pitched 41+ AND catches AFTER pitching
+  const cannotCatchDueToHighPitchCount = (player) => {
+    const effectivePitches = getEffectivePitchCount(player)
+
+    // Must have pitched 41+ and have catching innings
+    if (effectivePitches < 41 || player.innings_caught.length === 0) {
+      return false
+    }
+
+    // Must have pitched to violate this rule
+    if (player.innings_pitched.length === 0) {
+      return false
+    }
+
+    // Check if there are catching innings that occur AFTER pitching innings
+    const maxPitchingInning = Math.max(...player.innings_pitched)
+    const hasCaughtAfterPitching = player.innings_caught.some(inning => inning > maxPitchingInning)
+
+    return hasCaughtAfterPitching
+  }
+
+  // Helper function to check Rule 3: 4+ innings catching -> cannot pitch AFTER catching
+  // Only show violation if player caught 4+ innings AND pitches AFTER catching 4
+  const cannotPitchDueToFourInningsCatching = (player) => {
+    // Must have caught 4+ innings and have pitching innings
+    if (player.innings_caught.length < 4 || player.innings_pitched.length === 0) {
+      return false
+    }
+
+    // Find when they reached 4 innings caught (the 4th catching inning chronologically)
+    const sortedCatchingInnings = [...player.innings_caught].sort((a, b) => a - b)
+    const fourthCatchingInning = sortedCatchingInnings[3] // 0-indexed, so [3] is the 4th element
+
+    // Check if any pitching innings occur after they reached 4 catches
+    const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning > fourthCatchingInning)
+
+    return hasPitchedAfterFourCatches
+  }
+
+  // Helper function to check Rule 4: Catcher ≤3 innings + 21+ pitches -> cannot RETURN to catch
+  // "A player who played catcher for three innings or less, moves to pitcher position,
+  // and delivers 21 pitches or more, may not RETURN to the catcher position"
+  // Must have: Catch (1-3) THEN Pitch (21+) THEN Return to Catch
+  const cannotCatchAgainDueToCombined = (player) => {
+    const caughtInnings = player.innings_caught.length
+    const pitchedInnings = player.innings_pitched
+    const effectivePitches = getEffectivePitchCount(player)
+
+    // Rule only applies if caught 1-3 innings and pitched 21+
+    if (caughtInnings < 1 || caughtInnings > 3 || effectivePitches < 21) {
+      return false
+    }
+
+    // Must have pitched to violate "return to catch"
+    if (pitchedInnings.length === 0) {
+      return false
+    }
+
+    const minPitchingInning = Math.min(...pitchedInnings)
+    const maxPitchingInning = Math.max(...pitchedInnings)
+
+    // Check if there are catching innings BEFORE pitching started
+    const hasCaughtBeforePitching = player.innings_caught.some(inning => inning < minPitchingInning)
+
+    // Check if there are catching innings AFTER pitching ended
+    const hasReturnedToCatch = player.innings_caught.some(inning => inning > maxPitchingInning)
+
+    // Violation only if they caught BEFORE pitching AND AFTER pitching (the "return")
+    return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
   const updatePlayerField = (playerIndex, isHome, field, value) => {
@@ -596,7 +1029,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
         <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8">
-          <h3 className="text-xl font-bold mb-4">Enter New Game - Step 1: Basic Info</h3>
+          <h3 className="text-xl font-bold mb-4">
+            {isEditMode ? 'Edit Game - Step 1: Basic Info' : 'Enter New Game - Step 1: Basic Info'}
+          </h3>
 
           {modalError && (
             <div className="alert alert-error mb-4">
@@ -607,9 +1042,11 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
           <form onSubmit={handleBasicInfoSubmit} className="space-y-6">
             {/* Division Selector */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="label">Select Division *</label>
+              <label className="label">
+                {isEditMode ? 'Division' : 'Select Division *'}
+              </label>
               <select
-                className="input"
+                className="input disabled:bg-gray-100 disabled:cursor-not-allowed"
                 value={selectedDivision}
                 onChange={(e) => {
                   setSelectedDivision(e.target.value)
@@ -622,12 +1059,16 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
                   })
                 }}
                 required
+                disabled={isEditMode}
               >
                 <option value="">-- Select Division --</option>
                 <option value="Training">Training</option>
                 <option value="Minor">Minor</option>
                 <option value="Major">Major</option>
               </select>
+              {isEditMode && (
+                <p className="text-sm text-gray-600 mt-2">Division cannot be changed when editing</p>
+              )}
             </div>
 
             <div>
@@ -779,7 +1220,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
       <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-bold mb-4">Enter New Game - Step 2: Player Data</h3>
+        <h3 className="text-xl font-bold mb-4">
+          {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
+        </h3>
 
         {modalError && (
           <div className="alert alert-error mb-4">
@@ -791,25 +1234,29 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
           {/* Home Team Section */}
           <TeamPlayerDataSection
             team={homeTeam}
-            allPlayers={allHomePlayers}
-            selectedPlayerIds={selectedHomePlayerIds}
             players={homePlayers}
             isHome={true}
-            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
+            hasInningsGap={hasInningsGap}
+            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           {/* Away Team Section */}
           <TeamPlayerDataSection
             team={awayTeam}
-            allPlayers={allAwayPlayers}
-            selectedPlayerIds={selectedAwayPlayerIds}
             players={awayPlayers}
             isHome={false}
-            onTogglePlayerSelection={togglePlayerSelection}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
+            hasInningsGap={hasInningsGap}
+            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
@@ -825,7 +1272,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
               className="btn btn-primary flex-1"
               disabled={loading}
             >
-              {loading ? 'Saving Game Data...' : 'Complete & Save Game'}
+              {loading ? 'Saving Game Data...' : (isEditMode ? 'Update Game' : 'Complete & Save Game')}
             </button>
           </div>
         </form>
@@ -834,45 +1281,39 @@ function GameFormModal({ seasonId, teams, defaultDivision, onClose, onSuccess, o
   )
 }
 
-function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, isHome, onTogglePlayerSelection, onToggleInning, onUpdateField }) {
+function TeamPlayerDataSection({
+  team,
+  players,
+  isHome,
+  onToggleInning,
+  onUpdateField,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  getEffectivePitchCount
+}) {
   const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
 
   return (
     <div className="border rounded-lg p-4">
       <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
 
-      {/* Player Selection Section */}
-      <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h5 className="font-semibold text-sm mb-3">Select Players Who Participated:</h5>
-        {allPlayers.length === 0 ? (
-          <p className="text-gray-500 text-sm">No players on this team's roster.</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {allPlayers.map((player) => (
-              <label key={player.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 p-2 rounded">
-                <input
-                  type="checkbox"
-                  checked={selectedPlayerIds.includes(player.id)}
-                  onChange={() => onTogglePlayerSelection(player.id, isHome)}
-                />
-                <span>
-                  {player.name}
-                  {player.jersey_number && ` #${player.jersey_number}`}
-                </span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Player Data Entry Forms (only for selected players) */}
+      {/* Player Data Entry Forms - All players included by default */}
       {players.length === 0 ? (
         <p className="text-gray-500 text-sm italic text-center py-4">
-          Select players above to enter their game data
+          No players on this team's roster
         </p>
       ) : (
         <div className="space-y-4">
-          {players.map((player, index) => (
+          {players.map((player, index) => {
+            const hasPitchingGap = hasInningsGap(player.innings_pitched)
+            const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
+            const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
+            const violationCombinedRule = cannotCatchAgainDueToCombined(player)
+            const effectivePitches = getEffectivePitchCount(player)
+
+            return (
             <div key={player.id} className="border rounded p-4 bg-gray-50">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -883,16 +1324,16 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
                       <span className="text-sm text-gray-600">#{player.jersey_number}</span>
                     )}
                   </div>
-                  
-                  {/* Attendance */}
+
+                  {/* Attendance - Mark if ABSENT */}
                   <div className="flex items-center gap-4 mt-2">
                     <label className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
-                        checked={player.was_present}
-                        onChange={(e) => onUpdateField(index, isHome, 'was_present', e.target.checked)}
+                        checked={!player.was_present}
+                        onChange={(e) => onUpdateField(index, isHome, 'was_present', !e.target.checked)}
                       />
-                      Present
+                      <span className="text-red-600">Absent</span>
                     </label>
                     {!player.was_present && (
                       <input
@@ -924,6 +1365,20 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
                         </label>
                       ))}
                     </div>
+                    {hasPitchingGap && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
+                        </p>
+                      </div>
+                    )}
+                    {violationFourInningsCatching && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player caught {player.innings_caught.length} innings and cannot pitch in this game.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Pitch Counts (only if pitched) */}
@@ -938,8 +1393,8 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
                           className="input text-sm"
                           placeholder="0"
                           min="0"
-                          value={player.penultimate_pitch_count}
-                          onChange={(e) => onUpdateField(index, isHome, 'penultimate_pitch_count', e.target.value)}
+                          value={player.penultimate_batter_count}
+                          onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
                         />
                       </div>
                       <div>
@@ -974,12 +1429,405 @@ function TeamPlayerDataSection({ team, allPlayers, selectedPlayerIds, players, i
                         </label>
                       ))}
                     </div>
+                    {violationHighPitchCount && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
+                        </p>
+                      </div>
+                    )}
+                    {violationCombinedRule && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-sm text-red-700">
+                          ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
+      )}
+    </div>
+  )
+}
+
+function GameDetailModal({ game, onClose }) {
+  const [loading, setLoading] = useState(true)
+  const [gameData, setGameData] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetchGameDetails()
+  }, [])
+
+  // Validation helper functions (same as in form)
+  const getEffectivePitchCount = (penultimate) => {
+    if (!penultimate || penultimate === 0) return 0
+    return penultimate + 1
+  }
+
+  const hasInningsGap = (innings) => {
+    if (innings.length <= 1) return false
+    const sorted = [...innings].sort((a, b) => a - b)
+    for (let i = 0; i < sorted.length - 1; i++) {
+      if (sorted[i + 1] - sorted[i] !== 1) {
+        return true
+      }
+    }
+    return false
+  }
+
+  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) {
+      return false
+    }
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    return caughtInnings.some(inning => inning > maxPitchingInning)
+  }
+
+  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
+    if (caughtInnings.length < 4 || pitchedInnings.length === 0) {
+      return false
+    }
+    const sortedCatchingInnings = [...caughtInnings].sort((a, b) => a - b)
+    const fourthCatchingInning = sortedCatchingInnings[3]
+    return pitchedInnings.some(inning => inning > fourthCatchingInning)
+  }
+
+  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
+    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) {
+      return false
+    }
+    const minPitchingInning = Math.min(...pitchedInnings)
+    const maxPitchingInning = Math.max(...pitchedInnings)
+    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
+    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
+    return hasCaughtBeforePitching && hasReturnedToCatch
+  }
+
+  const fetchGameDetails = async () => {
+    try {
+      // Fetch game_players with player info
+      const { data: gamePlayers, error: playersError } = await supabase
+        .from('game_players')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (playersError) throw playersError
+
+      // Fetch pitching_logs with player info
+      const { data: pitchingLogs, error: pitchingError } = await supabase
+        .from('pitching_logs')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (pitchingError) throw pitchingError
+
+      // Fetch positions_played with player info
+      const { data: positionsPlayed, error: positionsError } = await supabase
+        .from('positions_played')
+        .select(`
+          *,
+          player:players(*)
+        `)
+        .eq('game_id', game.id)
+
+      if (positionsError) throw positionsError
+
+      // Organize data by team and player
+      const homePlayerData = []
+      const awayPlayerData = []
+
+      gamePlayers.forEach(gp => {
+        const playerData = {
+          ...gp,
+          pitching: pitchingLogs.find(pl => pl.player_id === gp.player_id),
+          positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id)
+        }
+
+        if (gp.player.team_id === game.home_team_id) {
+          homePlayerData.push(playerData)
+        } else {
+          awayPlayerData.push(playerData)
+        }
+      })
+
+      setGameData({
+        homePlayers: homePlayerData,
+        awayPlayers: awayPlayerData
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
+            <p className="text-gray-600 mt-1">
+              {new Date(game.game_date).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+            <p className="text-lg font-semibold mt-2">
+              Final Score: {game.away_score} - {game.home_score}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {error && (
+          <div className="alert alert-error mb-4">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Loading game details...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Home Team Section */}
+            <TeamDetailSection
+              teamName={game.home_team.name}
+              players={gameData.homePlayers}
+              isHome={true}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
+            />
+
+            {/* Away Team Section */}
+            <TeamDetailSection
+              teamName={game.away_team.name}
+              players={gameData.awayPlayers}
+              isHome={false}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
+            />
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6 pt-4 border-t">
+          <button
+            onClick={onClose}
+            className="btn btn-secondary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TeamDetailSection({
+  teamName,
+  players,
+  isHome,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  getEffectivePitchCount
+}) {
+  // Only show players who pitched, caught, or were absent
+  const pitchersAndCatchers = players.filter(p => p.was_present && p.positions.length > 0)
+  const absentPlayers = players.filter(p => !p.was_present)
+
+  return (
+    <div className="border rounded-lg p-4">
+      <h4 className="text-lg font-bold mb-4 bg-blue-50 -m-4 p-4 rounded-t-lg border-b">
+        {teamName} {isHome ? '(Home)' : '(Away)'}
+      </h4>
+
+      {/* Pitchers and Catchers */}
+      {pitchersAndCatchers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-blue-700">Pitchers & Catchers</h5>
+          <div className="space-y-3">
+            {pitchersAndCatchers.map(playerData => {
+              const pitchedInnings = playerData.positions
+                .filter(p => p.position === 'pitcher')
+                .map(p => p.inning_number)
+                .sort((a, b) => a - b)
+
+              const caughtInnings = playerData.positions
+                .filter(p => p.position === 'catcher')
+                .map(p => p.inning_number)
+                .sort((a, b) => a - b)
+
+              // Calculate violations
+              const effectivePitches = getEffectivePitchCount(playerData.pitching?.penultimate_batter_count || 0)
+              const hasPitchingGap = hasInningsGap(pitchedInnings)
+              const violationHighPitchCount = cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)
+              const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
+              const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
+
+              return (
+                <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h6 className="font-semibold">{playerData.player.name}</h6>
+                        <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
+                        {playerData.player.jersey_number && (
+                          <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {/* Pitching Info */}
+                        {pitchedInnings.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700">Pitched: </span>
+                            <span className="text-gray-600">
+                              {pitchedInnings.length === 1
+                                ? `Inning ${pitchedInnings[0]}`
+                                : `Innings ${pitchedInnings.join(', ')}`
+                              }
+                            </span>
+                            {playerData.pitching && (
+                              <div className="mt-1 pl-2 border-l-2 border-blue-300">
+                                <div>
+                                  <span className="font-medium text-gray-700">Final Pitch Count: </span>
+                                  <span className="text-blue-700 font-semibold">
+                                    {playerData.pitching.final_pitch_count}
+                                  </span>
+                                </div>
+                                {playerData.pitching.penultimate_batter_count > 0 && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Before Last Batter: </span>
+                                    <span className="text-gray-600">
+                                      {playerData.pitching.penultimate_batter_count}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Catching Info */}
+                        {caughtInnings.length > 0 && (
+                          <div>
+                            <span className="font-medium text-gray-700">Caught: </span>
+                            <span className="text-gray-600">
+                              {caughtInnings.length === 1
+                                ? `Inning ${caughtInnings[0]}`
+                                : `Innings ${caughtInnings.join(', ')}`
+                              }
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {pitchedInnings.length === 0 && caughtInnings.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">
+                          No pitching or catching recorded
+                        </p>
+                      )}
+
+                      {/* Violation Warnings */}
+                      {hasPitchingGap && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
+                          </p>
+                        </div>
+                      )}
+                      {violationFourInningsCatching && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player caught {caughtInnings.length} innings and cannot pitch in this game.
+                          </p>
+                        </div>
+                      )}
+                      {violationHighPitchCount && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
+                          </p>
+                        </div>
+                      )}
+                      {violationCombinedRule && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Absent Players */}
+      {absentPlayers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
+          <div className="space-y-2">
+            {absentPlayers.map(playerData => (
+              <div key={playerData.player_id} className="bg-red-50 border border-red-200 rounded p-3">
+                <div className="flex items-center gap-3">
+                  <h6 className="font-semibold text-gray-800">{playerData.player.name}</h6>
+                  <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
+                  {playerData.player.jersey_number && (
+                    <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
+                  )}
+                </div>
+                {playerData.absence_note && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">Reason: </span>
+                    {playerData.absence_note}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pitchersAndCatchers.length === 0 && absentPlayers.length === 0 && (
+        <p className="text-gray-500 text-sm italic text-center py-4">
+          No pitchers, catchers, or absences recorded
+        </p>
       )}
     </div>
   )
