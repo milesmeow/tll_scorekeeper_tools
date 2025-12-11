@@ -170,12 +170,18 @@ CREATE TABLE public.pitching_logs (
   player_id UUID NOT NULL REFERENCES public.players(id) ON DELETE CASCADE,
   final_pitch_count INTEGER NOT NULL CHECK (final_pitch_count >= 0),
   penultimate_batter_count INTEGER NOT NULL CHECK (penultimate_batter_count >= 0),
+  next_eligible_pitch_date DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   CHECK (penultimate_batter_count <= final_pitch_count)
 );
 
 CREATE INDEX idx_pitching_logs_game ON public.pitching_logs(game_id);
 CREATE INDEX idx_pitching_logs_player ON public.pitching_logs(player_id);
+
+-- Add next_eligible_pitch_date column for existing installations
+-- (Safe to run - will be ignored if column already exists)
+ALTER TABLE public.pitching_logs
+ADD COLUMN IF NOT EXISTS next_eligible_pitch_date DATE;
 
 -- =====================================================
 -- 9. POSITIONS PLAYED
