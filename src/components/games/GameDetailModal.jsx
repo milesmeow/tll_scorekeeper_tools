@@ -295,27 +295,18 @@ function TeamDetailSection({
 
                                   if (!nextEligibleDate) return null
 
-                                  const today = new Date()
-                                  today.setHours(0, 0, 0, 0)
                                   const eligibleDate = new Date(nextEligibleDate)
-                                  eligibleDate.setHours(0, 0, 0, 0)
 
                                   return (
                                     <div className="mt-2">
                                       <span className="font-medium text-gray-700">Next Eligible: </span>
-                                      {today >= eligibleDate ? (
-                                        <span className="text-green-700 font-semibold">
-                                          ✓ Eligible to pitch
-                                        </span>
-                                      ) : (
-                                        <span className="text-orange-700 font-semibold">
-                                          {eligibleDate.toLocaleDateString('en-US', {
-                                            month: 'short',
-                                            day: 'numeric',
-                                            year: 'numeric'
-                                          })}
-                                        </span>
-                                      )}
+                                      <span className="text-blue-700 font-semibold">
+                                        {eligibleDate.toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                      </span>
                                     </div>
                                   )
                                 })()}
