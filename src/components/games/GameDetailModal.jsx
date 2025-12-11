@@ -281,6 +281,35 @@ function TeamDetailSection({
                                     </span>
                                   </div>
                                 )}
+                                {playerData.pitching.next_eligible_pitch_date && (
+                                  <div className="mt-2">
+                                    <span className="font-medium text-gray-700">Next Eligible: </span>
+                                    {(() => {
+                                      const today = new Date()
+                                      today.setHours(0, 0, 0, 0)
+                                      const eligibleDate = new Date(playerData.pitching.next_eligible_pitch_date)
+                                      eligibleDate.setHours(0, 0, 0, 0)
+
+                                      if (today >= eligibleDate) {
+                                        return (
+                                          <span className="text-green-700 font-semibold">
+                                            ✓ Eligible to pitch
+                                          </span>
+                                        )
+                                      } else {
+                                        return (
+                                          <span className="text-orange-700 font-semibold">
+                                            {eligibleDate.toLocaleDateString('en-US', {
+                                              month: 'short',
+                                              day: 'numeric',
+                                              year: 'numeric'
+                                            })}
+                                          </span>
+                                        )
+                                      }
+                                    })()}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
