@@ -41,7 +41,8 @@ export default function Dashboard({ user, profile }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+      <div className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
           {/* Sidebar */}
           <aside className="w-64 flex-shrink-0">
@@ -149,6 +150,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'games' && <GameEntry />}
             {currentView === 'reports' && <Reports />}
           </main>
+        </div>
         </div>
       </div>
 
