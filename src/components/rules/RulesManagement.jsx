@@ -4,7 +4,7 @@ export default function RulesManagement() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold">⚾ Pitch Smart Guidelines</h2>
         <p className="text-gray-600 mt-2">
-          MLB and USA Baseball pitch count and rest requirements to protect young pitchers
+          Pitch count and rest requirements to protect young pitchers
         </p>
       </div>
 
@@ -99,8 +99,7 @@ export default function RulesManagement() {
 
         <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
           <p className="text-sm text-blue-900">
-            <strong>📌 Note:</strong> These guidelines are based on MLB and USA Baseball Pitch Smart recommendations.
-            Rest days are calendar days (not practice days) required before a pitcher can pitch again in a game.
+            <strong>📌 Note:</strong> Rest days are calendar days required before a pitcher can pitch again in a game.
           </p>
         </div>
       </div>
