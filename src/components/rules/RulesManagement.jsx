@@ -78,7 +78,7 @@ export default function RulesManagement() {
                       >
                         {range ? (
                           <span className="text-gray-900">
-                            {range.minPitches}-{range.maxPitches === 999 ? range.minPitches + '+' : range.maxPitches}
+                            {range.maxPitches === 999 ? `${range.minPitches}+` : `${range.minPitches}-${range.maxPitches}`}
                           </span>
                         ) : (
                           <span className="text-gray-500">N/A</span>
