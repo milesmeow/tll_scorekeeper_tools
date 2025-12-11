@@ -5,6 +5,7 @@ export default function PlayerManagement() {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('Major')
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,6 +24,17 @@ export default function PlayerManagement() {
       fetchTeams()
     }
   }, [selectedSeason])
+
+  useEffect(() => {
+    if (selectedSeason && teams.length > 0) {
+      const divisionTeams = teams.filter(t => t.division === selectedDivision)
+      if (divisionTeams.length > 0) {
+        setSelectedTeam(divisionTeams[0].id)
+      } else {
+        setSelectedTeam(null)
+      }
+    }
+  }, [selectedDivision])
 
   useEffect(() => {
     if (selectedTeam) {
@@ -65,9 +77,11 @@ export default function PlayerManagement() {
 
       if (error) throw error
       setTeams(data)
-      
-      if (data.length > 0 && !selectedTeam) {
-        setSelectedTeam(data[0].id)
+
+      // Auto-select first team in the selected division
+      const divisionTeams = data.filter(t => t.division === selectedDivision)
+      if (divisionTeams.length > 0 && !selectedTeam) {
+        setSelectedTeam(divisionTeams[0].id)
       }
     } catch (err) {
       setError(err.message)
@@ -155,8 +169,8 @@ export default function PlayerManagement() {
         </div>
       </div>
 
-      {/* Season & Team Selectors */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      {/* Season, Division & Team Selectors */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div>
           <label className="label">Select Season</label>
           <select
@@ -176,17 +190,32 @@ export default function PlayerManagement() {
         </div>
 
         <div>
+          <label className="label">Filter by Division</label>
+          <select
+            className="input"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+          >
+            <option value="Training">Training</option>
+            <option value="Minor">Minor</option>
+            <option value="Major">Major</option>
+          </select>
+        </div>
+
+        <div>
           <label className="label">Select Team</label>
           <select
             className="input"
             value={selectedTeam || ''}
             onChange={(e) => setSelectedTeam(e.target.value)}
           >
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name} ({team.division})
-              </option>
-            ))}
+            {teams
+              .filter(team => team.division === selectedDivision)
+              .map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
           </select>
         </div>
       </div>
