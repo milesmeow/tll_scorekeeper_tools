@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -281,35 +282,40 @@ function TeamDetailSection({
                                     </span>
                                   </div>
                                 )}
-                                {playerData.pitching.next_eligible_pitch_date && (
-                                  <div className="mt-2">
-                                    <span className="font-medium text-gray-700">Next Eligible: </span>
-                                    {(() => {
-                                      const today = new Date()
-                                      today.setHours(0, 0, 0, 0)
-                                      const eligibleDate = new Date(playerData.pitching.next_eligible_pitch_date)
-                                      eligibleDate.setHours(0, 0, 0, 0)
+                                {(() => {
+                                  // Calculate eligibility based on THIS game's data (snapshot)
+                                  const nextEligibleDate = calculateNextEligibleDate(
+                                    game.game_date,
+                                    playerData.player.age,
+                                    playerData.pitching.final_pitch_count
+                                  )
 
-                                      if (today >= eligibleDate) {
-                                        return (
-                                          <span className="text-green-700 font-semibold">
-                                            ✓ Eligible to pitch
-                                          </span>
-                                        )
-                                      } else {
-                                        return (
-                                          <span className="text-orange-700 font-semibold">
-                                            {eligibleDate.toLocaleDateString('en-US', {
-                                              month: 'short',
-                                              day: 'numeric',
-                                              year: 'numeric'
-                                            })}
-                                          </span>
-                                        )
-                                      }
-                                    })()}
-                                  </div>
-                                )}
+                                  if (!nextEligibleDate) return null
+
+                                  const today = new Date()
+                                  today.setHours(0, 0, 0, 0)
+                                  const eligibleDate = new Date(nextEligibleDate)
+                                  eligibleDate.setHours(0, 0, 0, 0)
+
+                                  return (
+                                    <div className="mt-2">
+                                      <span className="font-medium text-gray-700">Next Eligible: </span>
+                                      {today >= eligibleDate ? (
+                                        <span className="text-green-700 font-semibold">
+                                          ✓ Eligible to pitch
+                                        </span>
+                                      ) : (
+                                        <span className="text-orange-700 font-semibold">
+                                          {eligibleDate.toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                          })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             )}
                           </div>

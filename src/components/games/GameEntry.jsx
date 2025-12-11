@@ -846,24 +846,54 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       if (attendanceError) throw attendanceError
 
       // Insert pitching logs (only for players who pitched)
-      const pitchingData = allPlayers
-        .filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
-        .map(p => {
-          const finalPitchCount = parseInt(p.final_pitch_count)
+      const pitchersInGame = allPlayers.filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
+
+      // For each pitcher, check if this game is their most recent pitching appearance
+      const pitchingData = await Promise.all(pitchersInGame.map(async (p) => {
+        const finalPitchCount = parseInt(p.final_pitch_count)
+
+        // Find the player's most recent pitching game (excluding this game if editing)
+        const { data: recentGames } = await supabase
+          .from('pitching_logs')
+          .select('game_id, games!inner(game_date)')
+          .eq('player_id', p.id)
+          .neq('game_id', finalGameId) // Exclude current game if editing
+          .order('games(game_date)', { ascending: false })
+          .limit(1)
+
+        // Only set next_eligible_pitch_date if this game is the most recent (or player's first game)
+        let nextEligiblePitchDate = null
+        const thisGameDate = new Date(formData.game_date)
+
+        if (!recentGames || recentGames.length === 0) {
+          // This is player's first pitching game, so update eligibility
           const nextEligibleDate = calculateNextEligibleDate(
             formData.game_date,
             p.age,
             finalPitchCount
           )
-
-          return {
-            game_id: finalGameId,
-            player_id: p.id,
-            final_pitch_count: finalPitchCount,
-            penultimate_batter_count: parseInt(p.penultimate_batter_count || 0),
-            next_eligible_pitch_date: nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
+          nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
+        } else {
+          // Compare dates - only update if this game is newer or equal
+          const mostRecentGameDate = new Date(recentGames[0].games.game_date)
+          if (thisGameDate >= mostRecentGameDate) {
+            const nextEligibleDate = calculateNextEligibleDate(
+              formData.game_date,
+              p.age,
+              finalPitchCount
+            )
+            nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
           }
-        })
+        }
+
+        return {
+          game_id: finalGameId,
+          player_id: p.id,
+          final_pitch_count: finalPitchCount,
+          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0),
+          next_eligible_pitch_date: nextEligiblePitchDate
+        }
+      }))
 
       if (pitchingData.length > 0) {
         const { error: pitchingError } = await supabase
