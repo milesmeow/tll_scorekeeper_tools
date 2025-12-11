@@ -7,6 +7,8 @@ import PlayerManagement from '../players/PlayerManagement'
 import CoachManagement from '../coaches/CoachManagement'
 import GameEntry from '../games/GameEntry'
 import Reports from '../reports/Reports'
+import RulesManagement from '../rules/RulesManagement'
+import Footer from './Footer'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -17,7 +19,7 @@ export default function Dashboard({ user, profile }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +42,8 @@ export default function Dashboard({ user, profile }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
           {/* Sidebar */}
           <aside className="w-64 flex-shrink-0">
@@ -134,6 +137,17 @@ export default function Dashboard({ user, profile }) {
               >
                 📊 Reports
               </button>
+
+              <button
+                onClick={() => setCurrentView('rules')}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'rules'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                📏 Rules
+              </button>
             </nav>
           </aside>
 
@@ -147,9 +161,13 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'coaches' && <CoachManagement />}
             {currentView === 'games' && <GameEntry />}
             {currentView === 'reports' && <Reports />}
+            {currentView === 'rules' && <RulesManagement />}
           </main>
         </div>
+        </div>
       </div>
+
+      <Footer />
     </div>
   )
 }

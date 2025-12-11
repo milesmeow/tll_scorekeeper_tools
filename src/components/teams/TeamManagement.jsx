@@ -5,6 +5,7 @@ import TeamPlayersModal from './TeamPlayersModal'
 export default function TeamManagement() {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
+  const [selectedDivision, setSelectedDivision] = useState('Major')
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -120,19 +121,35 @@ export default function TeamManagement() {
         </button>
       </div>
 
-      <div className="mb-6">
-        <label className="label">Select Season</label>
-        <select
-          className="input max-w-md"
-          value={selectedSeason || ''}
-          onChange={(e) => setSelectedSeason(e.target.value)}
-        >
-          {seasons.map((season) => (
-            <option key={season.id} value={season.id}>
-              {season.name} {season.is_active ? '(Active)' : ''}
-            </option>
-          ))}
-        </select>
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Select Season</label>
+          <select
+            className="input"
+            value={selectedSeason || ''}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} {season.is_active ? '(Active)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label">Filter by Division</label>
+          <select
+            className="input"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+          >
+            <option value="All">All Divisions</option>
+            <option value="Training">Training</option>
+            <option value="Minor">Minor</option>
+            <option value="Major">Major</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -159,7 +176,9 @@ export default function TeamManagement() {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(teamsByDivision).map(([division, divTeams]) => (
+          {Object.entries(teamsByDivision)
+            .filter(([division]) => selectedDivision === 'All' || division === selectedDivision)
+            .map(([division, divTeams]) => (
             divTeams.length > 0 && (
               <div key={division}>
                 <h3 className="text-lg font-semibold mb-3 text-gray-700">{division} Division</h3>

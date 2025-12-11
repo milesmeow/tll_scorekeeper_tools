@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import GameDetailModal from './GameDetailModal'
+import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
 export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
@@ -845,14 +846,57 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       if (attendanceError) throw attendanceError
 
       // Insert pitching logs (only for players who pitched)
-      const pitchingData = allPlayers
-        .filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
-        .map(p => ({
+      const pitchersInGame = allPlayers.filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
+
+      // For each pitcher, check if this game is their most recent pitching appearance
+      const pitchingData = await Promise.all(pitchersInGame.map(async (p) => {
+        const finalPitchCount = parseInt(p.final_pitch_count)
+        const penultimateBatterCount = parseInt(p.penultimate_batter_count || 0)
+        // Use penultimate_batter_count + 1 for eligibility calculation (per pitch count rules)
+        const effectivePitchCount = penultimateBatterCount + 1
+
+        // Find the player's most recent pitching game (excluding this game if editing)
+        const { data: recentGames } = await supabase
+          .from('pitching_logs')
+          .select('game_id, games!inner(game_date)')
+          .eq('player_id', p.id)
+          .neq('game_id', finalGameId) // Exclude current game if editing
+          .order('games(game_date)', { ascending: false })
+          .limit(1)
+
+        // Only set next_eligible_pitch_date if this game is the most recent (or player's first game)
+        let nextEligiblePitchDate = null
+        const thisGameDate = new Date(formData.game_date)
+
+        if (!recentGames || recentGames.length === 0) {
+          // This is player's first pitching game, so update eligibility
+          const nextEligibleDate = calculateNextEligibleDate(
+            formData.game_date,
+            p.age,
+            effectivePitchCount
+          )
+          nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
+        } else {
+          // Compare dates - only update if this game is newer or equal
+          const mostRecentGameDate = new Date(recentGames[0].games.game_date)
+          if (thisGameDate >= mostRecentGameDate) {
+            const nextEligibleDate = calculateNextEligibleDate(
+              formData.game_date,
+              p.age,
+              effectivePitchCount
+            )
+            nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
+          }
+        }
+
+        return {
           game_id: finalGameId,
           player_id: p.id,
-          final_pitch_count: parseInt(p.final_pitch_count),
-          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0)
-        }))
+          final_pitch_count: finalPitchCount,
+          penultimate_batter_count: penultimateBatterCount,
+          next_eligible_pitch_date: nextEligiblePitchDate
+        }
+      }))
 
       if (pitchingData.length > 0) {
         const { error: pitchingError } = await supabase
@@ -903,24 +947,30 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     }
   }
 
-  const toggleInning = (playerIndex, isHome, inningNum, type) => {
-    const players = isHome ? [...homePlayers] : [...awayPlayers]
-    const player = players[playerIndex]
+  const toggleInning = useCallback((playerIndex, isHome, inningNum, type) => {
     const arrayKey = type === 'pitch' ? 'innings_pitched' : 'innings_caught'
 
-    // Toggle the inning
-    if (player[arrayKey].includes(inningNum)) {
-      player[arrayKey] = player[arrayKey].filter(i => i !== inningNum)
-    } else {
-      player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
+    const updateFn = (players) => {
+      const newPlayers = [...players]
+      const player = { ...newPlayers[playerIndex] } // Clone the player object
+
+      // Toggle the inning
+      if (player[arrayKey].includes(inningNum)) {
+        player[arrayKey] = player[arrayKey].filter(i => i !== inningNum)
+      } else {
+        player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
+      }
+
+      newPlayers[playerIndex] = player // Replace with new player object
+      return newPlayers
     }
 
     if (isHome) {
-      setHomePlayers(players)
+      setHomePlayers(updateFn)
     } else {
-      setAwayPlayers(players)
+      setAwayPlayers(updateFn)
     }
-  }
+  }, [])
 
   // Helper function to check if innings are consecutive (for validation display)
   const hasInningsGap = (innings) => {
@@ -1015,16 +1065,21 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
-  const updatePlayerField = (playerIndex, isHome, field, value) => {
-    const players = isHome ? [...homePlayers] : [...awayPlayers]
-    players[playerIndex][field] = value
-    
-    if (isHome) {
-      setHomePlayers(players)
-    } else {
-      setAwayPlayers(players)
+  const updatePlayerField = useCallback((playerIndex, isHome, field, value) => {
+    const updateFn = (players) => {
+      const newPlayers = [...players]
+      const player = { ...newPlayers[playerIndex] } // Clone the player object
+      player[field] = value
+      newPlayers[playerIndex] = player // Replace with new player object
+      return newPlayers
     }
-  }
+
+    if (isHome) {
+      setHomePlayers(updateFn)
+    } else {
+      setAwayPlayers(updateFn)
+    }
+  }, [])
 
   if (step === 1) {
     return (
@@ -1239,11 +1294,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={true}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
-            hasInningsGap={hasInningsGap}
-            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
-            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           {/* Away Team Section */}
@@ -1253,11 +1303,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={false}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
-            hasInningsGap={hasInningsGap}
-            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
-            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
@@ -1282,20 +1327,132 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   )
 }
 
+// Memoized PlayerRow component to prevent unnecessary re-renders
+const PlayerRow = memo(function PlayerRow({
+  player,
+  index,
+  isHome,
+  onToggleInning,
+  onUpdateField
+}) {
+  const innings = [1, 2, 3, 4, 5, 6, 7]
+
+  return (
+    <div className="border rounded p-4 bg-gray-50">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h5 className="font-semibold">{player.name}</h5>
+            <span className="text-sm text-gray-600">Age: {player.age}</span>
+            {player.jersey_number && (
+              <span className="text-sm text-gray-600">#{player.jersey_number}</span>
+            )}
+          </div>
+
+          {/* Attendance - Mark if ABSENT */}
+          <div className="flex items-center gap-4 mt-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!player.was_present}
+                onChange={(e) => onUpdateField(index, isHome, 'was_present', !e.target.checked)}
+              />
+              <span className="text-red-600">Absent</span>
+            </label>
+            {!player.was_present && (
+              <input
+                type="text"
+                className="input text-sm flex-1"
+                placeholder="Absence reason (optional)"
+                value={player.absence_note}
+                onChange={(e) => onUpdateField(index, isHome, 'absence_note', e.target.value)}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {player.was_present && (
+        <div className="space-y-3 border-t pt-3">
+          {/* Innings Pitched */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-2">Innings Pitched:</label>
+            <div className="flex gap-2 flex-wrap">
+              {innings.map(inning => (
+                <label key={inning} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={player.innings_pitched.includes(inning)}
+                    onChange={() => onToggleInning(index, isHome, inning, 'pitch')}
+                  />
+                  <span className="text-sm">{inning}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Pitch Counts (only if pitched) */}
+          {player.innings_pitched.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Pitch Count (before last batter)
+                </label>
+                <input
+                  type="number"
+                  className="input text-sm"
+                  placeholder="0"
+                  min="0"
+                  value={player.penultimate_batter_count}
+                  onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Final Pitch Count *
+                </label>
+                <input
+                  type="number"
+                  className="input text-sm"
+                  placeholder="0"
+                  min="0"
+                  required
+                  value={player.final_pitch_count}
+                  onChange={(e) => onUpdateField(index, isHome, 'final_pitch_count', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Innings Caught */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-2">Innings Caught:</label>
+            <div className="flex gap-2 flex-wrap">
+              {innings.map(inning => (
+                <label key={inning} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={player.innings_caught.includes(inning)}
+                    onChange={() => onToggleInning(index, isHome, inning, 'catch')}
+                  />
+                  <span className="text-sm">{inning}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+})
+
 function TeamPlayerDataSection({
   team,
   players,
   isHome,
   onToggleInning,
-  onUpdateField,
-  hasInningsGap,
-  cannotCatchDueToHighPitchCount,
-  cannotPitchDueToFourInningsCatching,
-  cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  onUpdateField
 }) {
-  const innings = [1, 2, 3, 4, 5, 6, 7] // Adjust if you need more innings
-
   return (
     <div className="border rounded-lg p-4">
       <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
@@ -1307,149 +1464,16 @@ function TeamPlayerDataSection({
         </p>
       ) : (
         <div className="space-y-4">
-          {players.map((player, index) => {
-            const hasPitchingGap = hasInningsGap(player.innings_pitched)
-            const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
-            const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
-            const violationCombinedRule = cannotCatchAgainDueToCombined(player)
-            const effectivePitches = getEffectivePitchCount(player)
-
-            return (
-            <div key={player.id} className="border rounded p-4 bg-gray-50">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h5 className="font-semibold">{player.name}</h5>
-                    <span className="text-sm text-gray-600">Age: {player.age}</span>
-                    {player.jersey_number && (
-                      <span className="text-sm text-gray-600">#{player.jersey_number}</span>
-                    )}
-                  </div>
-
-                  {/* Attendance - Mark if ABSENT */}
-                  <div className="flex items-center gap-4 mt-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={!player.was_present}
-                        onChange={(e) => onUpdateField(index, isHome, 'was_present', !e.target.checked)}
-                      />
-                      <span className="text-red-600">Absent</span>
-                    </label>
-                    {!player.was_present && (
-                      <input
-                        type="text"
-                        className="input text-sm flex-1"
-                        placeholder="Absence reason (optional)"
-                        value={player.absence_note}
-                        onChange={(e) => onUpdateField(index, isHome, 'absence_note', e.target.value)}
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {player.was_present && (
-                <div className="space-y-3 border-t pt-3">
-                  {/* Innings Pitched */}
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-2">Innings Pitched:</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {innings.map(inning => (
-                        <label key={inning} className="flex items-center gap-1">
-                          <input
-                            type="checkbox"
-                            checked={player.innings_pitched.includes(inning)}
-                            onChange={() => onToggleInning(index, isHome, inning, 'pitch')}
-                          />
-                          <span className="text-sm">{inning}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {hasPitchingGap && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm text-red-700">
-                          ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
-                        </p>
-                      </div>
-                    )}
-                    {violationFourInningsCatching && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm text-red-700">
-                          ⚠️ Violation: Player caught {player.innings_caught.length} innings and cannot pitch in this game.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Pitch Counts (only if pitched) */}
-                  {player.innings_pitched.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 block mb-1">
-                          Pitch Count (before last batter)
-                        </label>
-                        <input
-                          type="number"
-                          className="input text-sm"
-                          placeholder="0"
-                          min="0"
-                          value={player.penultimate_batter_count}
-                          onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 block mb-1">
-                          Final Pitch Count *
-                        </label>
-                        <input
-                          type="number"
-                          className="input text-sm"
-                          placeholder="0"
-                          min="0"
-                          required
-                          value={player.final_pitch_count}
-                          onChange={(e) => onUpdateField(index, isHome, 'final_pitch_count', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Innings Caught */}
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-2">Innings Caught:</label>
-                    <div className="flex gap-2 flex-wrap">
-                      {innings.map(inning => (
-                        <label key={inning} className="flex items-center gap-1">
-                          <input
-                            type="checkbox"
-                            checked={player.innings_caught.includes(inning)}
-                            onChange={() => onToggleInning(index, isHome, inning, 'catch')}
-                          />
-                          <span className="text-sm">{inning}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {violationHighPitchCount && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm text-red-700">
-                          ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                        </p>
-                      </div>
-                    )}
-                    {violationCombinedRule && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                        <p className="text-sm text-red-700">
-                          ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            )
-          })}
+          {players.map((player, index) => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              index={index}
+              isHome={isHome}
+              onToggleInning={onToggleInning}
+              onUpdateField={onUpdateField}
+            />
+          ))}
         </div>
       )}
     </div>
