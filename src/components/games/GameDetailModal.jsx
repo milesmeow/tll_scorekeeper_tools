@@ -166,6 +166,7 @@ export default function GameDetailModal({ game, onClose }) {
               teamName={game.home_team.name}
               players={gameData.homePlayers}
               isHome={true}
+              gameDate={game.game_date}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -178,6 +179,7 @@ export default function GameDetailModal({ game, onClose }) {
               teamName={game.away_team.name}
               players={gameData.awayPlayers}
               isHome={false}
+              gameDate={game.game_date}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -204,6 +206,7 @@ function TeamDetailSection({
   teamName,
   players,
   isHome,
+  gameDate,
   hasInningsGap,
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
@@ -285,7 +288,7 @@ function TeamDetailSection({
                                 {(() => {
                                   // Calculate eligibility based on THIS game's data (snapshot)
                                   const nextEligibleDate = calculateNextEligibleDate(
-                                    game.game_date,
+                                    gameDate,
                                     playerData.player.age,
                                     playerData.pitching.final_pitch_count
                                   )
