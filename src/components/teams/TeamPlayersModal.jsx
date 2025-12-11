@@ -7,6 +7,7 @@ export default function TeamPlayersModal({ team, onClose }) {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState(null)
 
   useEffect(() => {
@@ -86,12 +87,18 @@ export default function TeamPlayersModal({ team, onClose }) {
             </div>
           )}
 
-          <div className="mb-4">
+          <div className="mb-4 flex gap-2">
             <button
               onClick={() => setShowAddModal(true)}
               className="btn btn-primary"
             >
               + Add Player
+            </button>
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="btn btn-secondary"
+            >
+              📋 Bulk Add (CSV)
             </button>
           </div>
 
@@ -199,6 +206,23 @@ export default function TeamPlayersModal({ team, onClose }) {
             setEditingPlayer(null)
             fetchPlayers()
             setSuccess('Player updated successfully!')
+            setTimeout(() => setSuccess(null), 3000)
+          }}
+          onError={(err) => {
+            setError(err)
+            setTimeout(() => setError(null), 5000)
+          }}
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkAddModal
+          teamId={team.id}
+          onClose={() => setShowBulkModal(false)}
+          onSuccess={(count) => {
+            setShowBulkModal(false)
+            fetchPlayers()
+            setSuccess(`${count} player${count !== 1 ? 's' : ''} added successfully!`)
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => {
@@ -319,6 +343,131 @@ function PlayerFormModal({ teamId, player, onClose, onSuccess, onError }) {
               disabled={submitting}
             >
               {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Add Player'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
+  const [csvData, setCsvData] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [modalError, setModalError] = useState(null)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setModalError(null)
+
+    try {
+      const lines = csvData.trim().split('\n')
+      const players = []
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (!line) continue
+
+        const parts = line.split(',').map(p => p.trim())
+
+        if (parts.length < 2) {
+          throw new Error('Line ' + (i + 1) + ': Invalid format. Expected: Name, Age, Jersey# (optional)')
+        }
+
+        const [name, age, jersey] = parts
+
+        if (!name) {
+          throw new Error('Line ' + (i + 1) + ': Name is required')
+        }
+
+        const ageNum = parseInt(age)
+        if (isNaN(ageNum) || ageNum < 7 || ageNum > 22) {
+          throw new Error('Line ' + (i + 1) + ': Age must be between 7 and 22')
+        }
+
+        players.push({
+          name,
+          age: ageNum,
+          jersey_number: jersey || null,
+          team_id: teamId
+        })
+      }
+
+      if (players.length === 0) {
+        throw new Error('No valid players found in CSV data')
+      }
+
+      const { error } = await supabase
+        .from('players')
+        .insert(players)
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('One or more jersey numbers already exist on this team')
+        }
+        throw error
+      }
+
+      onSuccess(players.length)
+    } catch (err) {
+      setModalError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+        <h3 className="text-xl font-bold mb-4">Bulk Add Players (CSV)</h3>
+
+        {modalError && (
+          <div className="alert alert-error mb-4">
+            {modalError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">CSV Data</label>
+            <textarea
+              className="input h-64 font-mono text-sm"
+              value={csvData}
+              onChange={(e) => setCsvData(e.target.value)}
+              required
+              placeholder="Name, Age, Jersey# (optional)&#10;John Smith, 12, 5&#10;Jane Doe, 11, 7&#10;Bob Johnson, 13"
+            />
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+              <p><strong>Format:</strong> Name, Age, Jersey# (optional)</p>
+              <p className="mt-1"><strong>Example:</strong></p>
+              <pre className="mt-1 text-xs bg-white p-2 rounded border">John Smith, 12, 5
+Jane Doe, 11, 7
+Bob Johnson, 13</pre>
+              <p className="mt-2 text-xs text-gray-600">
+                • One player per line<br />
+                • Age must be 7-22<br />
+                • Jersey numbers must be unique on this team<br />
+                • Jersey number is optional (leave blank for no jersey)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary flex-1"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary flex-1"
+              disabled={loading}
+            >
+              {loading ? 'Adding...' : 'Add Players'}
             </button>
           </div>
         </form>
