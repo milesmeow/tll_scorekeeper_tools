@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import TeamPlayersModal from './TeamPlayersModal'
 
 export default function TeamManagement() {
   const [seasons, setSeasons] = useState([])
@@ -9,6 +10,7 @@ export default function TeamManagement() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTeam, setEditingTeam] = useState(null)
   const [managingCoaches, setManagingCoaches] = useState(null)
+  const [managingPlayers, setManagingPlayers] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
@@ -174,6 +176,12 @@ export default function TeamManagement() {
                         </div>
                         <div className="flex gap-2">
                           <button
+                            onClick={() => setManagingPlayers(team)}
+                            className="text-purple-600 hover:text-purple-800 px-3 py-1"
+                          >
+                            Players
+                          </button>
+                          <button
                             onClick={() => setManagingCoaches(team)}
                             className="text-green-600 hover:text-green-800 px-3 py-1"
                           >
@@ -241,6 +249,13 @@ export default function TeamManagement() {
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
+        />
+      )}
+
+      {managingPlayers && (
+        <TeamPlayersModal
+          team={managingPlayers}
+          onClose={() => setManagingPlayers(null)}
         />
       )}
     </div>
