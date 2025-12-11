@@ -1294,11 +1294,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={true}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
-            hasInningsGap={hasInningsGap}
-            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
-            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           {/* Away Team Section */}
@@ -1308,11 +1303,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             isHome={false}
             onToggleInning={toggleInning}
             onUpdateField={updatePlayerField}
-            hasInningsGap={hasInningsGap}
-            cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-            cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-            cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
-            getEffectivePitchCount={getEffectivePitchCount}
           />
 
           <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
@@ -1343,20 +1333,9 @@ const PlayerRow = memo(function PlayerRow({
   index,
   isHome,
   onToggleInning,
-  onUpdateField,
-  hasInningsGap,
-  cannotCatchDueToHighPitchCount,
-  cannotPitchDueToFourInningsCatching,
-  cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  onUpdateField
 }) {
   const innings = [1, 2, 3, 4, 5, 6, 7]
-
-  const hasPitchingGap = hasInningsGap(player.innings_pitched)
-  const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
-  const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
-  const violationCombinedRule = cannotCatchAgainDueToCombined(player)
-  const effectivePitches = getEffectivePitchCount(player)
 
   return (
     <div className="border rounded p-4 bg-gray-50">
@@ -1410,20 +1389,6 @@ const PlayerRow = memo(function PlayerRow({
                 </label>
               ))}
             </div>
-            {hasPitchingGap && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm text-red-700">
-                  ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
-                </p>
-              </div>
-            )}
-            {violationFourInningsCatching && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm text-red-700">
-                  ⚠️ Violation: Player caught {player.innings_caught.length} innings and cannot pitch in this game.
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Pitch Counts (only if pitched) */}
@@ -1474,20 +1439,6 @@ const PlayerRow = memo(function PlayerRow({
                 </label>
               ))}
             </div>
-            {violationHighPitchCount && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm text-red-700">
-                  ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                </p>
-              </div>
-            )}
-            {violationCombinedRule && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm text-red-700">
-                  ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1500,12 +1451,7 @@ function TeamPlayerDataSection({
   players,
   isHome,
   onToggleInning,
-  onUpdateField,
-  hasInningsGap,
-  cannotCatchDueToHighPitchCount,
-  cannotPitchDueToFourInningsCatching,
-  cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  onUpdateField
 }) {
   return (
     <div className="border rounded-lg p-4">
@@ -1526,11 +1472,6 @@ function TeamPlayerDataSection({
               isHome={isHome}
               onToggleInning={onToggleInning}
               onUpdateField={onUpdateField}
-              hasInningsGap={hasInningsGap}
-              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
-              getEffectivePitchCount={getEffectivePitchCount}
             />
           ))}
         </div>
