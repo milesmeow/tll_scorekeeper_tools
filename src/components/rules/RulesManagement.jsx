@@ -12,7 +12,7 @@ export default function RulesManagement() {
       <div className="card mb-6">
         <h3 className="text-lg font-semibold mb-4">Daily Maximum Pitches per Game</h3>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-96 max-w-2xl">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
