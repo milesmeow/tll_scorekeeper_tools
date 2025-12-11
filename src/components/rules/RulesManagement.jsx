@@ -1,3 +1,5 @@
+import { PITCH_SMART_RULES } from '../../lib/pitchSmartRules'
+
 export default function RulesManagement() {
   return (
     <div>
@@ -24,18 +26,16 @@ export default function RulesManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm text-gray-900">7-8</td>
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">50</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm text-gray-900">9-10</td>
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">75</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 text-sm text-gray-900">11-12</td>
-                <td className="px-6 py-4 text-sm text-gray-900 font-medium">85</td>
-              </tr>
+              {PITCH_SMART_RULES.map((rule) => (
+                <tr key={`${rule.ageMin}-${rule.ageMax}`} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    {rule.ageMin}-{rule.ageMax}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                    {rule.maxPitchesPerGame}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -51,48 +51,43 @@ export default function RulesManagement() {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
                   AGE
                 </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  0 Days
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  1 Day
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  2 Days
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  3 Days
-                </th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  4 Days
-                </th>
+                {/* Dynamically create headers based on max rest days */}
+                {[0, 1, 2, 3, 4].map((days) => (
+                  <th
+                    key={days}
+                    className="px-4 py-3 text-center text-sm font-semibold text-gray-900 border-b-2 border-gray-300"
+                  >
+                    {days} {days === 1 ? 'Day' : 'Days'}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              <tr className="hover:bg-gray-50">
-                <td className="px-4 py-4 text-sm font-medium text-gray-900">7-8</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">1-20</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">21-35</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">36-50</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-500">N/A</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-500">N/A</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-4 py-4 text-sm font-medium text-gray-900">9-10</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">1-20</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">21-35</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">36-50</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">51-65</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">66+</td>
-              </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-4 py-4 text-sm font-medium text-gray-900">11-12</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">1-20</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">21-35</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">36-50</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">51-65</td>
-                <td className="px-4 py-4 text-sm text-center text-gray-900">66+</td>
-              </tr>
+              {PITCH_SMART_RULES.map((rule) => (
+                <tr key={`rest-${rule.ageMin}-${rule.ageMax}`} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                    {rule.ageMin}-{rule.ageMax}
+                  </td>
+                  {/* Render cells for each rest day column */}
+                  {[0, 1, 2, 3, 4].map((targetDays) => {
+                    const range = rule.restDayRanges.find(r => r.restDays === targetDays)
+                    return (
+                      <td
+                        key={targetDays}
+                        className="px-4 py-4 text-sm text-center"
+                      >
+                        {range ? (
+                          <span className="text-gray-900">
+                            {range.minPitches}-{range.maxPitches === 999 ? range.minPitches + '+' : range.maxPitches}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">N/A</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
