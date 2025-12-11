@@ -7,6 +7,7 @@ import PlayerManagement from '../players/PlayerManagement'
 import CoachManagement from '../coaches/CoachManagement'
 import GameEntry from '../games/GameEntry'
 import Reports from '../reports/Reports'
+import Footer from './Footer'
 
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
@@ -17,7 +18,7 @@ export default function Dashboard({ user, profile }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +41,7 @@ export default function Dashboard({ user, profile }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
         <div className="flex gap-8">
           {/* Sidebar */}
           <aside className="w-64 flex-shrink-0">
@@ -150,6 +151,8 @@ export default function Dashboard({ user, profile }) {
           </main>
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }
