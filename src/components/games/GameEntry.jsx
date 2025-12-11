@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import GameDetailModal from './GameDetailModal'
+import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
 export default function GameEntry() {
   const [seasons, setSeasons] = useState([])
@@ -847,12 +848,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       // Insert pitching logs (only for players who pitched)
       const pitchingData = allPlayers
         .filter(p => p.innings_pitched.length > 0 && p.final_pitch_count)
-        .map(p => ({
-          game_id: finalGameId,
-          player_id: p.id,
-          final_pitch_count: parseInt(p.final_pitch_count),
-          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0)
-        }))
+        .map(p => {
+          const finalPitchCount = parseInt(p.final_pitch_count)
+          const nextEligibleDate = calculateNextEligibleDate(
+            formData.game_date,
+            p.age,
+            finalPitchCount
+          )
+
+          return {
+            game_id: finalGameId,
+            player_id: p.id,
+            final_pitch_count: finalPitchCount,
+            penultimate_batter_count: parseInt(p.penultimate_batter_count || 0),
+            next_eligible_pitch_date: nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
+          }
+        })
 
       if (pitchingData.length > 0) {
         const { error: pitchingError } = await supabase
