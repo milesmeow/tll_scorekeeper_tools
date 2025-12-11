@@ -202,71 +202,7 @@ CREATE INDEX idx_positions_player ON public.positions_played(player_id);
 CREATE INDEX idx_positions_position ON public.positions_played(position);
 
 -- =====================================================
--- 10. PITCH COUNT RULES (Reference Data)
--- =====================================================
-
-CREATE TABLE public.pitch_count_rules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  age_min INTEGER NOT NULL,
-  age_max INTEGER NOT NULL,
-  max_pitches_per_game INTEGER NOT NULL,
-  rest_days JSONB NOT NULL, -- {pitch_ranges: [{min, max, days}]}
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Insert Pitch Smart Guidelines
-INSERT INTO public.pitch_count_rules (age_min, age_max, max_pitches_per_game, rest_days) VALUES
-  (7, 8, 50, '[
-    {"min": 1, "max": 20, "days": 0},
-    {"min": 21, "max": 35, "days": 1},
-    {"min": 36, "max": 50, "days": 2}
-  ]'::jsonb),
-  (9, 10, 75, '[
-    {"min": 1, "max": 20, "days": 0},
-    {"min": 21, "max": 35, "days": 1},
-    {"min": 36, "max": 50, "days": 2},
-    {"min": 51, "max": 65, "days": 3},
-    {"min": 66, "max": 999, "days": 4}
-  ]'::jsonb),
-  (11, 12, 85, '[
-    {"min": 1, "max": 20, "days": 0},
-    {"min": 21, "max": 35, "days": 1},
-    {"min": 36, "max": 50, "days": 2},
-    {"min": 51, "max": 65, "days": 3},
-    {"min": 66, "max": 999, "days": 4}
-  ]'::jsonb),
-  (13, 14, 95, '[
-    {"min": 1, "max": 20, "days": 0},
-    {"min": 21, "max": 35, "days": 1},
-    {"min": 36, "max": 50, "days": 2},
-    {"min": 51, "max": 65, "days": 3},
-    {"min": 66, "max": 999, "days": 4}
-  ]'::jsonb),
-  (15, 16, 95, '[
-    {"min": 1, "max": 30, "days": 0},
-    {"min": 31, "max": 45, "days": 1},
-    {"min": 46, "max": 60, "days": 2},
-    {"min": 61, "max": 75, "days": 3},
-    {"min": 76, "max": 999, "days": 4}
-  ]'::jsonb),
-  (17, 18, 105, '[
-    {"min": 1, "max": 30, "days": 0},
-    {"min": 31, "max": 45, "days": 1},
-    {"min": 46, "max": 60, "days": 2},
-    {"min": 61, "max": 80, "days": 3},
-    {"min": 81, "max": 999, "days": 4}
-  ]'::jsonb),
-  (19, 22, 120, '[
-    {"min": 1, "max": 30, "days": 0},
-    {"min": 31, "max": 45, "days": 1},
-    {"min": 46, "max": 60, "days": 2},
-    {"min": 61, "max": 80, "days": 3},
-    {"min": 81, "max": 105, "days": 4},
-    {"min": 106, "max": 999, "days": 5}
-  ]'::jsonb);
-
--- =====================================================
--- 11. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
 
 -- Enable RLS on all tables EXCEPT user_profiles (to avoid recursion)
@@ -279,7 +215,6 @@ ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pitching_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions_played ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pitch_count_rules ENABLE ROW LEVEL SECURITY;
 
 -- USER PROFILES - No RLS (authentication still required)
 -- Disabling RLS avoids infinite recursion when policies need to check user roles
@@ -420,13 +355,8 @@ CREATE POLICY "Manage positions_played" ON public.positions_played FOR ALL USING
 
 CREATE POLICY "View positions_played" ON public.positions_played FOR SELECT USING (auth.uid() IS NOT NULL);
 
--- PITCH COUNT RULES (reference data - read only for all)
-CREATE POLICY "All users can view pitch count rules"
-  ON public.pitch_count_rules FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
 -- =====================================================
--- 12. FUNCTIONS & TRIGGERS
+-- 11. FUNCTIONS & TRIGGERS
 -- =====================================================
 
 -- Update timestamp trigger
