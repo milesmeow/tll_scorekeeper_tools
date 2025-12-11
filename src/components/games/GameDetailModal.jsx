@@ -287,10 +287,12 @@ function TeamDetailSection({
                                 )}
                                 {(() => {
                                   // Calculate eligibility based on THIS game's data (snapshot)
+                                  // Use penultimate_batter_count + 1 as per pitch count rules
+                                  const effectivePitchCount = (playerData.pitching.penultimate_batter_count || 0) + 1
                                   const nextEligibleDate = calculateNextEligibleDate(
                                     gameDate,
                                     playerData.player.age,
-                                    playerData.pitching.final_pitch_count
+                                    effectivePitchCount
                                   )
 
                                   if (!nextEligibleDate) return null

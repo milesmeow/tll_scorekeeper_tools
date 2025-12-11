@@ -851,6 +851,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       // For each pitcher, check if this game is their most recent pitching appearance
       const pitchingData = await Promise.all(pitchersInGame.map(async (p) => {
         const finalPitchCount = parseInt(p.final_pitch_count)
+        const penultimateBatterCount = parseInt(p.penultimate_batter_count || 0)
+        // Use penultimate_batter_count + 1 for eligibility calculation (per pitch count rules)
+        const effectivePitchCount = penultimateBatterCount + 1
 
         // Find the player's most recent pitching game (excluding this game if editing)
         const { data: recentGames } = await supabase
@@ -870,7 +873,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           const nextEligibleDate = calculateNextEligibleDate(
             formData.game_date,
             p.age,
-            finalPitchCount
+            effectivePitchCount
           )
           nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
         } else {
@@ -880,7 +883,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             const nextEligibleDate = calculateNextEligibleDate(
               formData.game_date,
               p.age,
-              finalPitchCount
+              effectivePitchCount
             )
             nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
           }
@@ -890,7 +893,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           game_id: finalGameId,
           player_id: p.id,
           final_pitch_count: finalPitchCount,
-          penultimate_batter_count: parseInt(p.penultimate_batter_count || 0),
+          penultimate_batter_count: penultimateBatterCount,
           next_eligible_pitch_date: nextEligiblePitchDate
         }
       }))
