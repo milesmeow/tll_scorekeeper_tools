@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -165,6 +166,7 @@ export default function GameDetailModal({ game, onClose }) {
               teamName={game.home_team.name}
               players={gameData.homePlayers}
               isHome={true}
+              gameDate={game.game_date}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -177,6 +179,7 @@ export default function GameDetailModal({ game, onClose }) {
               teamName={game.away_team.name}
               players={gameData.awayPlayers}
               isHome={false}
+              gameDate={game.game_date}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -203,6 +206,7 @@ function TeamDetailSection({
   teamName,
   players,
   isHome,
+  gameDate,
   hasInningsGap,
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
@@ -281,6 +285,33 @@ function TeamDetailSection({
                                     </span>
                                   </div>
                                 )}
+                                {(() => {
+                                  // Calculate eligibility based on THIS game's data (snapshot)
+                                  // Use penultimate_batter_count + 1 as per pitch count rules
+                                  const effectivePitchCount = (playerData.pitching.penultimate_batter_count || 0) + 1
+                                  const nextEligibleDate = calculateNextEligibleDate(
+                                    gameDate,
+                                    playerData.player.age,
+                                    effectivePitchCount
+                                  )
+
+                                  if (!nextEligibleDate) return null
+
+                                  const eligibleDate = new Date(nextEligibleDate)
+
+                                  return (
+                                    <div className="mt-2">
+                                      <span className="font-medium text-gray-700">Next Eligible: </span>
+                                      <span className="text-blue-700 font-semibold">
+                                        {eligibleDate.toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                      </span>
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             )}
                           </div>
