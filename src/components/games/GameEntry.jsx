@@ -952,7 +952,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     const updateFn = (players) => {
       const newPlayers = [...players]
-      const player = newPlayers[playerIndex]
+      const player = { ...newPlayers[playerIndex] } // Clone the player object
 
       // Toggle the inning
       if (player[arrayKey].includes(inningNum)) {
@@ -961,6 +961,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         player[arrayKey] = [...player[arrayKey], inningNum].sort((a, b) => a - b)
       }
 
+      newPlayers[playerIndex] = player // Replace with new player object
       return newPlayers
     }
 
@@ -1067,7 +1068,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const updatePlayerField = useCallback((playerIndex, isHome, field, value) => {
     const updateFn = (players) => {
       const newPlayers = [...players]
-      newPlayers[playerIndex][field] = value
+      const player = { ...newPlayers[playerIndex] } // Clone the player object
+      player[field] = value
+      newPlayers[playerIndex] = player // Replace with new player object
       return newPlayers
     }
 
