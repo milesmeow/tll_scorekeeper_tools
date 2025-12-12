@@ -12,7 +12,7 @@ export default function RulesManagement() {
 
       {/* Daily Max Pitches Table */}
       <div className="card mb-6">
-        <h3 className="text-lg font-semibold mb-4">Daily Maximum Pitches per Game</h3>
+        <h3 className="text-lg font-semibold mb-4">Daily Maximum Pitches</h3>
         <div className="overflow-x-auto">
           <table className="min-w-96 max-w-2xl">
             <thead className="bg-gray-50">
@@ -21,7 +21,7 @@ export default function RulesManagement() {
                   AGE
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 border-b-2 border-gray-300">
-                  DAILY MAX (PITCHES IN GAME)
+                  DAILY MAX
                 </th>
               </tr>
             </thead>

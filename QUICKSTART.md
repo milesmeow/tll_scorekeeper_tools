@@ -197,19 +197,21 @@ You're ready to use the app! Try:
 - Password changes
 - Create users from app (via Edge Function)
 
-**Phase 2 (Complete)**  
+**Phase 2 (Complete)**
 - Season management (create, edit, delete, set active)
 - Team management (create, edit, delete, by division)
 - Player management (individual + bulk CSV import)
 - Coach management (view and assign to teams)
 
-**Phase 3 (Partial)**
-- Game entry (basic info + player data)
-- ⏳ Game viewing/editing (coming soon)
+**Phase 3 (Complete)**
+- ✅ Game entry (basic info + player data)
+- ✅ Game viewing with full details
+- ✅ Game editing
+- ✅ Game deletion
 
 ### 🚧 Coming Soon
 
-**Phase 4**
+**Phase 4 (Next)**
 - Pitch Smart rule validation
 - Rest day calculations
 - Warning flags
