@@ -1,6 +1,6 @@
 {
-  "name": "baseball-app",
-  "version": "1.1.1",
+  "name": "tll-scorekeeper-tools-app",
+  "version": "1.1.2",
   "description": "",
   "type": "module",
   "scripts": {
