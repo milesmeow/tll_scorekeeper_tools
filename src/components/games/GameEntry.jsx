@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react'
+import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
@@ -519,8 +519,18 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
 
+  // Ref for scrolling to top on error
+  const modalContentRef = useRef(null)
+
   // Save original game data for comparison when editing
   const [originalGameData, setOriginalGameData] = useState(null)
+
+  // Scroll to top when error occurs
+  useEffect(() => {
+    if (modalError && modalContentRef.current) {
+      modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [modalError])
 
   // Load existing player data when editing
   useEffect(() => {
@@ -727,6 +737,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       setStep(2)
     } catch (err) {
       setModalError(err.message)
+      // Scroll to top to show error
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     } finally {
       setLoading(false)
     }
@@ -800,10 +814,97 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         }
       }
 
-      // Validation passed, go to confirmation step
+      // Validate that all innings have pitchers and catchers for each team separately
+      const homeTeam = teams.find(t => t.id === formData.home_team_id)
+      const awayTeam = teams.find(t => t.id === formData.away_team_id)
+
+      // Helper function to validate inning coverage for a team
+      const validateTeamCoverage = (players, teamName) => {
+        const pitchedInnings = new Set()
+        const caughtInnings = new Set()
+
+        players.forEach(player => {
+          player.innings_pitched.forEach(inning => pitchedInnings.add(inning))
+          player.innings_caught.forEach(inning => caughtInnings.add(inning))
+        })
+
+        // Check pitching coverage
+        if (pitchedInnings.size > 0) {
+          const maxPitchedInning = Math.max(...Array.from(pitchedInnings))
+          const missingPitchingInnings = []
+
+          for (let i = 1; i <= maxPitchedInning; i++) {
+            if (!pitchedInnings.has(i)) {
+              missingPitchingInnings.push(i)
+            }
+          }
+
+          if (missingPitchingInnings.length > 0) {
+            throw new Error(
+              `${teamName}: Missing pitchers for inning${missingPitchingInnings.length > 1 ? 's' : ''} ${missingPitchingInnings.join(', ')}. ` +
+              `If inning ${maxPitchedInning} has a pitcher, all previous innings must also have pitchers.`
+            )
+          }
+        }
+
+        // Check catching coverage
+        if (caughtInnings.size > 0) {
+          const maxCaughtInning = Math.max(...Array.from(caughtInnings))
+          const missingCatchingInnings = []
+
+          for (let i = 1; i <= maxCaughtInning; i++) {
+            if (!caughtInnings.has(i)) {
+              missingCatchingInnings.push(i)
+            }
+          }
+
+          if (missingCatchingInnings.length > 0) {
+            throw new Error(
+              `${teamName}: Missing catchers for inning${missingCatchingInnings.length > 1 ? 's' : ''} ${missingCatchingInnings.join(', ')}. ` +
+              `If inning ${maxCaughtInning} has a catcher, all previous innings must also have catchers.`
+            )
+          }
+        }
+
+        // Check that pitched innings and caught innings match exactly
+        const pitchedArray = Array.from(pitchedInnings).sort((a, b) => a - b)
+        const caughtArray = Array.from(caughtInnings).sort((a, b) => a - b)
+
+        if (pitchedArray.length !== caughtArray.length ||
+            !pitchedArray.every((inning, index) => inning === caughtArray[index])) {
+
+          // Find which innings are mismatched
+          const pitchedOnly = pitchedArray.filter(i => !caughtInnings.has(i))
+          const caughtOnly = caughtArray.filter(i => !pitchedInnings.has(i))
+
+          let errorMsg = `${teamName}: Pitched innings and caught innings must match. `
+
+          if (pitchedOnly.length > 0) {
+            errorMsg += `Inning${pitchedOnly.length > 1 ? 's' : ''} ${pitchedOnly.join(', ')} ${pitchedOnly.length > 1 ? 'have' : 'has'} a pitcher but no catcher. `
+          }
+
+          if (caughtOnly.length > 0) {
+            errorMsg += `Inning${caughtOnly.length > 1 ? 's' : ''} ${caughtOnly.join(', ')} ${caughtOnly.length > 1 ? 'have' : 'has'} a catcher but no pitcher.`
+          }
+
+          throw new Error(errorMsg.trim())
+        }
+      }
+
+      // Validate home team
+      validateTeamCoverage(homePlayers, homeTeam?.name || 'Home Team')
+
+      // Validate away team
+      validateTeamCoverage(awayPlayers, awayTeam?.name || 'Away Team')
+
+      // All validation passed, go to confirmation step
       setStep(3)
     } catch (err) {
       setModalError(err.message)
+      // Scroll to top to show error
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     } finally {
       setLoading(false)
     }
@@ -814,8 +915,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     setModalError(null)
 
     try {
-      const allPlayers = [...homePlayers, ...awayPlayers]
-
       let finalGameId = gameId
 
       const gameData = {
@@ -968,6 +1067,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       onSuccess()
     } catch (err) {
       setModalError(err.message)
+      // Scroll to top to show error
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     } finally {
       setLoading(false)
     }
@@ -1110,7 +1213,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   if (step === 1) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg px-6 pt-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div ref={modalContentRef} className="bg-white rounded-lg px-6 pt-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 1: Basic Info' : 'Enter New Game - Step 1: Basic Info'}
           </h3>
@@ -1316,7 +1419,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg px-6 pt-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div ref={modalContentRef} className="bg-white rounded-lg px-6 pt-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
           </h3>
@@ -1349,7 +1452,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             <div className="flex gap-2 pt-4 pb-6 border-t sticky bottom-0 bg-white">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setModalError(null)
+                  setStep(1)
+                }}
                 className="btn btn-secondary"
               >
                 ← Back
@@ -1385,7 +1491,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg px-6 pt-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div ref={modalContentRef} className="bg-white rounded-lg px-6 pt-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 3: Review & Confirm' : 'Enter New Game - Step 3: Review & Confirm'}
           </h3>
@@ -1468,7 +1574,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           <div className="flex gap-2 pt-6 pb-6 border-t sticky bottom-0 bg-white">
             <button
               type="button"
-              onClick={() => setStep(2)}
+              onClick={() => {
+                setModalError(null)
+                setStep(2)
+              }}
               className="btn btn-secondary"
             >
               ← Back to Edit
