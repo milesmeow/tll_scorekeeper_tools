@@ -1400,24 +1400,12 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Game Summary */}
             <div className="card bg-blue-50 border border-blue-200">
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
                   <span className="font-semibold">Date:</span> {new Date(formData.game_date).toLocaleDateString()}
                 </div>
                 <div>
                   <span className="font-semibold">Division:</span> {homeTeam?.division}
-                </div>
-                <div>
-                  <span className="font-semibold">Home Team:</span> {homeTeam?.name}
-                </div>
-                <div>
-                  <span className="font-semibold">Home Score:</span> {formData.home_score}
-                </div>
-                <div>
-                  <span className="font-semibold">Away Team:</span> {awayTeam?.name}
-                </div>
-                <div>
-                  <span className="font-semibold">Away Score:</span> {formData.away_score}
                 </div>
                 <div className="col-span-2">
                   <span className="font-semibold">Scorekeeper:</span> {formData.scorekeeper_name}
@@ -1427,6 +1415,28 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
                     <span className="font-semibold">Notes:</span> {formData.notes}
                   </div>
                 )}
+              </div>
+
+              {/* Score Table */}
+              <div className="border border-gray-300 rounded overflow-hidden max-w-fit">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-2 text-left font-semibold">Team</th>
+                      <th className="px-4 py-2 text-center font-semibold">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-gray-300 bg-white">
+                      <td className="px-4 py-2">{homeTeam?.name} (Home)</td>
+                      <td className="px-4 py-2 text-center font-bold text-lg">{formData.home_score}</td>
+                    </tr>
+                    <tr className="border-t border-gray-300 bg-white">
+                      <td className="px-4 py-2">{awayTeam?.name} (Visitor)</td>
+                      <td className="px-4 py-2 text-center font-bold text-lg">{formData.away_score}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
