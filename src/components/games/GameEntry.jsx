@@ -436,7 +436,7 @@ export default function GameEntry() {
       {/* Delete Confirmation Modal */}
       {gameToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg px-6 pt-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>
 
             <div className="mb-4">
@@ -1110,7 +1110,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   if (step === 1) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg px-6 pt-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 1: Basic Info' : 'Enter New Game - Step 1: Basic Info'}
           </h3>
@@ -1291,7 +1291,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               <button
                 type="button"
                 onClick={onClose}
-                className="btn btn-secondary flex-1"
+                className="btn btn-secondary"
               >
                 Cancel
               </button>
@@ -1316,7 +1316,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg px-6 pt-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
           </h3>
@@ -1385,7 +1385,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg px-6 pt-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 3: Review & Confirm' : 'Enter New Game - Step 3: Review & Confirm'}
           </h3>
@@ -1525,72 +1525,77 @@ const PlayerRow = memo(function PlayerRow({
 
       {player.was_present && (
         <div className="space-y-3 border-t pt-3">
-          {/* Innings Pitched */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-2">Innings Pitched:</label>
-            <div className="flex gap-2 flex-wrap">
-              {innings.map(inning => (
-                <label key={inning} className="flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={player.innings_pitched.includes(inning)}
-                    onChange={() => onToggleInning(index, isHome, inning, 'pitch')}
-                  />
-                  <span className="text-sm">{inning}</span>
-                </label>
-              ))}
+          {/* Innings Pitched and Caught - Side by Side */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Innings Pitched */}
+            <div className="bg-blue-50 p-3 rounded border border-blue-200">
+              <label className="text-sm font-medium text-gray-700 block mb-2">Innings Pitched:</label>
+              <div className="flex gap-2 flex-wrap">
+                {innings.map(inning => (
+                  <label key={inning} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={player.innings_pitched.includes(inning)}
+                      onChange={() => onToggleInning(index, isHome, inning, 'pitch')}
+                    />
+                    <span className="text-sm">{inning}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Innings Caught */}
+            <div className="bg-green-50 p-3 rounded border border-green-200">
+              <label className="text-sm font-medium text-gray-700 block mb-2">Innings Caught:</label>
+              <div className="flex gap-2 flex-wrap">
+                {innings.map(inning => (
+                  <label key={inning} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={player.innings_caught.includes(inning)}
+                      onChange={() => onToggleInning(index, isHome, inning, 'catch')}
+                    />
+                    <span className="text-sm">{inning}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Pitch Counts (only if pitched) */}
           {player.innings_pitched.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Pitch Count (before last batter)
-                </label>
-                <input
-                  type="number"
-                  className="input text-sm"
-                  placeholder="0"
-                  min="0"
-                  value={player.penultimate_batter_count}
-                  onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Final Pitch Count *
-                </label>
-                <input
-                  type="number"
-                  className="input text-sm"
-                  placeholder="0"
-                  min="0"
-                  required
-                  value={player.final_pitch_count}
-                  onChange={(e) => onUpdateField(index, isHome, 'final_pitch_count', e.target.value)}
-                />
+            <div className="bg-blue-50 p-3 rounded border border-blue-200">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">
+                    Pitch Count (before last batter)
+                  </label>
+                  <input
+                    type="number"
+                    className="input text-sm"
+                    placeholder="0"
+                    min="0"
+                    value={player.penultimate_batter_count}
+                    onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">
+                    Final Pitch Count *
+                  </label>
+                  <input
+                    type="number"
+                    className="input text-sm"
+                    placeholder="0"
+                    min="0"
+                    required
+                    value={player.final_pitch_count}
+                    onChange={(e) => onUpdateField(index, isHome, 'final_pitch_count', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           )}
-
-          {/* Innings Caught */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-2">Innings Caught:</label>
-            <div className="flex gap-2 flex-wrap">
-              {innings.map(inning => (
-                <label key={inning} className="flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={player.innings_caught.includes(inning)}
-                    onChange={() => onToggleInning(index, isHome, inning, 'catch')}
-                  />
-                  <span className="text-sm">{inning}</span>
-                </label>
-              ))}
-            </div>
-          </div>
         </div>
       )}
     </div>
