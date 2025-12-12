@@ -140,6 +140,12 @@ export default function GameDetailModal({ game, onClose }) {
             <p className="text-sm text-gray-600 mt-1">
               Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
             </p>
+            {game.notes && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-sm font-semibold text-yellow-900 mb-1">📝 Game Notes:</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{game.notes}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}

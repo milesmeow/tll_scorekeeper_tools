@@ -355,6 +355,14 @@ export default function GameEntry() {
                     <p className="text-sm text-gray-500 mt-1">
                       Scorekeeper: {game.scorekeeper_name} ({game.scorekeeper_team?.name})
                     </p>
+                    {game.notes && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                        <span className="font-semibold text-yellow-900">📝 Note: </span>
+                        <span className="text-gray-700">
+                          {game.notes.length > 100 ? `${game.notes.substring(0, 100)}...` : game.notes}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -493,7 +501,7 @@ export default function GameEntry() {
 
 function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, onSuccess, onError }) {
   const isEditMode = !!gameToEdit
-  const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data
+  const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data, 3 = Confirmation
   const [gameId, setGameId] = useState(gameToEdit?.id || null)
   const [selectedDivision, setSelectedDivision] = useState(defaultDivision || '')
   const [formData, setFormData] = useState({
@@ -503,7 +511,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     home_team_id: gameToEdit?.home_team_id || '',
     away_team_id: gameToEdit?.away_team_id || '',
     home_score: gameToEdit?.home_score?.toString() || '',
-    away_score: gameToEdit?.away_score?.toString() || ''
+    away_score: gameToEdit?.away_score?.toString() || '',
+    notes: gameToEdit?.notes || ''
   })
   const [homePlayers, setHomePlayers] = useState([]) // Player data for home team
   const [awayPlayers, setAwayPlayers] = useState([]) // Player data for away team
@@ -777,7 +786,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     try {
       const allPlayers = [...homePlayers, ...awayPlayers]
 
-      // Validate pitch counts before saving
+      // Validate pitch counts before proceeding to confirmation
       for (const player of allPlayers) {
         if (player.innings_pitched.length > 0 && player.final_pitch_count) {
           const penultimate = parseInt(player.penultimate_batter_count || 0)
@@ -791,6 +800,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         }
       }
 
+      // Validation passed, go to confirmation step
+      setStep(3)
+    } catch (err) {
+      setModalError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFinalSubmit = async () => {
+    setLoading(true)
+    setModalError(null)
+
+    try {
+      const allPlayers = [...homePlayers, ...awayPlayers]
+
       let finalGameId = gameId
 
       const gameData = {
@@ -801,7 +826,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         home_team_id: formData.home_team_id,
         away_team_id: formData.away_team_id,
         home_score: parseInt(formData.home_score),
-        away_score: parseInt(formData.away_score)
+        away_score: parseInt(formData.away_score),
+        notes: formData.notes || null
       }
 
       if (!isEditMode) {
@@ -1084,7 +1110,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   if (step === 1) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
           <h3 className="text-xl font-bold mb-4">
             {isEditMode ? 'Edit Game - Step 1: Basic Info' : 'Enter New Game - Step 1: Basic Info'}
           </h3>
@@ -1247,7 +1273,21 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="border-t pt-4">
+              <label className="label">Game Notes (Optional)</label>
+              <textarea
+                className="input"
+                rows="3"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Add any notes about this game that people in the league need to know..."
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                These notes will be visible in game details and reports
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-4 pb-6 border-t sticky bottom-0 bg-white">
               <button
                 type="button"
                 onClick={onClose}
@@ -1270,61 +1310,172 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   }
 
   // Step 2: Player Data
-  const homeTeam = teams.find(t => t.id === formData.home_team_id)
-  const awayTeam = teams.find(t => t.id === formData.away_team_id)
+  if (step === 2) {
+    const homeTeam = teams.find(t => t.id === formData.home_team_id)
+    const awayTeam = teams.find(t => t.id === formData.away_team_id)
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-bold mb-4">
-          {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
-        </h3>
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+          <h3 className="text-xl font-bold mb-4">
+            {isEditMode ? 'Edit Game - Step 2: Player Data' : 'Enter New Game - Step 2: Player Data'}
+          </h3>
 
-        {modalError && (
-          <div className="alert alert-error mb-4">
-            {modalError}
+          {modalError && (
+            <div className="alert alert-error mb-4">
+              {modalError}
+            </div>
+          )}
+
+          <form onSubmit={handlePlayerDataSubmit} className="space-y-8">
+            {/* Home Team Section */}
+            <TeamPlayerDataSection
+              team={homeTeam}
+              players={homePlayers}
+              isHome={true}
+              onToggleInning={toggleInning}
+              onUpdateField={updatePlayerField}
+            />
+
+            {/* Away Team Section */}
+            <TeamPlayerDataSection
+              team={awayTeam}
+              players={awayPlayers}
+              isHome={false}
+              onToggleInning={toggleInning}
+              onUpdateField={updatePlayerField}
+            />
+
+            <div className="flex gap-2 pt-4 pb-6 border-t sticky bottom-0 bg-white">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="btn btn-secondary"
+              >
+                ← Back
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary flex-1"
+                disabled={loading}
+              >
+                {loading ? 'Validating...' : 'Next: Review & Confirm →'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // Step 3: Confirmation
+  if (step === 3) {
+    const homeTeam = teams.find(t => t.id === formData.home_team_id)
+    const awayTeam = teams.find(t => t.id === formData.away_team_id)
+
+    // Filter players to show only those who pitched/caught or were absent
+    const homePitchersAndCatchers = homePlayers.filter(p =>
+      p.was_present && (p.innings_pitched.length > 0 || p.innings_caught.length > 0)
+    )
+    const awayPitchersAndCatchers = awayPlayers.filter(p =>
+      p.was_present && (p.innings_pitched.length > 0 || p.innings_caught.length > 0)
+    )
+    const homeAbsent = homePlayers.filter(p => !p.was_present)
+    const awayAbsent = awayPlayers.filter(p => !p.was_present)
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+          <h3 className="text-xl font-bold mb-4">
+            {isEditMode ? 'Edit Game - Step 3: Review & Confirm' : 'Enter New Game - Step 3: Review & Confirm'}
+          </h3>
+
+          {modalError && (
+            <div className="alert alert-error mb-4">
+              {modalError}
+            </div>
+          )}
+
+          <div className="space-y-6">
+            {/* Game Summary */}
+            <div className="card bg-blue-50 border border-blue-200">
+              <h4 className="font-bold text-lg mb-3">Game Information</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-semibold">Date:</span> {new Date(formData.game_date).toLocaleDateString()}
+                </div>
+                <div>
+                  <span className="font-semibold">Division:</span> {homeTeam?.division}
+                </div>
+                <div>
+                  <span className="font-semibold">Home Team:</span> {homeTeam?.name}
+                </div>
+                <div>
+                  <span className="font-semibold">Home Score:</span> {formData.home_score}
+                </div>
+                <div>
+                  <span className="font-semibold">Away Team:</span> {awayTeam?.name}
+                </div>
+                <div>
+                  <span className="font-semibold">Away Score:</span> {formData.away_score}
+                </div>
+                <div className="col-span-2">
+                  <span className="font-semibold">Scorekeeper:</span> {formData.scorekeeper_name}
+                </div>
+                {formData.notes && (
+                  <div className="col-span-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <span className="font-semibold">Notes:</span> {formData.notes}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Home Team Players */}
+            <ConfirmationTeamSection
+              teamName={homeTeam?.name}
+              pitchersAndCatchers={homePitchersAndCatchers}
+              absentPlayers={homeAbsent}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
+            />
+
+            {/* Away Team Players */}
+            <ConfirmationTeamSection
+              teamName={awayTeam?.name}
+              pitchersAndCatchers={awayPitchersAndCatchers}
+              absentPlayers={awayAbsent}
+              hasInningsGap={hasInningsGap}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              getEffectivePitchCount={getEffectivePitchCount}
+            />
           </div>
-        )}
 
-        <form onSubmit={handlePlayerDataSubmit} className="space-y-8">
-          {/* Home Team Section */}
-          <TeamPlayerDataSection
-            team={homeTeam}
-            players={homePlayers}
-            isHome={true}
-            onToggleInning={toggleInning}
-            onUpdateField={updatePlayerField}
-          />
-
-          {/* Away Team Section */}
-          <TeamPlayerDataSection
-            team={awayTeam}
-            players={awayPlayers}
-            isHome={false}
-            onToggleInning={toggleInning}
-            onUpdateField={updatePlayerField}
-          />
-
-          <div className="flex gap-2 pt-4 border-t sticky bottom-0 bg-white">
+          <div className="flex gap-2 pt-6 pb-6 border-t sticky bottom-0 bg-white">
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
               className="btn btn-secondary"
             >
-              ← Back
+              ← Back to Edit
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleFinalSubmit}
               className="btn btn-primary flex-1"
               disabled={loading}
             >
-              {loading ? 'Saving Game Data...' : (isEditMode ? 'Update Game' : 'Complete & Save Game')}
+              {loading ? 'Saving Game...' : (isEditMode ? 'Confirm & Update Game' : 'Confirm & Save Game')}
             </button>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 }
 
 // Memoized PlayerRow component to prevent unnecessary re-renders
@@ -1475,6 +1626,179 @@ function TeamPlayerDataSection({
             />
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+function ConfirmationTeamSection({
+  teamName,
+  pitchersAndCatchers,
+  absentPlayers,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  getEffectivePitchCount
+}) {
+  return (
+    <div className="card border border-gray-300">
+      <h4 className="font-bold text-lg mb-4 bg-gray-100 -m-4 p-3 rounded-t-lg border-b">
+        {teamName}
+      </h4>
+
+      {/* Pitchers and Catchers */}
+      {pitchersAndCatchers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-blue-700">Pitchers & Catchers ({pitchersAndCatchers.length})</h5>
+          <div className="space-y-3">
+            {pitchersAndCatchers.map(player => {
+              const pitchedInnings = player.innings_pitched
+              const caughtInnings = player.innings_caught
+              const effectivePitches = getEffectivePitchCount(player)
+
+              // Check for violations
+              const hasPitchingGap = hasInningsGap(pitchedInnings)
+              const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
+              const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
+              const violationCombinedRule = cannotCatchAgainDueToCombined(player)
+              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule
+
+              return (
+                <div key={player.id} className={`border rounded p-3 ${hasViolation ? 'bg-red-50 border-red-300' : 'bg-gray-50'}`}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h6 className="font-semibold">{player.name}</h6>
+                    <span className="text-sm text-gray-600">Age: {player.age}</span>
+                    {player.jersey_number && (
+                      <span className="text-sm text-gray-600">#{player.jersey_number}</span>
+                    )}
+                    {hasViolation && (
+                      <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-semibold">
+                        ⚠️ VIOLATION
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Innings Visual Display */}
+                  {(pitchedInnings.length > 0 || caughtInnings.length > 0) && (() => {
+                    // Determine maximum inning from both pitched and caught, with a minimum of 6
+                    const maxInning = Math.max(
+                      6, // Minimum 6 innings
+                      pitchedInnings.length > 0 ? Math.max(...pitchedInnings) : 0,
+                      caughtInnings.length > 0 ? Math.max(...caughtInnings) : 0
+                    )
+                    const innings = Array.from({ length: maxInning }, (_, i) => i + 1)
+
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-6 text-sm items-center">
+                        {/* Pitching */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-700">Pitching</span>
+                          <div className="flex gap-1">
+                            {innings.map(inning => (
+                              <div key={`pitch-${inning}`} className="flex flex-col items-center">
+                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
+                                <div
+                                  className={`w-5 h-5 rounded-full border-2 ${
+                                    pitchedInnings.includes(inning)
+                                      ? 'bg-blue-500 border-blue-600'
+                                      : 'bg-white border-gray-300'
+                                  }`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Catching */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-700">Catching</span>
+                          <div className="flex gap-1">
+                            {innings.map(inning => (
+                              <div key={`catch-${inning}`} className="flex flex-col items-center">
+                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
+                                <div
+                                  className={`w-5 h-5 rounded-full border-2 ${
+                                    caughtInnings.includes(inning)
+                                      ? 'bg-green-500 border-green-600'
+                                      : 'bg-white border-gray-300'
+                                  }`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Pitch Count Info */}
+                  {player.final_pitch_count && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Final: {player.final_pitch_count} pitches
+                      {player.penultimate_batter_count > 0 && (
+                        <span> (Before last batter: {player.penultimate_batter_count})</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Violation Messages */}
+                  {hasPitchingGap && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Pitcher cannot return after being taken out. Innings must be consecutive.
+                    </div>
+                  )}
+                  {violationHighPitchCount && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
+                    </div>
+                  )}
+                  {violationFourInningsCatching && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Caught {caughtInnings.length} innings and cannot pitch in this game.
+                    </div>
+                  )}
+                  {violationCombinedRule && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Absent Players */}
+      {absentPlayers.length > 0 && (
+        <div className="mt-4">
+          <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
+          <div className="space-y-2">
+            {absentPlayers.map(player => (
+              <div key={player.id} className="bg-red-50 border border-red-200 rounded p-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold">{player.name}</span>
+                  <span className="text-xs text-gray-600">Age: {player.age}</span>
+                  {player.jersey_number && (
+                    <span className="text-xs text-gray-600">#{player.jersey_number}</span>
+                  )}
+                </div>
+                {player.absence_note && (
+                  <div className="text-xs text-gray-600 mt-1">
+                    Reason: {player.absence_note}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pitchersAndCatchers.length === 0 && absentPlayers.length === 0 && (
+        <p className="text-gray-500 text-sm italic text-center py-4">
+          No pitchers, catchers, or absences recorded
+        </p>
       )}
     </div>
   )
