@@ -1,11 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export default function Login({ onLoginSuccess }) {
+export default function Login({ onLoginSuccess, initialError }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(initialError || null)
+
+  // Update error state when initialError prop changes
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError)
+    }
+  }, [initialError])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -32,9 +39,7 @@ export default function Login({ onLoginSuccess }) {
 
       // Check if account is inactive BEFORE calling onLoginSuccess
       if (!profile.is_active) {
-        // Set error first so user sees it
-        setError('Your account has been deactivated. Please contact an administrator.')
-        // Then sign out (this will trigger App.jsx to redirect, but error is already set)
+        // Sign out - App.jsx will detect inactive status and show error
         await supabase.auth.signOut()
         setLoading(false)
         return // Exit early - don't call onLoginSuccess

@@ -9,6 +9,7 @@ export default function App() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [requirePasswordChange, setRequirePasswordChange] = useState(false)
+  const [loginError, setLoginError] = useState(null)
 
   useEffect(() => {
     // Check current session
@@ -26,10 +27,10 @@ export default function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      setProfile(null) // Clear profile immediately to prevent stale data
       if (session) {
         loadProfile(session.user.id)
       } else {
-        setProfile(null)
         setLoading(false)
       }
     })
@@ -50,6 +51,7 @@ export default function App() {
       // Check if user is active - if not, sign out immediately
       if (!data.is_active) {
         console.log('User is inactive, signing out')
+        setLoginError('Your account has been deactivated. Please contact an administrator.')
         await supabase.auth.signOut()
         setProfile(null)
         setLoading(false)
@@ -68,6 +70,7 @@ export default function App() {
   }
 
   const handleLoginSuccess = ({ user, profile, requirePasswordChange }) => {
+    setLoginError(null) // Clear any previous login errors
     setSession({ user })
     setProfile(profile)
     setRequirePasswordChange(requirePasswordChange)
@@ -95,7 +98,7 @@ export default function App() {
 
   // Not logged in
   if (!session) {
-    return <Login onLoginSuccess={handleLoginSuccess} />
+    return <Login onLoginSuccess={handleLoginSuccess} initialError={loginError} />
   }
 
   // Logged in but needs to change password
