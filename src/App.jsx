@@ -46,7 +46,16 @@ export default function App() {
         .single()
 
       if (error) throw error
-      
+
+      // Check if user is active - if not, sign out immediately
+      if (!data.is_active) {
+        console.log('User is inactive, signing out')
+        await supabase.auth.signOut()
+        setProfile(null)
+        setLoading(false)
+        return
+      }
+
       setProfile(data)
       setRequirePasswordChange(data.must_change_password)
     } catch (error) {
@@ -65,11 +74,11 @@ export default function App() {
     setLoading(false)
   }
 
-  const handlePasswordChanged = () => {
+  const handlePasswordChanged = async () => {
     setRequirePasswordChange(false)
     // Reload profile to get updated data
     if (session) {
-      loadProfile(session.user.id)
+      await loadProfile(session.user.id)
     }
   }
 

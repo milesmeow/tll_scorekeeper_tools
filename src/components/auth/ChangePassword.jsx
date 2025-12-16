@@ -25,16 +25,14 @@ export default function ChangePassword({ onPasswordChanged }) {
     setLoading(true)
 
     try {
-      // Update password in Supabase Auth
-      const { error: authError } = await supabase.auth.updateUser({
-        password: newPassword
-      })
-
-      if (authError) throw authError
-
-      // Update user profile to mark password as changed
+      // Get current user first
       const { data: { user } } = await supabase.auth.getUser()
-      
+
+      if (!user) {
+        throw new Error('No authenticated user found')
+      }
+
+      // Update user profile to mark password as changed FIRST
       const { error: profileError } = await supabase
         .from('user_profiles')
         .update({ must_change_password: false })
@@ -42,10 +40,20 @@ export default function ChangePassword({ onPasswordChanged }) {
 
       if (profileError) throw profileError
 
+      // Then update password in Supabase Auth
+      // This will trigger onAuthStateChange but profile is already updated
+      const { error: authError } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (authError) throw authError
+
+      // Add a small delay to ensure the auth state change propagates
+      await new Promise(resolve => setTimeout(resolve, 500))
+
       onPasswordChanged()
     } catch (err) {
       setError(err.message)
-    } finally {
       setLoading(false)
     }
   }

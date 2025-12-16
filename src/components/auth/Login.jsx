@@ -30,9 +30,14 @@ export default function Login({ onLoginSuccess }) {
 
       if (profileError) throw profileError
 
+      // Check if account is inactive BEFORE calling onLoginSuccess
       if (!profile.is_active) {
+        // Set error first so user sees it
+        setError('Your account has been deactivated. Please contact an administrator.')
+        // Then sign out (this will trigger App.jsx to redirect, but error is already set)
         await supabase.auth.signOut()
-        throw new Error('Your account has been deactivated. Please contact an administrator.')
+        setLoading(false)
+        return // Exit early - don't call onLoginSuccess
       }
 
       // Check if password change is required
@@ -43,7 +48,6 @@ export default function Login({ onLoginSuccess }) {
       }
     } catch (err) {
       setError(err.message)
-    } finally {
       setLoading(false)
     }
   }
