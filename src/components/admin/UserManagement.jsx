@@ -8,6 +8,7 @@ export default function UserManagement() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('active')
 
   useEffect(() => {
     fetchUsers()
@@ -78,6 +79,13 @@ export default function UserManagement() {
     return false
   }
 
+  // Filter users by status
+  const filteredUsers = users.filter(user => {
+    if (statusFilter === 'active') return user.is_active
+    if (statusFilter === 'inactive') return !user.is_active
+    return true // 'all' shows everything
+  })
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -88,6 +96,20 @@ export default function UserManagement() {
         >
           + Add User
         </button>
+      </div>
+
+      {/* Status Filter */}
+      <div className="mb-6">
+        <label className="label">Filter by Status</label>
+        <select
+          className="input max-w-md"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="all">All Users</option>
+        </select>
       </div>
 
       {error && (
@@ -115,7 +137,7 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">{user.name}</td>
                   <td className="py-3 px-4">{user.email}</td>
