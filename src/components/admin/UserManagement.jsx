@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import AddUserModal from './AddUserModal'
+import ResetPasswordModal from './ResetPasswordModal'
 
 export default function UserManagement() {
   const [users, setUsers] = useState([])
@@ -9,6 +10,7 @@ export default function UserManagement() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [statusFilter, setStatusFilter] = useState('active')
+  const [resetPasswordUser, setResetPasswordUser] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -61,6 +63,10 @@ export default function UserManagement() {
     }
   }
 
+  const handleResetPassword = (user) => {
+    setResetPasswordUser(user)
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>
   }
@@ -96,6 +102,17 @@ export default function UserManagement() {
         >
           + Add User
         </button>
+      </div>
+
+      {/* Instructions */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2">📋 How to Manage Users</h3>
+        <div className="text-sm text-blue-800 space-y-1">
+          <p><strong>Add a User:</strong> Click the "+ Add User" button above to create a new user account. Generate a temporary password and share it securely with the user.</p>
+          <p><strong>Activate/Deactivate:</strong> Use the "Activate" or "Deactivate" button to control user access. Inactive users cannot log in.</p>
+          <p><strong>Reset Password:</strong> Click "Reset Password" for active users to generate a new temporary password. The user will be required to change it on next login. <em>Note: You must activate inactive users before resetting their password.</em></p>
+          <p><strong>Filter Users:</strong> Use the dropdown below to view Active, Inactive, or All users.</p>
+        </div>
       </div>
 
       {/* Status Filter */}
@@ -158,14 +175,24 @@ export default function UserManagement() {
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <button
-                      onClick={() => handleToggleActive(user.id, user.is_active, user.role)}
-                      disabled={isDeactivationDisabled(user)}
-                      className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      title={isDeactivationDisabled(user) ? 'Cannot deactivate the last super admin' : ''}
-                    >
-                      {user.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleToggleActive(user.id, user.is_active, user.role)}
+                        disabled={isDeactivationDisabled(user)}
+                        className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title={isDeactivationDisabled(user) ? 'Cannot deactivate the last super admin' : ''}
+                      >
+                        {user.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(user)}
+                        disabled={!user.is_active}
+                        className="text-sm text-purple-600 hover:text-purple-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title={!user.is_active ? 'Cannot reset password for inactive users. Activate the user first.' : 'Reset user\'s password'}
+                      >
+                        Reset Password
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -184,6 +211,24 @@ export default function UserManagement() {
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
+        />
+      )}
+
+      {resetPasswordUser && (
+        <ResetPasswordModal
+          userId={resetPasswordUser.id}
+          userEmail={resetPasswordUser.email}
+          userName={resetPasswordUser.name}
+          onClose={() => setResetPasswordUser(null)}
+          onSuccess={(message) => {
+            setResetPasswordUser(null)
+            setSuccess(message)
+            setTimeout(() => setSuccess(null), 5000)
+          }}
+          onError={(err) => {
+            setError(err)
+            setTimeout(() => setError(null), 5000)
+          }}
         />
       )}
     </div>
