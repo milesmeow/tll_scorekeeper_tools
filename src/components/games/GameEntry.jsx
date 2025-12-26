@@ -253,7 +253,7 @@ export default function GameEntry({ profile }) {
 
   // Filter games by selected division
   const filteredGames = selectedDivision
-    ? games.filter(game => game.home_team.division === selectedDivision)
+    ? games.filter(game => game.home_team?.division === selectedDivision)
     : games
 
   return (
@@ -351,7 +351,7 @@ export default function GameEntry({ profile }) {
                       )}
                     </div>
                     <p className="font-semibold text-lg">
-                      {game.away_team.name} at {game.home_team.name}
+                      {game.away_team?.name || 'Unknown'} at {game.home_team?.name || 'Unknown'}
                     </p>
                     <p className="text-gray-700 mt-1">
                       Score: {game.away_score} - {game.home_score}
@@ -429,7 +429,7 @@ export default function GameEntry({ profile }) {
           seasonId={selectedSeason}
           teams={teams}
           gameToEdit={gameToEdit}
-          defaultDivision={gameToEdit.home_team.division}
+          defaultDivision={gameToEdit.home_team?.division || 'Major'}
           onClose={() => setGameToEdit(null)}
           onSuccess={() => {
             setGameToEdit(null)
