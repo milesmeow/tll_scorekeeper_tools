@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import PlayerModal from './PlayerModal'
 import BulkAddModal from './BulkAddModal'
 
-export default function PlayerManagement() {
+export default function PlayerManagement({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -16,6 +17,11 @@ export default function PlayerManagement() {
   const [editingPlayer, setEditingPlayer] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -54,12 +60,17 @@ export default function PlayerManagement() {
 
       if (error) throw error
       setSeasons(data)
-      
+
       const activeSeason = data.find(s => s.is_active)
       if (activeSeason) {
         setSelectedSeason(activeSeason.id)
       } else if (data.length > 0) {
         setSelectedSeason(data[0].id)
+      }
+
+      // Set default division for coaches based on their first assigned division
+      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+        setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
       setError(err.message)
@@ -78,10 +89,13 @@ export default function PlayerManagement() {
         .order('name')
 
       if (error) throw error
-      setTeams(data)
+
+      // Filter teams by coach's divisions
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      setTeams(filteredTeams)
 
       // Auto-select first team in the selected division
-      const divisionTeams = data.filter(t => t.division === selectedDivision)
+      const divisionTeams = filteredTeams.filter(t => t.division === selectedDivision)
       if (divisionTeams.length > 0 && !selectedTeam) {
         setSelectedTeam(divisionTeams[0].id)
       }
@@ -143,6 +157,19 @@ export default function PlayerManagement() {
     )
   }
 
+  // Show empty state for coaches with no assignments
+  if (coachData.isEmpty && !coachData.loading) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-6">🧢 Player Management</h2>
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (teams.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -155,20 +182,22 @@ export default function PlayerManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">🧢 Player Management</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="btn btn-secondary"
-          >
-            📋 Bulk Add (CSV)
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            + Add Player
-          </button>
-        </div>
+        {!isCoach && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="btn btn-secondary"
+            >
+              📋 Bulk Add (CSV)
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              + Add Player
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Season, Division & Team Selectors */}
@@ -198,9 +227,17 @@ export default function PlayerManagement() {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
+            {isCoach ? (
+              coachData.divisions.map((division) => (
+                <option key={division} value={division}>{division}</option>
+              ))
+            ) : (
+              <>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -236,13 +273,15 @@ export default function PlayerManagement() {
 
       {players.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No players yet on this team. Add your first player!</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            Add First Player
-          </button>
+          <p className="text-gray-600 mb-4">No players yet on this team.{!isCoach && ' Add your first player!'}</p>
+          {!isCoach && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              Add First Player
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">
@@ -253,7 +292,9 @@ export default function PlayerManagement() {
                   <th className="text-left py-3 px-4">Jersey #</th>
                   <th className="text-left py-3 px-4">Name</th>
                   <th className="text-left py-3 px-4">Age</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                  {!isCoach && (
+                    <th className="text-left py-3 px-4">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -262,22 +303,24 @@ export default function PlayerManagement() {
                     <td className="py-3 px-4 font-medium">{player.jersey_number || '-'}</td>
                     <td className="py-3 px-4">{player.name}</td>
                     <td className="py-3 px-4">{player.age}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingPlayer(player)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(player.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {!isCoach && (
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingPlayer(player)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(player.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -286,7 +329,7 @@ export default function PlayerManagement() {
         </div>
       )}
 
-      {showAddModal && (
+      {!isCoach && showAddModal && (
         <PlayerModal
           teamId={selectedTeam}
           onClose={() => setShowAddModal(false)}
@@ -300,7 +343,7 @@ export default function PlayerManagement() {
         />
       )}
 
-      {editingPlayer && (
+      {!isCoach && editingPlayer && (
         <PlayerModal
           player={editingPlayer}
           teamId={selectedTeam}
@@ -315,7 +358,7 @@ export default function PlayerManagement() {
         />
       )}
 
-      {showBulkModal && (
+      {!isCoach && showBulkModal && (
         <BulkAddModal
           teamId={selectedTeam}
           onClose={() => setShowBulkModal(false)}

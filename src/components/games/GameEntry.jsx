@@ -1,9 +1,10 @@
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
-export default function GameEntry() {
+export default function GameEntry({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -18,6 +19,11 @@ export default function GameEntry() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
+
+  const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -40,12 +46,17 @@ export default function GameEntry() {
 
       if (error) throw error
       setSeasons(data)
-      
+
       const activeSeason = data.find(s => s.is_active)
       if (activeSeason) {
         setSelectedSeason(activeSeason.id)
       } else if (data.length > 0) {
         setSelectedSeason(data[0].id)
+      }
+
+      // Set default division for coaches based on their first assigned division
+      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+        setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
       setError(err.message)
@@ -63,7 +74,10 @@ export default function GameEntry() {
         .order('name')
 
       if (error) throw error
-      setTeams(data)
+
+      // Filter teams by coach's divisions
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      setTeams(filteredTeams)
     } catch (err) {
       setError(err.message)
     }
@@ -83,10 +97,13 @@ export default function GameEntry() {
         .order('game_date', { ascending: false })
 
       if (error) throw error
-      setGames(data)
+
+      // Filter games by coach's divisions (show games where home OR away team is in coach's divisions)
+      const filteredGames = coachData.filterGamesByCoachDivisions(data)
+      setGames(filteredGames)
 
       // Check violations for all games
-      checkGameViolations(data)
+      checkGameViolations(filteredGames)
     } catch (err) {
       setError(err.message)
     }
@@ -241,6 +258,19 @@ export default function GameEntry() {
     )
   }
 
+  // Show empty state for coaches with no assignments
+  if (coachData.isEmpty && !coachData.loading) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-6">⚾ Game Entry</h2>
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (teams.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -249,21 +279,26 @@ export default function GameEntry() {
     )
   }
 
-  // Filter games by selected division
-  const filteredGames = selectedDivision
-    ? games.filter(game => game.home_team.division === selectedDivision)
+  // Filter games by selected division (show games where home OR away team is in selected division)
+  const filteredGames = selectedDivision && selectedDivision !== 'All'
+    ? games.filter(game =>
+        game.home_team?.division === selectedDivision ||
+        game.away_team?.division === selectedDivision
+      )
     : games
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
-        <button
-          onClick={() => setShowGameForm(true)}
-          className="btn btn-primary"
-        >
-          + Enter New Game
-        </button>
+        {!isCoach && (
+          <button
+            onClick={() => setShowGameForm(true)}
+            className="btn btn-primary"
+          >
+            + Enter New Game
+          </button>
+        )}
       </div>
 
       {/* Season and Division Selectors */}
@@ -289,9 +324,22 @@ export default function GameEntry() {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
+            {isCoach ? (
+              <>
+                {coachData.divisions.length > 1 && (
+                  <option value="All">All My Divisions</option>
+                )}
+                {coachData.divisions.map((division) => (
+                  <option key={division} value={division}>{division}</option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </>
+            )}
           </select>
         </div>
       </div>
@@ -317,7 +365,7 @@ export default function GameEntry() {
               : `No games found for ${selectedDivision} division.`
             }
           </p>
-          {games.length === 0 && (
+          {!isCoach && games.length === 0 && (
             <button
               onClick={() => setShowGameForm(true)}
               className="btn btn-primary"
@@ -347,7 +395,7 @@ export default function GameEntry() {
                       )}
                     </div>
                     <p className="font-semibold text-lg">
-                      {game.away_team.name} at {game.home_team.name}
+                      {game.away_team?.name || 'Unknown'} at {game.home_team?.name || 'Unknown'}
                     </p>
                     <p className="text-gray-700 mt-1">
                       Score: {game.away_score} - {game.home_score}
@@ -371,18 +419,22 @@ export default function GameEntry() {
                     >
                       View Details
                     </button>
-                    <button
-                      onClick={() => setGameToEdit(game)}
-                      className="text-green-600 hover:text-green-800 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setGameToDelete(game)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      Delete
-                    </button>
+                    {!isCoach && (
+                      <>
+                        <button
+                          onClick={() => setGameToEdit(game)}
+                          className="text-green-600 hover:text-green-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setGameToDelete(game)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,7 +443,7 @@ export default function GameEntry() {
         </div>
       )}
 
-      {showGameForm && (
+      {!isCoach && showGameForm && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -416,12 +468,12 @@ export default function GameEntry() {
       )}
 
       {/* Edit Game Modal */}
-      {gameToEdit && (
+      {!isCoach && gameToEdit && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
           gameToEdit={gameToEdit}
-          defaultDivision={gameToEdit.home_team.division}
+          defaultDivision={gameToEdit.home_team?.division || 'Major'}
           onClose={() => setGameToEdit(null)}
           onSuccess={() => {
             setGameToEdit(null)
@@ -434,7 +486,7 @@ export default function GameEntry() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {gameToDelete && (
+      {!isCoach && gameToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg px-6 pt-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>

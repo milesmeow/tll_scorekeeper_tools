@@ -316,18 +316,10 @@ CREATE POLICY "Admins can manage teams"
   ON public.teams FOR ALL
   USING (public.is_admin());
 
--- Coaches can view their assigned teams
-CREATE POLICY "Coaches can view assigned teams"
+-- All authenticated users can view all teams (read-only for non-admins)
+CREATE POLICY "All authenticated users can view teams"
   ON public.teams FOR SELECT
-  USING (
-    auth.uid() IS NOT NULL AND (
-      public.is_admin() OR
-      EXISTS (
-        SELECT 1 FROM public.team_coaches tc
-        WHERE tc.team_id = teams.id AND tc.user_id = auth.uid()
-      )
-    )
-  );
+  USING (auth.uid() IS NOT NULL);
 
 -- TEAM_COACHES
 CREATE POLICY "Admins can manage team coaches"

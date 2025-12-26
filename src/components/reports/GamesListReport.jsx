@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 
-export default function GamesListReport() {
+export default function GamesListReport({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState('')
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filterDivision, setFilterDivision] = useState('All')
+
+  const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -63,8 +69,10 @@ export default function GamesListReport() {
 
       if (error) throw error
 
-      // Filter by division if not 'All'
-      let filteredGames = data || []
+      // First, filter by coach's divisions (for coaches only)
+      let filteredGames = coachData.filterGamesByCoachDivisions(data || [])
+
+      // Then, filter by selected division if not 'All'
       if (filterDivision !== 'All') {
         filteredGames = filteredGames.filter(game =>
           game.home_team?.division === filterDivision ||
@@ -124,10 +132,23 @@ export default function GamesListReport() {
               className="input"
               disabled={!selectedSeason}
             >
-              <option value="All">All Divisions</option>
-              <option value="Training">Training</option>
-              <option value="Minor">Minor</option>
-              <option value="Major">Major</option>
+              {isCoach ? (
+                <>
+                  {coachData.divisions.length > 1 && (
+                    <option value="All">All My Divisions</option>
+                  )}
+                  {coachData.divisions.map((division) => (
+                    <option key={division} value={division}>{division}</option>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <option value="All">All Divisions</option>
+                  <option value="Training">Training</option>
+                  <option value="Minor">Minor</option>
+                  <option value="Major">Major</option>
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -137,6 +158,14 @@ export default function GamesListReport() {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           {error}
+        </div>
+      )}
+
+      {/* Empty state for coaches with no assignments */}
+      {coachData.isEmpty && !coachData.loading && (
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
         </div>
       )}
 
