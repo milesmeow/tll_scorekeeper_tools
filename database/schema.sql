@@ -205,8 +205,8 @@ CREATE INDEX idx_positions_position ON public.positions_played(position);
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
 
--- Enable RLS on all tables EXCEPT user_profiles (to avoid recursion)
--- user_profiles is still protected by authentication
+-- Enable RLS on all tables INCLUDING user_profiles
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.team_coaches ENABLE ROW LEVEL SECURITY;
@@ -216,31 +216,88 @@ ALTER TABLE public.game_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pitching_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions_played ENABLE ROW LEVEL SECURITY;
 
--- USER PROFILES - No RLS (authentication still required)
--- Disabling RLS avoids infinite recursion when policies need to check user roles
--- Application logic and authentication still protect this table
+-- =====================================================
+-- RLS RECURSION PREVENTION ARCHITECTURE
+-- =====================================================
+-- Problem: RLS policies on other tables call is_admin() which queries user_profiles.
+-- If user_profiles has RLS, those policies would call is_admin() → infinite recursion.
+--
+-- Solution: Three-layer architecture
+--   1. private.get_user_info() - Bypasses RLS using SET LOCAL row_security = off
+--   2. public.is_admin() / is_super_admin() - Use get_user_info() instead of direct query
+--   3. RLS policies on user_profiles - Can safely use helper functions (no recursion)
+-- =====================================================
 
--- Helper function to check if user is admin
+-- Create private schema for internal functions
+CREATE SCHEMA IF NOT EXISTS private;
+
+-- Layer 1: Internal RLS-bypass function (not for direct application use)
+CREATE OR REPLACE FUNCTION private.get_user_info(user_id UUID)
+RETURNS TABLE (role TEXT, is_active BOOLEAN) AS $$
+BEGIN
+  SET LOCAL row_security = off;  -- Explicitly bypass RLS
+  RETURN QUERY
+  SELECT up.role, up.is_active
+  FROM public.user_profiles up
+  WHERE up.id = user_id
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE ALL ON FUNCTION private.get_user_info(UUID) FROM PUBLIC;
+
+-- Layer 2: Helper functions (updated to prevent recursion)
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.user_profiles 
-    WHERE id = auth.uid() 
-    AND role IN ('super_admin', 'admin')
-    AND is_active = true
+    SELECT 1 FROM private.get_user_info(auth.uid()) AS user_info
+    WHERE user_info.role IN ('super_admin', 'admin')
+    AND user_info.is_active = true
   );
-$$ LANGUAGE SQL SECURITY DEFINER;
+$$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
--- Helper function to check if user is super admin
 CREATE OR REPLACE FUNCTION public.is_super_admin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.user_profiles 
-    WHERE id = auth.uid() 
-    AND role = 'super_admin'
+    SELECT 1 FROM private.get_user_info(auth.uid()) AS user_info
+    WHERE user_info.role = 'super_admin'
+    AND user_info.is_active = true
+  );
+$$ LANGUAGE SQL SECURITY DEFINER STABLE;
+
+-- Layer 3: RLS policies on user_profiles
+CREATE POLICY "Users can view own profile"
+  ON public.user_profiles FOR SELECT
+  USING (id = auth.uid());
+
+CREATE POLICY "Admins can view all profiles"
+  ON public.user_profiles FOR SELECT
+  USING (public.is_admin());
+
+CREATE POLICY "Users can view active coaches and admins"
+  ON public.user_profiles FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL
+    AND role IN ('coach', 'admin', 'super_admin')
     AND is_active = true
   );
-$$ LANGUAGE SQL SECURITY DEFINER;
+
+CREATE POLICY "Super admins can update profiles"
+  ON public.user_profiles FOR UPDATE
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+CREATE POLICY "Users can update own profile"
+  ON public.user_profiles FOR UPDATE
+  USING (id = auth.uid());
+
+CREATE POLICY "Super admins can insert profiles"
+  ON public.user_profiles FOR INSERT
+  WITH CHECK (public.is_super_admin());
+
+CREATE POLICY "Prevent direct deletion"
+  ON public.user_profiles FOR DELETE
+  USING (false);
 
 -- SEASONS
 -- Super admins and admins can manage seasons

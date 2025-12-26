@@ -23,11 +23,11 @@ A zero-cost baseball team management application focused on Pitch Smart complian
 
 **Database Infrastructure**
 - 10-table PostgreSQL schema with relationships
-- Row Level Security (RLS) with helper functions (avoids recursion)
+- Row Level Security (RLS) enabled on ALL tables including user_profiles
 - Pitch Smart guidelines embedded as reference data
 - All constraints properly enforced at database level
 
-**Key Achievement**: Resolved all RLS infinite recursion issues by disabling RLS on user_profiles and using helper functions (`is_admin()`, `is_super_admin()`) for policy checks.
+**Key Achievement**: Resolved all RLS infinite recursion issues using a three-layer architecture with a private RLS-bypass function, allowing RLS to be enabled on user_profiles while preventing policy recursion.
 
 ---
 
@@ -101,9 +101,9 @@ A zero-cost baseball team management application focused on Pitch Smart complian
 **Reason**: Admins control all data entry
 
 ### 3. RLS Policy Approach Changed
-**Original**: Direct subqueries in policies  
-**Current**: Helper functions + no RLS on user_profiles  
-**Reason**: Avoid infinite recursion errors
+**Original**: Direct subqueries in policies
+**Current**: Three-layer architecture with private.get_user_info() bypassing RLS internally
+**Reason**: Enable RLS on user_profiles while avoiding infinite recursion errors
 
 ### 4. Season End Date Made Optional
 **Original**: Required field  
@@ -158,16 +158,17 @@ Request to database → RLS checks helper function → is_admin() queries user_p
 Policy evaluates → Grant/Deny access based on role
 ```
 
-**Helper Functions**:
-```sql
-public.is_admin() -- Returns boolean, checks if user is super_admin OR admin
-public.is_super_admin() -- Returns boolean, checks if user is super_admin
-```
+**Three-Layer RLS Architecture**:
 
-**Why user_profiles has NO RLS**:
-- Avoids infinite recursion (policies need to check user_profiles)
-- Still protected by Supabase authentication (must be logged in)
-- Safe because all access goes through authenticated requests
+1. **private.get_user_info(user_id)** - Internal function that bypasses RLS using `SET LOCAL row_security = off`
+2. **public.is_admin()** / **public.is_super_admin()** - Helper functions that call get_user_info() instead of directly querying user_profiles
+3. **RLS Policies** - All tables including user_profiles have RLS enabled, policies use helper functions without recursion
+
+**Why This Works**:
+- Helper functions no longer directly query user_profiles (which would trigger RLS)
+- They use the private bypass function instead
+- RLS policies can safely use helper functions without infinite loops
+- Resolves Supabase security warnings while maintaining protection
 
 ### Edge Function: create-user
 
