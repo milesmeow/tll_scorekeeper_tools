@@ -259,7 +259,9 @@ export default function PlayerManagement({ profile }) {
                   <th className="text-left py-3 px-4">Jersey #</th>
                   <th className="text-left py-3 px-4">Name</th>
                   <th className="text-left py-3 px-4">Age</th>
-                  <th className="text-left py-3 px-4">Actions</th>
+                  {!isCoach && (
+                    <th className="text-left py-3 px-4">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -268,8 +270,8 @@ export default function PlayerManagement({ profile }) {
                     <td className="py-3 px-4 font-medium">{player.jersey_number || '-'}</td>
                     <td className="py-3 px-4">{player.name}</td>
                     <td className="py-3 px-4">{player.age}</td>
-                    <td className="py-3 px-4">
-                      {!isCoach && (
+                    {!isCoach && (
+                      <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <button
                             onClick={() => setEditingPlayer(player)}
@@ -284,8 +286,8 @@ export default function PlayerManagement({ profile }) {
                             Delete
                           </button>
                         </div>
-                      )}
-                    </td>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

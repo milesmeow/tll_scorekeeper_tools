@@ -136,9 +136,11 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Age
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Actions
-                    </th>
+                    {!isCoach && (
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -153,8 +155,8 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {player.age}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                        {!isCoach && (
+                      {!isCoach && (
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                           <>
                             <button
                               onClick={() => setEditingPlayer(player)}
@@ -169,8 +171,8 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
                               Delete
                             </button>
                           </>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
