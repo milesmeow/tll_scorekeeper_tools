@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import PlayerModal from './PlayerModal'
 import BulkAddModal from './BulkAddModal'
 
-export default function PlayerManagement() {
+export default function PlayerManagement({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -16,6 +16,8 @@ export default function PlayerManagement() {
   const [editingPlayer, setEditingPlayer] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchSeasons()
@@ -155,20 +157,22 @@ export default function PlayerManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">🧢 Player Management</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="btn btn-secondary"
-          >
-            📋 Bulk Add (CSV)
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            + Add Player
-          </button>
-        </div>
+        {!isCoach && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="btn btn-secondary"
+            >
+              📋 Bulk Add (CSV)
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              + Add Player
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Season, Division & Team Selectors */}
@@ -236,13 +240,15 @@ export default function PlayerManagement() {
 
       {players.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No players yet on this team. Add your first player!</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            Add First Player
-          </button>
+          <p className="text-gray-600 mb-4">No players yet on this team.{!isCoach && ' Add your first player!'}</p>
+          {!isCoach && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              Add First Player
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">
@@ -263,20 +269,22 @@ export default function PlayerManagement() {
                     <td className="py-3 px-4">{player.name}</td>
                     <td className="py-3 px-4">{player.age}</td>
                     <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingPlayer(player)}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(player.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {!isCoach && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingPlayer(player)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(player.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -286,7 +294,7 @@ export default function PlayerManagement() {
         </div>
       )}
 
-      {showAddModal && (
+      {!isCoach && showAddModal && (
         <PlayerModal
           teamId={selectedTeam}
           onClose={() => setShowAddModal(false)}
@@ -300,7 +308,7 @@ export default function PlayerManagement() {
         />
       )}
 
-      {editingPlayer && (
+      {!isCoach && editingPlayer && (
         <PlayerModal
           player={editingPlayer}
           teamId={selectedTeam}
@@ -315,7 +323,7 @@ export default function PlayerManagement() {
         />
       )}
 
-      {showBulkModal && (
+      {!isCoach && showBulkModal && (
         <BulkAddModal
           teamId={selectedTeam}
           onClose={() => setShowBulkModal(false)}

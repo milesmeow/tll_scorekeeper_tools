@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
-export default function GameEntry() {
+export default function GameEntry({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -18,6 +18,8 @@ export default function GameEntry() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
+
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchSeasons()
@@ -258,12 +260,14 @@ export default function GameEntry() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
-        <button
-          onClick={() => setShowGameForm(true)}
-          className="btn btn-primary"
-        >
-          + Enter New Game
-        </button>
+        {!isCoach && (
+          <button
+            onClick={() => setShowGameForm(true)}
+            className="btn btn-primary"
+          >
+            + Enter New Game
+          </button>
+        )}
       </div>
 
       {/* Season and Division Selectors */}
@@ -317,7 +321,7 @@ export default function GameEntry() {
               : `No games found for ${selectedDivision} division.`
             }
           </p>
-          {games.length === 0 && (
+          {!isCoach && games.length === 0 && (
             <button
               onClick={() => setShowGameForm(true)}
               className="btn btn-primary"
@@ -371,18 +375,22 @@ export default function GameEntry() {
                     >
                       View Details
                     </button>
-                    <button
-                      onClick={() => setGameToEdit(game)}
-                      className="text-green-600 hover:text-green-800 text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setGameToDelete(game)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      Delete
-                    </button>
+                    {!isCoach && (
+                      <>
+                        <button
+                          onClick={() => setGameToEdit(game)}
+                          className="text-green-600 hover:text-green-800 text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setGameToDelete(game)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,7 +399,7 @@ export default function GameEntry() {
         </div>
       )}
 
-      {showGameForm && (
+      {!isCoach && showGameForm && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -416,7 +424,7 @@ export default function GameEntry() {
       )}
 
       {/* Edit Game Modal */}
-      {gameToEdit && (
+      {!isCoach && gameToEdit && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -434,7 +442,7 @@ export default function GameEntry() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {gameToDelete && (
+      {!isCoach && gameToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg px-6 pt-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>

@@ -155,11 +155,11 @@ export default function Dashboard({ user, profile }) {
           <main className="flex-1">
             {currentView === 'home' && <HomeView profile={profile} />}
             {currentView === 'users' && profile.role === 'super_admin' && <UserManagement />}
-            {currentView === 'seasons' && <SeasonManagement />}
-            {currentView === 'teams' && <TeamManagement />}
-            {currentView === 'players' && <PlayerManagement />}
+            {currentView === 'seasons' && <SeasonManagement profile={profile} />}
+            {currentView === 'teams' && <TeamManagement profile={profile} />}
+            {currentView === 'players' && <PlayerManagement profile={profile} />}
             {currentView === 'coaches' && <CoachManagement />}
-            {currentView === 'games' && <GameEntry />}
+            {currentView === 'games' && <GameEntry profile={profile} />}
             {currentView === 'reports' && <Reports />}
             {currentView === 'rules' && <RulesManagement />}
           </main>

@@ -4,7 +4,7 @@ import TeamPlayersModal from './TeamPlayersModal'
 import TeamModal from './TeamModal'
 import ManageCoachesModal from './ManageCoachesModal'
 
-export default function TeamManagement() {
+export default function TeamManagement({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('Major')
@@ -16,6 +16,8 @@ export default function TeamManagement() {
   const [managingPlayers, setManagingPlayers] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchSeasons()
@@ -115,12 +117,14 @@ export default function TeamManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">🏆 Team Management</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-        >
-          + Create Team
-        </button>
+        {!isCoach && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+          >
+            + Create Team
+          </button>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -168,13 +172,15 @@ export default function TeamManagement() {
 
       {teams.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No teams yet for this season. Create your first team!</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            Create First Team
-          </button>
+          <p className="text-gray-600 mb-4">No teams yet for this season.{!isCoach && ' Create your first team!'}</p>
+          {!isCoach && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              Create First Team
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -202,24 +208,28 @@ export default function TeamManagement() {
                           >
                             Players
                           </button>
-                          <button
-                            onClick={() => setManagingCoaches(team)}
-                            className="text-green-600 hover:text-green-800 px-3 py-1"
-                          >
-                            Coaches
-                          </button>
-                          <button
-                            onClick={() => setEditingTeam(team)}
-                            className="text-blue-600 hover:text-blue-800 px-3 py-1"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(team.id)}
-                            className="text-red-600 hover:text-red-800 px-3 py-1"
-                          >
-                            Delete
-                          </button>
+                          {!isCoach && (
+                            <>
+                              <button
+                                onClick={() => setManagingCoaches(team)}
+                                className="text-green-600 hover:text-green-800 px-3 py-1"
+                              >
+                                Coaches
+                              </button>
+                              <button
+                                onClick={() => setEditingTeam(team)}
+                                className="text-blue-600 hover:text-blue-800 px-3 py-1"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(team.id)}
+                                className="text-red-600 hover:text-red-800 px-3 py-1"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -231,7 +241,7 @@ export default function TeamManagement() {
         </div>
       )}
 
-      {showAddModal && (
+      {!isCoach && showAddModal && (
         <TeamModal
           seasonId={selectedSeason}
           onClose={() => setShowAddModal(false)}
@@ -245,7 +255,7 @@ export default function TeamManagement() {
         />
       )}
 
-      {editingTeam && (
+      {!isCoach && editingTeam && (
         <TeamModal
           team={editingTeam}
           seasonId={selectedSeason}
@@ -260,7 +270,7 @@ export default function TeamManagement() {
         />
       )}
 
-      {managingCoaches && (
+      {!isCoach && managingCoaches && (
         <ManageCoachesModal
           team={managingCoaches}
           onClose={() => setManagingCoaches(null)}
@@ -276,6 +286,7 @@ export default function TeamManagement() {
       {managingPlayers && (
         <TeamPlayersModal
           team={managingPlayers}
+          profile={profile}
           onClose={() => setManagingPlayers(null)}
         />
       )}
