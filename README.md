@@ -83,7 +83,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 
 ### Core Tables (10 total)
 
-1. **user_profiles** - User accounts and roles (NO RLS to avoid recursion)
+1. **user_profiles** - User accounts and roles (RLS enabled with recursion prevention)
 2. **seasons** - Season definitions with unique active season constraint
 3. **teams** - Teams within seasons (by division)
 4. **team_coaches** - Coach-to-team assignments (always can_edit=false)
@@ -105,17 +105,34 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 
 ### RLS Policy Approach
 
-**Helper Functions (avoids recursion):**
-```sql
-public.is_admin() -- Returns true if user is super_admin or admin
-public.is_super_admin() -- Returns true if user is super_admin
-```
+All tables including `user_profiles` have Row Level Security (RLS) enabled. To prevent infinite recursion when RLS policies check user roles, we use a three-layer architecture:
 
-**Security Model:**
-- user_profiles: NO RLS (protected by authentication)
-- All other tables: RLS enabled with policies using helper functions
-- Coaches get read-only access to assigned teams
-- Admins get full access to everything
+**Three-Layer RLS Architecture:**
+
+1. **Layer 1: Private RLS-Bypass Function**
+   - `private.get_user_info(user_id)` - Internal function that bypasses RLS using `SET LOCAL row_security = off`
+   - SECURITY DEFINER with revoked public access
+   - Only returns role and is_active status
+
+2. **Layer 2: Public Helper Functions**
+   ```sql
+   public.is_admin() -- Returns true if user is super_admin or admin
+   public.is_super_admin() -- Returns true if user is super_admin
+   ```
+   - These functions call `get_user_info()` instead of directly querying user_profiles
+   - Breaks the recursion cycle
+
+3. **Layer 3: RLS Policies**
+   - All tables including user_profiles have RLS enabled
+   - Policies use helper functions without causing recursion
+   - Coaches get read-only access to assigned teams
+   - Admins get full access to everything
+
+**Why This Works:**
+- Helper functions no longer query user_profiles directly (which would trigger RLS)
+- They use the private bypass function instead
+- RLS policies can safely use helper functions without infinite loops
+- Resolves Supabase security warnings while maintaining protection
 
 ## Project Structure
 
@@ -215,7 +232,7 @@ npm install tailwindcss@3.4.1 -D
 ```
 
 ### Issue: RLS Infinite Recursion
-**Solution**: user_profiles table has NO RLS, uses helper functions for other tables
+**Solution**: Three-layer architecture with private.get_user_info() bypassing RLS internally
 
 ### Issue: Can't Create Users from App
 **Solution**: Edge Function `create-user` uses service role key securely

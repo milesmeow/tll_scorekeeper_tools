@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import TeamPlayersModal from './TeamPlayersModal'
 import TeamModal from './TeamModal'
 import ManageCoachesModal from './ManageCoachesModal'
 
-export default function TeamManagement() {
+export default function TeamManagement({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('Major')
@@ -16,6 +17,11 @@ export default function TeamManagement() {
   const [managingPlayers, setManagingPlayers] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -37,12 +43,17 @@ export default function TeamManagement() {
 
       if (error) throw error
       setSeasons(data)
-      
+
       const activeSeason = data.find(s => s.is_active)
       if (activeSeason) {
         setSelectedSeason(activeSeason.id)
       } else if (data.length > 0) {
         setSelectedSeason(data[0].id)
+      }
+
+      // Set default division for coaches based on their first assigned division
+      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+        setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
       setError(err.message)
@@ -61,7 +72,10 @@ export default function TeamManagement() {
         .order('name')
 
       if (error) throw error
-      setTeams(data)
+
+      // Filter teams by coach's divisions
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      setTeams(filteredTeams)
     } catch (err) {
       setError(err.message)
     }
@@ -105,6 +119,19 @@ export default function TeamManagement() {
     )
   }
 
+  // Show empty state for coaches with no assignments
+  if (coachData.isEmpty && !coachData.loading) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-6">🏆 Team Management</h2>
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
+        </div>
+      </div>
+    )
+  }
+
   const teamsByDivision = {
     'Training': teams.filter(t => t.division === 'Training'),
     'Minor': teams.filter(t => t.division === 'Minor'),
@@ -115,12 +142,14 @@ export default function TeamManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">🏆 Team Management</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-        >
-          + Create Team
-        </button>
+        {!isCoach && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+          >
+            + Create Team
+          </button>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -146,10 +175,23 @@ export default function TeamManagement() {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="All">All Divisions</option>
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
+            {isCoach ? (
+              <>
+                {coachData.divisions.length > 1 && (
+                  <option value="All">All My Divisions</option>
+                )}
+                {coachData.divisions.map((division) => (
+                  <option key={division} value={division}>{division}</option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="All">All Divisions</option>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </>
+            )}
           </select>
         </div>
       </div>
@@ -168,13 +210,15 @@ export default function TeamManagement() {
 
       {teams.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No teams yet for this season. Create your first team!</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            Create First Team
-          </button>
+          <p className="text-gray-600 mb-4">No teams yet for this season.{!isCoach && ' Create your first team!'}</p>
+          {!isCoach && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              Create First Team
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -202,24 +246,28 @@ export default function TeamManagement() {
                           >
                             Players
                           </button>
-                          <button
-                            onClick={() => setManagingCoaches(team)}
-                            className="text-green-600 hover:text-green-800 px-3 py-1"
-                          >
-                            Coaches
-                          </button>
-                          <button
-                            onClick={() => setEditingTeam(team)}
-                            className="text-blue-600 hover:text-blue-800 px-3 py-1"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(team.id)}
-                            className="text-red-600 hover:text-red-800 px-3 py-1"
-                          >
-                            Delete
-                          </button>
+                          {!isCoach && (
+                            <>
+                              <button
+                                onClick={() => setManagingCoaches(team)}
+                                className="text-green-600 hover:text-green-800 px-3 py-1"
+                              >
+                                Coaches
+                              </button>
+                              <button
+                                onClick={() => setEditingTeam(team)}
+                                className="text-blue-600 hover:text-blue-800 px-3 py-1"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(team.id)}
+                                className="text-red-600 hover:text-red-800 px-3 py-1"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -231,7 +279,7 @@ export default function TeamManagement() {
         </div>
       )}
 
-      {showAddModal && (
+      {!isCoach && showAddModal && (
         <TeamModal
           seasonId={selectedSeason}
           onClose={() => setShowAddModal(false)}
@@ -245,7 +293,7 @@ export default function TeamManagement() {
         />
       )}
 
-      {editingTeam && (
+      {!isCoach && editingTeam && (
         <TeamModal
           team={editingTeam}
           seasonId={selectedSeason}
@@ -260,7 +308,7 @@ export default function TeamManagement() {
         />
       )}
 
-      {managingCoaches && (
+      {!isCoach && managingCoaches && (
         <ManageCoachesModal
           team={managingCoaches}
           onClose={() => setManagingCoaches(null)}
@@ -276,6 +324,7 @@ export default function TeamManagement() {
       {managingPlayers && (
         <TeamPlayersModal
           team={managingPlayers}
+          profile={profile}
           onClose={() => setManagingPlayers(null)}
         />
       )}

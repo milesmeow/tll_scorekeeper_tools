@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import SeasonModal from './SeasonModal'
 
-export default function SeasonManagement() {
+export default function SeasonManagement({ profile }) {
   const [seasons, setSeasons] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingSeason, setEditingSeason] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchSeasons()
@@ -90,12 +92,14 @@ export default function SeasonManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">📅 Season Management</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-        >
-          + Create Season
-        </button>
+        {!isCoach && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+          >
+            + Create Season
+          </button>
+        )}
       </div>
 
       {error && (
@@ -112,13 +116,15 @@ export default function SeasonManagement() {
 
       {seasons.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No seasons yet. Create your first season to get started!</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn btn-primary"
-          >
-            Create First Season
-          </button>
+          <p className="text-gray-600 mb-4">No seasons yet.{!isCoach && ' Create your first season to get started!'}</p>
+          {!isCoach && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn btn-primary"
+            >
+              Create First Season
+            </button>
+          )}
         </div>
       ) : (
         <div className="card">
@@ -142,35 +148,37 @@ export default function SeasonManagement() {
                     {season.end_date && ` • Ends: ${new Date(season.end_date).toLocaleDateString()}`}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  {!season.is_active && (
+                {!isCoach && (
+                  <div className="flex gap-2">
+                    {!season.is_active && (
+                      <button
+                        onClick={() => handleSetActive(season.id)}
+                        className="btn btn-secondary text-sm"
+                      >
+                        Set Active
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleSetActive(season.id)}
-                      className="btn btn-secondary text-sm"
+                      onClick={() => setEditingSeason(season)}
+                      className="text-blue-600 hover:text-blue-800 px-3 py-1"
                     >
-                      Set Active
+                      Edit
                     </button>
-                  )}
-                  <button
-                    onClick={() => setEditingSeason(season)}
-                    className="text-blue-600 hover:text-blue-800 px-3 py-1"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(season.id)}
-                    className="text-red-600 hover:text-red-800 px-3 py-1"
-                  >
-                    Delete
-                  </button>
-                </div>
+                    <button
+                      onClick={() => handleDelete(season.id)}
+                      className="text-red-600 hover:text-red-800 px-3 py-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {showAddModal && (
+      {!isCoach && showAddModal && (
         <SeasonModal
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
@@ -183,7 +191,7 @@ export default function SeasonManagement() {
         />
       )}
 
-      {editingSeason && (
+      {!isCoach && editingSeason && (
         <SeasonModal
           season={editingSeason}
           onClose={() => setEditingSeason(null)}
