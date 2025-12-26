@@ -2,7 +2,7 @@ import { useState } from 'react'
 import GamesListReport from './GamesListReport'
 import PlayerAbsencesReport from './PlayerAbsencesReport'
 
-export default function Reports() {
+export default function Reports({ profile }) {
   const [selectedReport, setSelectedReport] = useState(null)
 
   // Define available reports
@@ -43,7 +43,7 @@ export default function Reports() {
           <span className="mr-2">←</span>
           Back to Reports
         </button>
-        <ReportComponent />
+        <ReportComponent profile={profile} />
       </div>
     )
   }

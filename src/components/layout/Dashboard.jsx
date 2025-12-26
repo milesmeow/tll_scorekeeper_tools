@@ -160,7 +160,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'players' && <PlayerManagement profile={profile} />}
             {currentView === 'coaches' && <CoachManagement />}
             {currentView === 'games' && <GameEntry profile={profile} />}
-            {currentView === 'reports' && <Reports />}
+            {currentView === 'reports' && <Reports profile={profile} />}
             {currentView === 'rules' && <RulesManagement />}
           </main>
         </div>

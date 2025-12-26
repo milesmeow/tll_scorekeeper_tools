@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import PlayerModal from './PlayerModal'
 import BulkAddModal from './BulkAddModal'
 
@@ -18,6 +19,9 @@ export default function PlayerManagement({ profile }) {
   const [success, setSuccess] = useState(null)
 
   const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -56,12 +60,17 @@ export default function PlayerManagement({ profile }) {
 
       if (error) throw error
       setSeasons(data)
-      
+
       const activeSeason = data.find(s => s.is_active)
       if (activeSeason) {
         setSelectedSeason(activeSeason.id)
       } else if (data.length > 0) {
         setSelectedSeason(data[0].id)
+      }
+
+      // Set default division for coaches based on their first assigned division
+      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+        setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
       setError(err.message)
@@ -80,10 +89,13 @@ export default function PlayerManagement({ profile }) {
         .order('name')
 
       if (error) throw error
-      setTeams(data)
+
+      // Filter teams by coach's divisions
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      setTeams(filteredTeams)
 
       // Auto-select first team in the selected division
-      const divisionTeams = data.filter(t => t.division === selectedDivision)
+      const divisionTeams = filteredTeams.filter(t => t.division === selectedDivision)
       if (divisionTeams.length > 0 && !selectedTeam) {
         setSelectedTeam(divisionTeams[0].id)
       }
@@ -145,6 +157,19 @@ export default function PlayerManagement({ profile }) {
     )
   }
 
+  // Show empty state for coaches with no assignments
+  if (coachData.isEmpty && !coachData.loading) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-6">🧢 Player Management</h2>
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (teams.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -202,9 +227,17 @@ export default function PlayerManagement({ profile }) {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
+            {isCoach ? (
+              coachData.divisions.map((division) => (
+                <option key={division} value={division}>{division}</option>
+              ))
+            ) : (
+              <>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </>
+            )}
           </select>
         </div>
 

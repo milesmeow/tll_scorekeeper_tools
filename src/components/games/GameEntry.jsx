@@ -1,5 +1,6 @@
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
@@ -20,6 +21,9 @@ export default function GameEntry({ profile }) {
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
 
   const isCoach = profile?.role === 'coach'
+
+  // Fetch coach assignments for filtering
+  const coachData = useCoachAssignments(profile)
 
   useEffect(() => {
     fetchSeasons()
@@ -42,12 +46,17 @@ export default function GameEntry({ profile }) {
 
       if (error) throw error
       setSeasons(data)
-      
+
       const activeSeason = data.find(s => s.is_active)
       if (activeSeason) {
         setSelectedSeason(activeSeason.id)
       } else if (data.length > 0) {
         setSelectedSeason(data[0].id)
+      }
+
+      // Set default division for coaches based on their first assigned division
+      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+        setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
       setError(err.message)
@@ -65,7 +74,10 @@ export default function GameEntry({ profile }) {
         .order('name')
 
       if (error) throw error
-      setTeams(data)
+
+      // Filter teams by coach's divisions
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      setTeams(filteredTeams)
     } catch (err) {
       setError(err.message)
     }
@@ -85,10 +97,13 @@ export default function GameEntry({ profile }) {
         .order('game_date', { ascending: false })
 
       if (error) throw error
-      setGames(data)
+
+      // Filter games by coach's divisions (show games where home OR away team is in coach's divisions)
+      const filteredGames = coachData.filterGamesByCoachDivisions(data)
+      setGames(filteredGames)
 
       // Check violations for all games
-      checkGameViolations(data)
+      checkGameViolations(filteredGames)
     } catch (err) {
       setError(err.message)
     }
@@ -243,6 +258,19 @@ export default function GameEntry({ profile }) {
     )
   }
 
+  // Show empty state for coaches with no assignments
+  if (coachData.isEmpty && !coachData.loading) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-6">⚾ Game Entry</h2>
+        <div className="card text-center py-12">
+          <p className="text-gray-600 mb-2">You have no team assignments.</p>
+          <p className="text-gray-500 text-sm">Please contact an administrator.</p>
+        </div>
+      </div>
+    )
+  }
+
   if (teams.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -251,9 +279,12 @@ export default function GameEntry({ profile }) {
     )
   }
 
-  // Filter games by selected division
-  const filteredGames = selectedDivision
-    ? games.filter(game => game.home_team?.division === selectedDivision)
+  // Filter games by selected division (show games where home OR away team is in selected division)
+  const filteredGames = selectedDivision && selectedDivision !== 'All'
+    ? games.filter(game =>
+        game.home_team?.division === selectedDivision ||
+        game.away_team?.division === selectedDivision
+      )
     : games
 
   return (
@@ -293,9 +324,22 @@ export default function GameEntry({ profile }) {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            <option value="Training">Training</option>
-            <option value="Minor">Minor</option>
-            <option value="Major">Major</option>
+            {isCoach ? (
+              <>
+                {coachData.divisions.length > 1 && (
+                  <option value="All">All My Divisions</option>
+                )}
+                {coachData.divisions.map((division) => (
+                  <option key={division} value={division}>{division}</option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="Training">Training</option>
+                <option value="Minor">Minor</option>
+                <option value="Major">Major</option>
+              </>
+            )}
           </select>
         </div>
       </div>
