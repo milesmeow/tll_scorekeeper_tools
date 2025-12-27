@@ -1,5 +1,31 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getPitchingDisplayData } from '../../lib/pitchCountUtils'
+
+/**
+ * Merges player data with their most recent pitching log
+ * @param {Array} players - Array of player objects
+ * @param {Array} pitchingLogs - Array of pitching log objects with game data
+ * @returns {Array} - Players with enriched pitching data
+ */
+function enrichPlayersWithPitchingData(players, pitchingLogs) {
+  // Create map of player_id -> most recent pitching log
+  const pitchingMap = new Map()
+
+  pitchingLogs.forEach(log => {
+    const existing = pitchingMap.get(log.player_id)
+    // Keep only the most recent by comparing game dates
+    if (!existing || (log.game?.game_date > existing.game?.game_date)) {
+      pitchingMap.set(log.player_id, log)
+    }
+  })
+
+  // Enrich each player with their pitching data
+  return players.map(player => ({
+    ...player,
+    lastPitchingLog: pitchingMap.get(player.id) || null
+  }))
+}
 
 export default function TeamPlayersModal({ team, profile, onClose }) {
   const [players, setPlayers] = useState([])
@@ -18,14 +44,41 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
 
   const fetchPlayers = async () => {
     try {
-      const { data, error } = await supabase
+      // Step 1: Fetch all players
+      const { data: playersData, error: playersError } = await supabase
         .from('players')
         .select('*')
         .eq('team_id', team.id)
         .order('jersey_number')
 
-      if (error) throw error
-      setPlayers(data || [])
+      if (playersError) throw playersError
+
+      // Step 2: Fetch pitching data for these players (completed games only)
+      const today = new Date().toISOString().split('T')[0]
+      const playerIds = playersData.map(p => p.id)
+
+      let pitchingData = []
+      if (playerIds.length > 0) {
+        const { data: pitchingLogs, error: pitchingError } = await supabase
+          .from('pitching_logs')
+          .select(`
+            player_id,
+            penultimate_batter_count,
+            final_pitch_count,
+            next_eligible_pitch_date,
+            game:games!inner(game_date)
+          `)
+          .in('player_id', playerIds)
+          .lte('games.game_date', today)
+
+        if (pitchingError) throw pitchingError
+        pitchingData = pitchingLogs || []
+      }
+
+      // Step 3: Merge the data
+      const enrichedPlayers = enrichPlayersWithPitchingData(playersData, pitchingData)
+      setPlayers(enrichedPlayers)
+
     } catch (err) {
       setError('Failed to load players: ' + err.message)
     } finally {
@@ -62,7 +115,7 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -123,7 +176,7 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
               )}
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -136,6 +189,15 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Age
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Last Date Pitched
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Official Pitch Count
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Next Eligible Date
+                    </th>
                     {!isCoach && (
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         Actions
@@ -144,37 +206,54 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {players.map((player) => (
-                    <tr key={player.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        {player.jersey_number || '-'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {player.name}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {player.age}
-                      </td>
-                      {!isCoach && (
-                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                          <>
-                            <button
-                              onClick={() => setEditingPlayer(player)}
-                              className="text-blue-600 hover:text-blue-800 mr-3"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(player.id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              Delete
-                            </button>
-                          </>
+                  {players.map((player) => {
+                    const pitchingDisplay = getPitchingDisplayData(player.lastPitchingLog)
+                    const isCurrentlyIneligible = player.lastPitchingLog?.next_eligible_pitch_date
+                      && new Date(player.lastPitchingLog.next_eligible_pitch_date) > new Date()
+
+                    return (
+                      <tr key={player.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                          {player.jersey_number || '-'}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          {player.name}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm">
+                          {player.age}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                          {pitchingDisplay.lastDate}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                          {pitchingDisplay.officialCount}
+                        </td>
+                        <td className={`px-4 py-3 whitespace-nowrap text-sm ${
+                          isCurrentlyIneligible ? 'text-red-600 font-semibold' : 'text-gray-600'
+                        }`}>
+                          {pitchingDisplay.nextEligibleDate}
+                        </td>
+                        {!isCoach && (
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
+                            <>
+                              <button
+                                onClick={() => setEditingPlayer(player)}
+                                className="text-blue-600 hover:text-blue-800 mr-3"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(player.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
