@@ -225,7 +225,7 @@ function TeamDetailSection({
 
   return (
     <div className="border rounded-lg p-4">
-      <h4 className="text-lg font-bold mb-4 bg-blue-50 -m-4 p-4 rounded-t-lg border-b">
+      <h4 className="text-lg font-bold mb-4 bg-blue-200 -m-4 p-4 rounded-t-lg border-b">
         {teamName} {isHome ? '(Home)' : '(Away)'}
       </h4>
 
