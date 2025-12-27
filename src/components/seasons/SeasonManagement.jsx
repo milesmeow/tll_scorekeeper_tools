@@ -2,15 +2,13 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import SeasonModal from './SeasonModal'
 
-export default function SeasonManagement({ profile }) {
+export default function SeasonManagement({ isAdmin }) {
   const [seasons, setSeasons] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingSeason, setEditingSeason] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-
-  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchSeasons()
@@ -92,7 +90,7 @@ export default function SeasonManagement({ profile }) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">📅 Season Management</h2>
-        {!isCoach && (
+        {isAdmin && (
           <button
             onClick={() => setShowAddModal(true)}
             className="btn btn-primary"
@@ -116,8 +114,8 @@ export default function SeasonManagement({ profile }) {
 
       {seasons.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-600 mb-4">No seasons yet.{!isCoach && ' Create your first season to get started!'}</p>
-          {!isCoach && (
+          <p className="text-gray-600 mb-4">No seasons yet.{isAdmin && ' Create your first season to get started!'}</p>
+          {isAdmin && (
             <button
               onClick={() => setShowAddModal(true)}
               className="btn btn-primary"
@@ -148,7 +146,7 @@ export default function SeasonManagement({ profile }) {
                     {season.end_date && ` • Ends: ${new Date(season.end_date).toLocaleDateString()}`}
                   </p>
                 </div>
-                {!isCoach && (
+                {isAdmin && (
                   <div className="flex gap-2">
                     {!season.is_active && (
                       <button
@@ -178,7 +176,7 @@ export default function SeasonManagement({ profile }) {
         </div>
       )}
 
-      {!isCoach && showAddModal && (
+      {isAdmin && showAddModal && (
         <SeasonModal
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
@@ -191,7 +189,7 @@ export default function SeasonManagement({ profile }) {
         />
       )}
 
-      {!isCoach && editingSeason && (
+      {isAdmin && editingSeason && (
         <SeasonModal
           season={editingSeason}
           onClose={() => setEditingSeason(null)}

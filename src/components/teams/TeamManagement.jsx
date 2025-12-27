@@ -5,7 +5,7 @@ import TeamPlayersModal from './TeamPlayersModal'
 import TeamModal from './TeamModal'
 import ManageCoachesModal from './ManageCoachesModal'
 
-export default function TeamManagement({ profile }) {
+export default function TeamManagement({ profile, isCoach }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('Major')
@@ -17,8 +17,6 @@ export default function TeamManagement({ profile }) {
   const [managingPlayers, setManagingPlayers] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-
-  const isCoach = profile?.role === 'coach'
 
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
@@ -324,7 +322,7 @@ export default function TeamManagement({ profile }) {
       {managingPlayers && (
         <TeamPlayersModal
           team={managingPlayers}
-          profile={profile}
+          isCoach={isCoach}
           onClose={() => setManagingPlayers(null)}
         />
       )}

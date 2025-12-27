@@ -4,7 +4,7 @@ import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 
-export default function GameEntry({ profile }) {
+export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -19,8 +19,6 @@ export default function GameEntry({ profile }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
-
-  const isCoach = profile?.role === 'coach'
 
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
@@ -55,7 +53,7 @@ export default function GameEntry({ profile }) {
       }
 
       // Set default division for coaches based on their first assigned division
-      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+      if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
         setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
@@ -291,7 +289,7 @@ export default function GameEntry({ profile }) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
-        {!isCoach && (
+        {isAdmin && (
           <button
             onClick={() => setShowGameForm(true)}
             className="btn btn-primary"
@@ -324,7 +322,7 @@ export default function GameEntry({ profile }) {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            {isCoach ? (
+            {!isAdmin ? (
               <>
                 {coachData.divisions.length > 1 && (
                   <option value="All">All My Divisions</option>
@@ -365,7 +363,7 @@ export default function GameEntry({ profile }) {
               : `No games found for ${selectedDivision} division.`
             }
           </p>
-          {!isCoach && games.length === 0 && (
+          {isAdmin && games.length === 0 && (
             <button
               onClick={() => setShowGameForm(true)}
               className="btn btn-primary"
@@ -419,7 +417,7 @@ export default function GameEntry({ profile }) {
                     >
                       View Details
                     </button>
-                    {!isCoach && (
+                    {isAdmin && (
                       <>
                         <button
                           onClick={() => setGameToEdit(game)}
@@ -443,7 +441,7 @@ export default function GameEntry({ profile }) {
         </div>
       )}
 
-      {!isCoach && showGameForm && (
+      {isAdmin && showGameForm && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -468,7 +466,7 @@ export default function GameEntry({ profile }) {
       )}
 
       {/* Edit Game Modal */}
-      {!isCoach && gameToEdit && (
+      {isAdmin && gameToEdit && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -486,7 +484,7 @@ export default function GameEntry({ profile }) {
       )}
 
       {/* Delete Confirmation Modal */}
-      {!isCoach && gameToDelete && (
+      {isAdmin && gameToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg px-6 pt-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>

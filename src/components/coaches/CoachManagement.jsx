@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export default function CoachManagement({ profile }) {
+export default function CoachManagement({ isAdmin }) {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -63,8 +63,6 @@ export default function CoachManagement({ profile }) {
     : coaches.filter(coach =>
         coach.assignments.some(assignment => assignment.teams.division === selectedDivision)
       )
-
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
 
   return (
     <div>

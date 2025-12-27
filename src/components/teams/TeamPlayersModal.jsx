@@ -27,7 +27,7 @@ function enrichPlayersWithPitchingData(players, pitchingLogs) {
   }))
 }
 
-export default function TeamPlayersModal({ team, profile, onClose }) {
+export default function TeamPlayersModal({ team, isCoach, onClose }) {
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -35,8 +35,6 @@ export default function TeamPlayersModal({ team, profile, onClose }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState(null)
-
-  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     fetchPlayers()
