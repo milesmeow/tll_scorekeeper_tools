@@ -539,7 +539,7 @@ export default function GameEntry({ profile, isAdmin }) {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pb-6">
               <button
                 onClick={() => {
                   setGameToDelete(null)
