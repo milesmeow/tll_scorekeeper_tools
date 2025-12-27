@@ -154,7 +154,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'seasons' && <SeasonManagement profile={profile} />}
             {currentView === 'teams' && <TeamManagement profile={profile} />}
             {currentView === 'players' && <PlayerManagement profile={profile} />}
-            {currentView === 'coaches' && <CoachManagement />}
+            {currentView === 'coaches' && <CoachManagement profile={profile} />}
             {currentView === 'games' && <GameEntry profile={profile} />}
             {currentView === 'reports' && <Reports profile={profile} />}
             {currentView === 'rules' && <RulesManagement />}
