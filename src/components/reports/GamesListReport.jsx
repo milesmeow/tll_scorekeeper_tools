@@ -218,7 +218,7 @@ export default function GamesListReport({ profile }) {
                   {games.map((game) => (
                     <tr key={game.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatDate(game.game_date)}
+                        {formatDate(game.game_date + 'T00:00:00')}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div>{game.away_team?.name || 'Unknown'}</div>

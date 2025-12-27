@@ -979,6 +979,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     setModalError(null)
 
     try {
+      // Combine home and away players
+      const allPlayers = [...homePlayers, ...awayPlayers]
+
       let finalGameId = gameId
 
       const gameData = {
@@ -1572,7 +1575,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <span className="font-semibold">Date:</span> {new Date(formData.game_date).toLocaleDateString()}
+                  <span className="font-semibold">Date:</span> {new Date(formData.game_date + 'T00:00:00').toLocaleDateString()}
                 </div>
                 <div>
                   <span className="font-semibold">Division:</span> {homeTeam?.division}
