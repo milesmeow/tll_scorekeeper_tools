@@ -3,6 +3,28 @@
  */
 
 /**
+ * Parse a date string as local time (not UTC)
+ * Appends 'T00:00:00' to force local timezone interpretation
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @returns {Date} - Date object in local timezone
+ */
+export function parseLocalDate(dateString) {
+  if (!dateString) return new Date()
+  return new Date(dateString + 'T00:00:00')
+}
+
+/**
+ * Format a game date for display
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @param {Object} options - Intl.DateTimeFormat options
+ * @returns {string} - Formatted date string
+ */
+export function formatGameDate(dateString, options = {}) {
+  if (!dateString) return 'N/A'
+  return parseLocalDate(dateString).toLocaleDateString('en-US', options)
+}
+
+/**
  * Calculate official pitch count from penultimate batter count
  * Per pitch count rules, the official count is penultimate + 1
  * @param {number|null|undefined} penultimate - Penultimate batter count

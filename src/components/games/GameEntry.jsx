@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
+import { formatGameDate } from '../../lib/pitchCountUtils'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -393,7 +394,7 @@ export default function GameEntry({ profile, isAdmin }) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-gray-600">
-                        {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
+                        {formatGameDate(game.game_date)}
                       </p>
                       {(game.home_team?.division || game.away_team?.division) && (
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
@@ -1575,7 +1576,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <span className="font-semibold">Date:</span> {new Date(formData.game_date + 'T00:00:00').toLocaleDateString()}
+                  <span className="font-semibold">Date:</span> {formatGameDate(formData.game_date)}
                 </div>
                 <div>
                   <span className="font-semibold">Division:</span> {homeTeam?.division}

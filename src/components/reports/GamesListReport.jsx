@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
+import { formatGameDate } from '../../lib/pitchCountUtils'
 
 export default function GamesListReport({ profile }) {
   const [seasons, setSeasons] = useState([])
@@ -88,14 +89,6 @@ export default function GamesListReport({ profile }) {
     }
   }
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    })
-  }
 
   const selectedSeasonData = seasons.find(s => s.id === selectedSeason)
 
@@ -218,7 +211,11 @@ export default function GamesListReport({ profile }) {
                   {games.map((game) => (
                     <tr key={game.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatDate(game.game_date + 'T00:00:00')}
+                        {formatGameDate(game.game_date, {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })}
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <div>{game.away_team?.name || 'Unknown'}</div>
