@@ -73,17 +73,17 @@ export default function Dashboard({ user, profile }) {
               )}
 
               <button
-                onClick={() => setCurrentView('seasons')}
+                onClick={() => setCurrentView('games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'seasons'
+                  currentView === 'games'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                📅 Seasons
+                ⚾ Games
               </button>
 
-              <button
+               <button
                 onClick={() => setCurrentView('teams')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'teams'
@@ -94,16 +94,23 @@ export default function Dashboard({ user, profile }) {
                 🏆 Teams
               </button>
 
-              <button
-                onClick={() => setCurrentView('players')}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'players'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                🧢 Players
-              </button>
+              {(profile.role === 'super_admin' || profile.role === 'admin') && 
+                (<><button
+                  onClick={() => setCurrentView('seasons')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'seasons'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  📅 Seasons
+                </button><button
+                  onClick={() => setCurrentView('players')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'players'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                    🧢 Players
+                  </button></>)
+              }
 
               <button
                 onClick={() => setCurrentView('coaches')}
@@ -114,17 +121,6 @@ export default function Dashboard({ user, profile }) {
                 }`}
               >
                 📋 Coaches
-              </button>
-
-              <button
-                onClick={() => setCurrentView('games')}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'games'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                ⚾ Games
               </button>
 
               <button
