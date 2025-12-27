@@ -5,7 +5,7 @@ import TeamPlayersModal from './TeamPlayersModal'
 import TeamModal from './TeamModal'
 import ManageCoachesModal from './ManageCoachesModal'
 
-export default function TeamManagement({ profile }) {
+export default function TeamManagement({ profile, isCoach }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('Major')
@@ -17,8 +17,6 @@ export default function TeamManagement({ profile }) {
   const [managingPlayers, setManagingPlayers] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-
-  const isCoach = profile?.role === 'coach'
 
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
@@ -35,11 +33,20 @@ export default function TeamManagement({ profile }) {
 
   const fetchSeasons = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('seasons')
         .select('*')
+
+      // Coaches can only see active seasons
+      if (isCoach) {
+        query = query.eq('is_active', true)
+      }
+
+      query = query
         .order('is_active', { ascending: false })
         .order('start_date', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
       setSeasons(data)
@@ -324,7 +331,7 @@ export default function TeamManagement({ profile }) {
       {managingPlayers && (
         <TeamPlayersModal
           team={managingPlayers}
-          profile={profile}
+          isCoach={isCoach}
           onClose={() => setManagingPlayers(null)}
         />
       )}

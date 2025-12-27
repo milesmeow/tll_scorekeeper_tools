@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
+import { formatGameDate } from '../../lib/pitchCountUtils'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -127,7 +128,7 @@ export default function GameDetailModal({ game, onClose }) {
           <div>
             <h3 className="text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
             <p className="text-gray-600 mt-1">
-              {new Date(game.game_date).toLocaleDateString('en-US', {
+              {formatGameDate(game.game_date, {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -225,7 +226,7 @@ function TeamDetailSection({
 
   return (
     <div className="border rounded-lg p-4">
-      <h4 className="text-lg font-bold mb-4 bg-blue-50 -m-4 p-4 rounded-t-lg border-b">
+      <h4 className="text-lg font-bold mb-4 bg-blue-200 -m-4 p-4 rounded-t-lg border-b">
         {teamName} {isHome ? '(Home)' : '(Away)'}
       </h4>
 

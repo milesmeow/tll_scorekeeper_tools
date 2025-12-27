@@ -3,8 +3,9 @@ import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
+import { formatGameDate } from '../../lib/pitchCountUtils'
 
-export default function GameEntry({ profile }) {
+export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
   const [teams, setTeams] = useState([])
   const [selectedSeason, setSelectedSeason] = useState(null)
@@ -19,8 +20,6 @@ export default function GameEntry({ profile }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
-
-  const isCoach = profile?.role === 'coach'
 
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
@@ -38,11 +37,20 @@ export default function GameEntry({ profile }) {
 
   const fetchSeasons = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('seasons')
         .select('*')
+
+      // Coaches can only see active seasons
+      if (!isAdmin) {
+        query = query.eq('is_active', true)
+      }
+
+      query = query
         .order('is_active', { ascending: false })
         .order('start_date', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
       setSeasons(data)
@@ -55,7 +63,7 @@ export default function GameEntry({ profile }) {
       }
 
       // Set default division for coaches based on their first assigned division
-      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+      if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
         setSelectedDivision(coachData.divisions[0])
       }
     } catch (err) {
@@ -291,7 +299,7 @@ export default function GameEntry({ profile }) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
-        {!isCoach && (
+        {isAdmin && (
           <button
             onClick={() => setShowGameForm(true)}
             className="btn btn-primary"
@@ -324,7 +332,7 @@ export default function GameEntry({ profile }) {
             value={selectedDivision}
             onChange={(e) => setSelectedDivision(e.target.value)}
           >
-            {isCoach ? (
+            {!isAdmin ? (
               <>
                 {coachData.divisions.length > 1 && (
                   <option value="All">All My Divisions</option>
@@ -365,7 +373,7 @@ export default function GameEntry({ profile }) {
               : `No games found for ${selectedDivision} division.`
             }
           </p>
-          {!isCoach && games.length === 0 && (
+          {isAdmin && games.length === 0 && (
             <button
               onClick={() => setShowGameForm(true)}
               className="btn btn-primary"
@@ -386,8 +394,13 @@ export default function GameEntry({ profile }) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-gray-600">
-                        {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
+                        {formatGameDate(game.game_date)}
                       </p>
+                      {(game.home_team?.division || game.away_team?.division) && (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                          {game.home_team?.division || game.away_team?.division}
+                        </span>
+                      )}
                       {gameViolations[game.id] && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                           ⚠️ Rule Violation
@@ -419,7 +432,7 @@ export default function GameEntry({ profile }) {
                     >
                       View Details
                     </button>
-                    {!isCoach && (
+                    {isAdmin && (
                       <>
                         <button
                           onClick={() => setGameToEdit(game)}
@@ -443,7 +456,7 @@ export default function GameEntry({ profile }) {
         </div>
       )}
 
-      {!isCoach && showGameForm && (
+      {isAdmin && showGameForm && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -468,7 +481,7 @@ export default function GameEntry({ profile }) {
       )}
 
       {/* Edit Game Modal */}
-      {!isCoach && gameToEdit && (
+      {isAdmin && gameToEdit && (
         <GameFormModal
           seasonId={selectedSeason}
           teams={teams}
@@ -486,7 +499,7 @@ export default function GameEntry({ profile }) {
       )}
 
       {/* Delete Confirmation Modal */}
-      {!isCoach && gameToDelete && (
+      {isAdmin && gameToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg px-6 pt-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-red-600">Delete Game?</h3>
@@ -526,7 +539,7 @@ export default function GameEntry({ profile }) {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pb-6">
               <button
                 onClick={() => {
                   setGameToDelete(null)
@@ -967,6 +980,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     setModalError(null)
 
     try {
+      // Combine home and away players
+      const allPlayers = [...homePlayers, ...awayPlayers]
+
       let finalGameId = gameId
 
       const gameData = {
@@ -1560,7 +1576,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <span className="font-semibold">Date:</span> {new Date(formData.game_date).toLocaleDateString()}
+                  <span className="font-semibold">Date:</span> {formatGameDate(formData.game_date)}
                 </div>
                 <div>
                   <span className="font-semibold">Division:</span> {homeTeam?.division}

@@ -13,6 +13,11 @@ import Footer from './Footer'
 export default function Dashboard({ user, profile }) {
   const [currentView, setCurrentView] = useState('home')
 
+  // Calculate role flags once and pass down to child components
+  const isSuperAdmin = profile.role === 'super_admin'
+  const isAdmin = profile.role === 'admin' || profile.role === 'super_admin'
+  const isCoach = profile.role === 'coach'
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     window.location.reload()
@@ -59,7 +64,7 @@ export default function Dashboard({ user, profile }) {
                 🏠 Home
               </button>
 
-              {profile.role === 'super_admin' && (
+              {isSuperAdmin && (
                 <button
                   onClick={() => setCurrentView('users')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
@@ -73,17 +78,17 @@ export default function Dashboard({ user, profile }) {
               )}
 
               <button
-                onClick={() => setCurrentView('seasons')}
+                onClick={() => setCurrentView('games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'seasons'
+                  currentView === 'games'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                📅 Seasons
+                ⚾ Games
               </button>
 
-              <button
+               <button
                 onClick={() => setCurrentView('teams')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'teams'
@@ -94,16 +99,23 @@ export default function Dashboard({ user, profile }) {
                 🏆 Teams
               </button>
 
-              <button
-                onClick={() => setCurrentView('players')}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'players'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                🧢 Players
-              </button>
+              {isAdmin &&
+                (<><button
+                  onClick={() => setCurrentView('seasons')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'seasons'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  📅 Seasons
+                </button><button
+                  onClick={() => setCurrentView('players')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'players'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                    🧢 Players
+                  </button></>)
+              }
 
               <button
                 onClick={() => setCurrentView('coaches')}
@@ -114,17 +126,6 @@ export default function Dashboard({ user, profile }) {
                 }`}
               >
                 📋 Coaches
-              </button>
-
-              <button
-                onClick={() => setCurrentView('games')}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'games'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                ⚾ Games
               </button>
 
               <button
@@ -154,12 +155,12 @@ export default function Dashboard({ user, profile }) {
           {/* Main Content */}
           <main className="flex-1">
             {currentView === 'home' && <HomeView profile={profile} />}
-            {currentView === 'users' && profile.role === 'super_admin' && <UserManagement />}
-            {currentView === 'seasons' && <SeasonManagement profile={profile} />}
-            {currentView === 'teams' && <TeamManagement profile={profile} />}
-            {currentView === 'players' && <PlayerManagement profile={profile} />}
-            {currentView === 'coaches' && <CoachManagement />}
-            {currentView === 'games' && <GameEntry profile={profile} />}
+            {currentView === 'users' && isSuperAdmin && <UserManagement />}
+            {currentView === 'seasons' && <SeasonManagement isAdmin={isAdmin} />}
+            {currentView === 'teams' && <TeamManagement profile={profile} isCoach={isCoach} />}
+            {currentView === 'players' && <PlayerManagement profile={profile} isAdmin={isAdmin} />}
+            {currentView === 'coaches' && <CoachManagement isAdmin={isAdmin} />}
+            {currentView === 'games' && <GameEntry profile={profile} isAdmin={isAdmin} />}
             {currentView === 'reports' && <Reports profile={profile} />}
             {currentView === 'rules' && <RulesManagement />}
           </main>
