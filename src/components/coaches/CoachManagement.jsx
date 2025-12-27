@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export default function CoachManagement() {
+export default function CoachManagement({ isAdmin }) {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -68,9 +68,11 @@ export default function CoachManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">📋 Coach Management</h2>
-        <p className="text-sm text-gray-600">
-          To add a new coach, go to User Management and create a user with role "Coach"
-        </p>
+        {isAdmin && (
+          <p className="text-sm text-gray-600">
+            To add a new coach, go to User Management and create a user with role "Coach"
+          </p>
+        )}
       </div>
 
       {/* Division Selector */}
