@@ -36,11 +36,20 @@ export default function GameEntry({ profile, isAdmin }) {
 
   const fetchSeasons = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('seasons')
         .select('*')
+
+      // Coaches can only see active seasons
+      if (!isAdmin) {
+        query = query.eq('is_active', true)
+      }
+
+      query = query
         .order('is_active', { ascending: false })
         .order('start_date', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
       setSeasons(data)

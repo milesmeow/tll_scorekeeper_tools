@@ -33,11 +33,20 @@ export default function TeamManagement({ profile, isCoach }) {
 
   const fetchSeasons = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('seasons')
         .select('*')
+
+      // Coaches can only see active seasons
+      if (isCoach) {
+        query = query.eq('is_active', true)
+      }
+
+      query = query
         .order('is_active', { ascending: false })
         .order('start_date', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
       setSeasons(data)
