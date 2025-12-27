@@ -395,6 +395,11 @@ export default function GameEntry({ profile, isAdmin }) {
                       <p className="text-sm text-gray-600">
                         {new Date(game.game_date + 'T00:00:00').toLocaleDateString()}
                       </p>
+                      {(game.home_team?.division || game.away_team?.division) && (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                          {game.home_team?.division || game.away_team?.division}
+                        </span>
+                      )}
                       {gameViolations[game.id] && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                           ⚠️ Rule Violation
