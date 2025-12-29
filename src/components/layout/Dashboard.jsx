@@ -11,7 +11,14 @@ import RulesManagement from '../rules/RulesManagement'
 import Footer from './Footer'
 
 export default function Dashboard({ user, profile }) {
-  const [currentView, setCurrentView] = useState('home')
+  // Determine initial view based on role
+  const getInitialView = () => {
+    if (profile.role === 'super_admin') return 'users'
+    if (profile.role === 'admin') return 'games'
+    return 'teams' // coach and any other roles default to teams
+  }
+
+  const [currentView, setCurrentView] = useState(getInitialView())
 
   // Calculate role flags once and pass down to child components
   const isSuperAdmin = profile.role === 'super_admin'
@@ -53,7 +60,7 @@ export default function Dashboard({ user, profile }) {
           {/* Sidebar */}
           <aside className="w-64 flex-shrink-0">
             <nav className="space-y-1">
-              <button
+              {/* <button
                 onClick={() => setCurrentView('home')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   currentView === 'home'
@@ -62,7 +69,7 @@ export default function Dashboard({ user, profile }) {
                 }`}
               >
                 🏠 Home
-              </button>
+              </button> */}
 
               {isSuperAdmin && (
                 <button
