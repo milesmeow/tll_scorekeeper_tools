@@ -24,10 +24,10 @@ export function useCoachAssignments(profile) {
       return
     }
 
-    fetchCoachAssignments()
+    fetchCoachAssignments(profile?.id)
   }, [profile?.id, isCoach])
 
-  const fetchCoachAssignments = async () => {
+  const fetchCoachAssignments = async (profileId) => {
     try {
       setLoading(true)
       setError(null)
@@ -43,7 +43,7 @@ export function useCoachAssignments(profile) {
             division
           )
         `)
-        .eq('user_id', profile.id)
+        .eq('user_id', profileId)
 
       if (fetchError) throw fetchError
 

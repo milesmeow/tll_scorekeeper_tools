@@ -18,6 +18,7 @@ export default function TeamManagement({ profile, isCoach }) {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
+
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
 
@@ -26,10 +27,11 @@ export default function TeamManagement({ profile, isCoach }) {
   }, [])
 
   useEffect(() => {
-    if (selectedSeason) {
+    // Only fetch teams when season is selected and coach data has finished loading
+    if (selectedSeason && !coachData.loading) {
       fetchTeams()
     }
-  }, [selectedSeason])
+  }, [selectedSeason, coachData.loading])
 
   const fetchSeasons = async () => {
     try {
@@ -82,7 +84,17 @@ export default function TeamManagement({ profile, isCoach }) {
 
       // Filter teams by coach's divisions
       const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
-      setTeams(filteredTeams)
+
+      // For coaches, mark which teams they're assigned to
+      if (isCoach && coachData.teams.length > 0) {
+        const teamsWithAssignment = filteredTeams.map(team => ({
+          ...team,
+          isMyTeam: coachData.teams.includes(team.id)
+        }))
+        setTeams(teamsWithAssignment)
+      } else {
+        setTeams(filteredTeams)
+      }
     } catch (err) {
       setError(err.message)
     }
@@ -139,10 +151,22 @@ export default function TeamManagement({ profile, isCoach }) {
     )
   }
 
+  const sortTeamsWithinDivision = (teamsArray) => {
+    // Sort so assigned teams (isMyTeam=true) appear first, then alphabetically by name
+    return teamsArray.sort((a, b) => {
+      // If both are assigned or both are not assigned, sort by name
+      if (a.isMyTeam === b.isMyTeam) {
+        return a.name.localeCompare(b.name)
+      }
+      // Assigned teams come first
+      return a.isMyTeam ? -1 : 1
+    })
+  }
+
   const teamsByDivision = {
-    'Training': teams.filter(t => t.division === 'Training'),
-    'Minor': teams.filter(t => t.division === 'Minor'),
-    'Major': teams.filter(t => t.division === 'Major')
+    'Training': sortTeamsWithinDivision(teams.filter(t => t.division === 'Training')),
+    'Minor': sortTeamsWithinDivision(teams.filter(t => t.division === 'Minor')),
+    'Major': sortTeamsWithinDivision(teams.filter(t => t.division === 'Major'))
   }
 
   return (
@@ -243,7 +267,14 @@ export default function TeamManagement({ profile, isCoach }) {
                         className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
                       >
                         <div>
-                          <h4 className="font-medium">{team.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{team.name}</h4>
+                            {isCoach && team.isMyTeam && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                My Team
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-500">{team.division}</p>
                         </div>
                         <div className="flex gap-2">
