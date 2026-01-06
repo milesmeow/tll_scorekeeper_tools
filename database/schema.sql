@@ -51,7 +51,7 @@ CREATE UNIQUE INDEX idx_only_one_active_season
 
 CREATE TABLE public.teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE CASCADE,
+  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   division TEXT NOT NULL CHECK (division IN ('Training', 'Minor', 'Major')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -117,7 +117,7 @@ UNIQUE (team_id, jersey_number);
 
 CREATE TABLE public.games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE CASCADE,
+  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE RESTRICT,
   game_date DATE NOT NULL,
   home_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,
   away_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,

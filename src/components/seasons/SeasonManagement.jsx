@@ -56,11 +56,41 @@ export default function SeasonManagement({ isAdmin }) {
   }
 
   const handleDelete = async (seasonId) => {
-    if (!confirm('Are you sure you want to delete this season? This will only work if there are no teams or games associated with it.')) {
-      return
-    }
-
     try {
+      // Check for associated teams
+      const { data: teams, error: teamsError } = await supabase
+        .from('teams')
+        .select('id')
+        .eq('season_id', seasonId)
+        .limit(1)
+
+      if (teamsError) throw teamsError
+
+      if (teams && teams.length > 0) {
+        setError('Cannot delete season: there are teams associated with this season. Delete all teams first.')
+        return
+      }
+
+      // Check for associated games
+      const { data: games, error: gamesError } = await supabase
+        .from('games')
+        .select('id')
+        .eq('season_id', seasonId)
+        .limit(1)
+
+      if (gamesError) throw gamesError
+
+      if (games && games.length > 0) {
+        setError('Cannot delete season: there are games associated with this season. Delete those games first.')
+        return
+      }
+
+      // If no associated records, confirm deletion
+      if (!confirm('Are you sure you want to delete this season?')) {
+        return
+      }
+
+      // Proceed with deletion
       const { error } = await supabase
         .from('seasons')
         .delete()
@@ -69,7 +99,7 @@ export default function SeasonManagement({ isAdmin }) {
       if (error) {
         // Check if it's a foreign key constraint error
         if (error.code === '23503') {
-          throw new Error('Cannot delete season: teams or games are still associated with it. Delete those first.')
+          throw new Error('Cannot delete season: it still has associated data. Please refresh and try again.')
         }
         throw error
       }
