@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getPitchingDisplayData } from '../../lib/pitchCountUtils'
+import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
 
 /**
  * Merges player data with their most recent pitching log
@@ -35,6 +36,7 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState(null)
+  const [deletingPlayer, setDeletingPlayer] = useState(null)
 
   useEffect(() => {
     fetchPlayers()
@@ -85,10 +87,6 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
   }
 
   const handleDelete = async (playerId) => {
-    if (!confirm('Are you sure you want to delete this player?')) {
-      return
-    }
-
     try {
       const { error } = await supabase
         .from('players')
@@ -103,6 +101,7 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
       }
 
       setSuccess('Player deleted successfully!')
+      setDeletingPlayer(null)
       fetchPlayers()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
@@ -241,7 +240,7 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
                                 Edit
                               </button>
                               <button
-                                onClick={() => handleDelete(player.id)}
+                                onClick={() => setDeletingPlayer(player)}
                                 className="text-red-600 hover:text-red-800"
                               >
                                 Delete
@@ -318,6 +317,14 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
             setError(err)
             setTimeout(() => setError(null), 5000)
           }}
+        />
+      )}
+
+      {!isCoach && deletingPlayer && (
+        <PlayerDeleteConfirmationModal
+          playerName={deletingPlayer.name}
+          onConfirm={() => handleDelete(deletingPlayer.id)}
+          onClose={() => setDeletingPlayer(null)}
         />
       )}
     </div>
