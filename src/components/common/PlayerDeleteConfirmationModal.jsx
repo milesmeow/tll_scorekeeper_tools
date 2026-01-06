@@ -20,6 +20,11 @@ export default function PlayerDeleteConfirmationModal({ playerName, onConfirm, o
         </p>
 
         <p className="mb-4 text-sm text-gray-600">
+          All data associated with the player will be deleted.<br />
+          All pitching/catching game data will be deleted.
+        </p>
+
+        <p className="mb-4 text-sm text-gray-600">
           This action cannot be undone. Type <strong>DELETE</strong> to confirm.
         </p>
 
