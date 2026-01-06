@@ -51,7 +51,7 @@ CREATE UNIQUE INDEX idx_only_one_active_season
 
 CREATE TABLE public.teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE CASCADE,
+  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   division TEXT NOT NULL CHECK (division IN ('Training', 'Minor', 'Major')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -92,7 +92,7 @@ CHECK (role IN ('head_coach', 'assistant'));
 
 CREATE TABLE public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   age INTEGER NOT NULL CHECK (age >= 7 AND age <= 22),
   jersey_number TEXT,
@@ -117,14 +117,14 @@ UNIQUE (team_id, jersey_number);
 
 CREATE TABLE public.games (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE CASCADE,
+  season_id UUID NOT NULL REFERENCES public.seasons(id) ON DELETE RESTRICT,
   game_date DATE NOT NULL,
-  home_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
-  away_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
+  home_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,
+  away_team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,
   home_score INTEGER,
   away_score INTEGER,
   scorekeeper_name TEXT NOT NULL,
-  scorekeeper_team_id UUID REFERENCES public.teams(id);
+  scorekeeper_team_id UUID REFERENCES public.teams(id) ON DELETE RESTRICT,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
