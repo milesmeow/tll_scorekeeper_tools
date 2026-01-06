@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import PlayerModal from './PlayerModal'
 import BulkAddModal from './BulkAddModal'
+import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
 
 export default function PlayerManagement({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -15,6 +16,7 @@ export default function PlayerManagement({ profile, isAdmin }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState(null)
+  const [deletingPlayer, setDeletingPlayer] = useState(null)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
 
@@ -118,10 +120,6 @@ export default function PlayerManagement({ profile, isAdmin }) {
   }
 
   const handleDelete = async (playerId) => {
-    if (!confirm('Are you sure you want to delete this player?')) {
-      return
-    }
-
     try {
       const { error } = await supabase
         .from('players')
@@ -136,6 +134,7 @@ export default function PlayerManagement({ profile, isAdmin }) {
       }
 
       setSuccess('Player deleted successfully!')
+      setDeletingPlayer(null)
       fetchPlayers()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
@@ -311,7 +310,7 @@ export default function PlayerManagement({ profile, isAdmin }) {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(player.id)}
+                            onClick={() => setDeletingPlayer(player)}
                             className="text-red-600 hover:text-red-800"
                           >
                             Delete
@@ -367,6 +366,14 @@ export default function PlayerManagement({ profile, isAdmin }) {
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
+        />
+      )}
+
+      {isAdmin && deletingPlayer && (
+        <PlayerDeleteConfirmationModal
+          playerName={deletingPlayer.name}
+          onConfirm={() => handleDelete(deletingPlayer.id)}
+          onClose={() => setDeletingPlayer(null)}
         />
       )}
     </div>

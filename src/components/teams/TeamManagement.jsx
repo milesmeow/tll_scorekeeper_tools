@@ -101,11 +101,41 @@ export default function TeamManagement({ profile, isCoach }) {
   }
 
   const handleDelete = async (teamId) => {
-    if (!confirm('Are you sure you want to delete this team? This will only work if there are no players or games associated with it.')) {
-      return
-    }
-
     try {
+      // Check for associated players
+      const { data: players, error: playersError } = await supabase
+        .from('players')
+        .select('id')
+        .eq('team_id', teamId)
+        .limit(1)
+
+      if (playersError) throw playersError
+
+      if (players && players.length > 0) {
+        setError('Cannot delete team: there are players assigned to this team. Remove all players first.')
+        return
+      }
+
+      // Check for associated games
+      const { data: games, error: gamesError } = await supabase
+        .from('games')
+        .select('id')
+        .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId},scorekeeper_team_id.eq.${teamId}`)
+        .limit(1)
+
+      if (gamesError) throw gamesError
+
+      if (games && games.length > 0) {
+        setError('Cannot delete team: there are games associated with this team. Delete those games first.')
+        return
+      }
+
+      // If no associated records, confirm deletion
+      if (!confirm('Are you sure you want to delete this team?')) {
+        return
+      }
+
+      // Proceed with deletion
       const { error } = await supabase
         .from('teams')
         .delete()
@@ -113,7 +143,7 @@ export default function TeamManagement({ profile, isCoach }) {
 
       if (error) {
         if (error.code === '23503') {
-          throw new Error('Cannot delete team: players or games are still associated with it. Delete those first.')
+          throw new Error('Cannot delete team: it still has associated data. Please refresh and try again.')
         }
         throw error
       }
