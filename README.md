@@ -29,7 +29,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 #### Phase 3.5: Data Export Tools (Complete)
 - ✅ **Tools Section** - Admin-only tools accessible from dashboard sidebar
 - ✅ **JSON Backup Export** - Complete season data export for backup/restore
-- ✅ **CSV Export** - 3 human-readable, denormalized CSV files (teams roster, games, pitching/catching log) packaged in ZIP
+- ✅ **CSV Export** - 4 human-readable, denormalized CSV files (teams roster, games, pitching/catching log, absent players) packaged in ZIP
 - ✅ **HTML Report Export** - Formatted, human-readable season report with:
   - Teams overview and detailed rosters
   - Games organized by division (Training, Minor, Major)
@@ -79,14 +79,15 @@ The Tools section provides data export functionality for admins and super admins
 
 #### 2. CSV Export
 **Purpose**: Human-readable, spreadsheet-friendly format for data analysis
-**Output**: ZIP file containing 3 denormalized CSV files
+**Output**: ZIP file containing 4 denormalized CSV files
 **Filename**: `csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip`
 **Files Included**:
 - `teams_roster.csv` - Division, Team Name, Player Name, Age, Jersey Number (sorted by division)
 - `games.csv` - Division, Date, Home Team, Away Team, Home Score, Away Score (sorted by division then date)
 - `pitching_catching_log.csv` - Division, Player Name, Age, Jersey Number, Position (Catch/Pitch), Innings, Final Pitch Count, Official Pitch Count, Date, Game (sorted by division then date)
+- `absent_players.csv` - Division, Player Name, Date Absent, Team, Jersey Number (sorted by division then player name)
 
-**Use Case**: Easy-to-read format for analyzing team rosters, game results, and player activities in Excel/Google Sheets. Data is denormalized and pre-sorted for immediate analysis.
+**Use Case**: Easy-to-read format for analyzing team rosters, game results, player activities, and attendance in Excel/Google Sheets. Data is denormalized and pre-sorted for immediate analysis.
 
 #### 3. HTML Report Export
 **Purpose**: Human-readable, formatted season report

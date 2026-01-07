@@ -252,11 +252,12 @@ function arrayToCSV(data, headers) {
 /**
  * Export season data as multiple CSV files in a ZIP
  *
- * Creates 3 human-readable CSV files packaged in a ZIP archive:
+ * Creates 4 human-readable CSV files packaged in a ZIP archive:
  * - teams_roster.csv - All players organized by division and team
  * - games.csv - All games organized by division and date
  * - pitching_catching_log.csv - All pitching and catching activities by division and date
  *   (includes innings played as comma-separated list, e.g., "1,2,3")
+ * - absent_players.csv - All player absences organized by division and player name
  *
  * Filename format: csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip
  *
@@ -436,6 +437,37 @@ export async function exportSeasonCSV(seasonId) {
 
   const logCSV = arrayToCSV(logData, ['division', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
   zip.file('pitching_catching_log.csv', logCSV)
+
+  // 4. CREATE ABSENT_PLAYERS.CSV
+  // Filter for absent players and format data
+  const absentData = []
+  data.gamePlayers
+    .filter(gp => gp.was_present === false)
+    .forEach(gp => {
+      const player = playerLookup[gp.player_id]
+      const game = data.games.find(g => g.id === gp.game_id)
+      if (player && game) {
+        const team = teamLookup[player.team_id]
+        absentData.push({
+          division: team?.division || 'Unknown',
+          playerName: player.name,
+          dateAbsent: game.game_date,
+          team: team?.name || 'Unknown',
+          jerseyNumber: player.jersey_number || ''
+        })
+      }
+    })
+
+  // Sort by division, then player name
+  absentData.sort((a, b) => {
+    if (divOrder[a.division] !== divOrder[b.division]) {
+      return divOrder[a.division] - divOrder[b.division]
+    }
+    return a.playerName.localeCompare(b.playerName)
+  })
+
+  const absentCSV = arrayToCSV(absentData, ['division', 'playerName', 'dateAbsent', 'team', 'jerseyNumber'])
+  zip.file('absent_players.csv', absentCSV)
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({ type: 'blob' })
