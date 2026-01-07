@@ -1,9 +1,37 @@
+/**
+ * Export utilities for season data
+ *
+ * This module provides three export formats:
+ * 1. JSON Backup - Complete season data for backup/restore
+ * 2. CSV Export - Multiple CSV files in a ZIP for spreadsheet analysis
+ * 3. HTML Report - Formatted, human-readable report
+ *
+ * All exports use parseLocalDate() to prevent timezone offset issues
+ * All filenames include timestamps in format: YYYY-MM-DD_HH-MM-SS
+ *
+ * @module exportUtils
+ */
+
 import { supabase } from './supabase'
 import JSZip from 'jszip'
 import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
 
 /**
  * Fetch all season data including all related tables
+ *
+ * Retrieves a complete snapshot of a season including:
+ * - Season metadata
+ * - Teams (with division info)
+ * - Players (rosters with ages and jersey numbers)
+ * - Team coaches (with user profile data)
+ * - Games (with scores and scorekeeper info)
+ * - Game players (attendance records)
+ * - Pitching logs (pitch counts and rest dates)
+ * - Positions played (by inning)
+ *
+ * @param {string} seasonId - UUID of the season to export
+ * @returns {Promise<Object>} Complete season data object
+ * @throws {Error} If any database query fails
  */
 async function fetchSeasonData(seasonId) {
   try {
@@ -107,7 +135,13 @@ async function fetchSeasonData(seasonId) {
 }
 
 /**
- * Get formatted timestamp for filenames (YYYY-MM-DD_HH-MM-SS)
+ * Get formatted timestamp for filenames
+ *
+ * Creates a timestamp string suitable for filenames with date and time
+ * Format: YYYY-MM-DD_HH-MM-SS (24-hour time)
+ * Example: 2026-01-06_14-30-45
+ *
+ * @returns {string} Formatted timestamp
  */
 function getTimestamp() {
   const now = new Date()
@@ -122,6 +156,12 @@ function getTimestamp() {
 
 /**
  * Download a file to the user's computer
+ *
+ * Creates a blob, generates a temporary URL, triggers download, then cleans up
+ *
+ * @param {string} content - File content to download
+ * @param {string} filename - Name for the downloaded file
+ * @param {string} contentType - MIME type (e.g., 'application/json', 'text/html')
  */
 function downloadFile(content, filename, contentType) {
   const blob = new Blob([content], { type: contentType })
@@ -137,6 +177,18 @@ function downloadFile(content, filename, contentType) {
 
 /**
  * Export season data as JSON backup
+ *
+ * Creates a complete JSON backup of all season data including teams, players,
+ * coaches, games, attendance, pitch counts, and positions played.
+ *
+ * The backup is structured for future import functionality and includes
+ * an export version number for compatibility tracking.
+ *
+ * Filename format: backup_SeasonName_YYYY-MM-DD_HH-MM-SS.json
+ *
+ * @param {string} seasonId - UUID of the season to export
+ * @returns {Promise<void>} Downloads file to user's computer
+ * @throws {Error} If data fetch or download fails
  */
 export async function exportSeasonBackup(seasonId) {
   const data = await fetchSeasonData(seasonId)
@@ -155,6 +207,13 @@ export async function exportSeasonBackup(seasonId) {
 
 /**
  * Convert array of objects to CSV string
+ *
+ * Handles proper CSV escaping for commas, quotes, and newlines
+ * Nested objects (like user_profiles) are JSON stringified
+ *
+ * @param {Array<Object>} data - Array of objects to convert
+ * @param {Array<string>} headers - Column headers (object keys to include)
+ * @returns {string} CSV formatted string with header row
  */
 function arrayToCSV(data, headers) {
   if (!data || data.length === 0) {
@@ -192,6 +251,22 @@ function arrayToCSV(data, headers) {
 
 /**
  * Export season data as multiple CSV files in a ZIP
+ *
+ * Creates 8 separate CSV files packaged in a ZIP archive:
+ * - season.csv - Season metadata
+ * - teams.csv - All teams with divisions
+ * - players.csv - All players with ages and jersey numbers
+ * - team_coaches.csv - Coach assignments with names and emails
+ * - games.csv - All games with scores and scorekeeper info
+ * - game_players.csv - Player attendance records
+ * - pitching_logs.csv - Pitch counts and eligibility dates
+ * - positions_played.csv - Position tracking by inning
+ *
+ * Filename format: csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip
+ *
+ * @param {string} seasonId - UUID of the season to export
+ * @returns {Promise<void>} Downloads ZIP file to user's computer
+ * @throws {Error} If data fetch, CSV conversion, or ZIP generation fails
  */
 export async function exportSeasonCSV(seasonId) {
   const data = await fetchSeasonData(seasonId)
@@ -255,6 +330,26 @@ export async function exportSeasonCSV(seasonId) {
 
 /**
  * Export season data as formatted HTML report
+ *
+ * Generates a professional, human-readable HTML report with:
+ * - Season overview (dates, status)
+ * - Teams overview table (name, division, player count)
+ * - Detailed team sections with coaches, rosters, and game schedules
+ * - Games organized by division (Training, Minor, Major) in chronological order
+ * - Pitching logs organized by division
+ *
+ * Features:
+ * - Print-friendly styling with page breaks
+ * - Color-coded division badges
+ * - Responsive design for mobile viewing
+ * - All dates use parseLocalDate() to prevent timezone issues
+ * - Shows both Final Pitch Count and Official Pitch Count (Penultimate + 1)
+ *
+ * Filename format: report_SeasonName_YYYY-MM-DD_HH-MM-SS.html
+ *
+ * @param {string} seasonId - UUID of the season to export
+ * @returns {Promise<void>} Downloads HTML file to user's computer
+ * @throws {Error} If data fetch or HTML generation fails
  */
 export async function exportSeasonHTML(seasonId) {
   const data = await fetchSeasonData(seasonId)
