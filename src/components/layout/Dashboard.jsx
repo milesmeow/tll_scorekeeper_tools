@@ -8,6 +8,7 @@ import CoachManagement from '../coaches/CoachManagement'
 import GameEntry from '../games/GameEntry'
 import Reports from '../reports/Reports'
 import RulesManagement from '../rules/RulesManagement'
+import ToolsManagement from '../tools/ToolsManagement'
 import Footer from './Footer'
 
 export default function Dashboard({ user, profile }) {
@@ -156,6 +157,19 @@ export default function Dashboard({ user, profile }) {
               >
                 📏 Rules
               </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => setCurrentView('tools')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    currentView === 'tools'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  🛠️ Tools
+                </button>
+              )}
             </nav>
           </aside>
 
@@ -170,6 +184,7 @@ export default function Dashboard({ user, profile }) {
             {currentView === 'games' && <GameEntry profile={profile} isAdmin={isAdmin} />}
             {currentView === 'reports' && <Reports profile={profile} />}
             {currentView === 'rules' && <RulesManagement />}
+            {currentView === 'tools' && isAdmin && <ToolsManagement isAdmin={isAdmin} />}
           </main>
         </div>
         </div>
