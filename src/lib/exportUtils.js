@@ -548,6 +548,7 @@ export async function exportSeasonHTML(seasonId) {
     return `
   <div class="section">
     <h2>${division} Division Games (${divisionGames.length})</h2>
+    <span class="division-badge division-${division.toLowerCase()}">${division}</span>
     <table>
       <thead>
         <tr>
@@ -581,6 +582,7 @@ export async function exportSeasonHTML(seasonId) {
     return `
   <div class="section">
     <h2>${division} Division Pitching Logs (${divisionLogs.length})</h2>
+    <span class="division-badge division-${division.toLowerCase()}">${division}</span>
     <table>
       <thead>
         <tr>
