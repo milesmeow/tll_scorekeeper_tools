@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import JSZip from 'jszip'
+import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
 
 /**
  * Fetch all season data including all related tables
@@ -106,6 +107,20 @@ async function fetchSeasonData(seasonId) {
 }
 
 /**
+ * Get formatted timestamp for filenames (YYYY-MM-DD_HH-MM-SS)
+ */
+function getTimestamp() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`
+}
+
+/**
  * Download a file to the user's computer
  */
 function downloadFile(content, filename, contentType) {
@@ -133,7 +148,7 @@ export async function exportSeasonBackup(seasonId) {
   }
 
   const json = JSON.stringify(backup, null, 2)
-  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.json`
+  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.json`
 
   downloadFile(json, filename, 'application/json')
 }
@@ -226,7 +241,7 @@ export async function exportSeasonCSV(seasonId) {
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({ type: 'blob' })
-  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.zip`
+  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.zip`
 
   const url = URL.createObjectURL(zipBlob)
   const link = document.createElement('a')
@@ -268,6 +283,44 @@ export async function exportSeasonHTML(seasonId) {
   // Sort players within each team
   Object.keys(playersByTeam).forEach(teamId => {
     playersByTeam[teamId].sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  // Group games by division (based on home team's division)
+  const gamesByDivision = {
+    'Training': [],
+    'Minor': [],
+    'Major': []
+  }
+
+  data.games.forEach(game => {
+    const homeTeam = teamLookup[game.home_team_id]
+    if (homeTeam) {
+      gamesByDivision[homeTeam.division].push(game)
+    }
+  })
+
+  // Sort each division's games chronologically
+  Object.keys(gamesByDivision).forEach(division => {
+    gamesByDivision[division].sort((a, b) =>
+      new Date(a.game_date) - new Date(b.game_date)
+    )
+  })
+
+  // Group pitching logs by division (based on player's team division)
+  const logsByDivision = {
+    'Training': [],
+    'Minor': [],
+    'Major': []
+  }
+
+  data.pitchingLogs.forEach(log => {
+    const player = playerLookup[log.player_id]
+    if (player) {
+      const team = teamLookup[player.team_id]
+      if (team) {
+        logsByDivision[team.division].push(log)
+      }
+    }
   })
 
   const html = `<!DOCTYPE html>
@@ -373,8 +426,8 @@ export async function exportSeasonHTML(seasonId) {
   <h1>⚾ ${data.season.name} - Season Report</h1>
 
   <div class="meta">
-    <strong>Season Period:</strong> ${new Date(data.season.start_date).toLocaleDateString()}
-    ${data.season.end_date ? `to ${new Date(data.season.end_date).toLocaleDateString()}` : '(ongoing)'}
+    <strong>Season Period:</strong> ${parseLocalDate(data.season.start_date).toLocaleDateString()}
+    ${data.season.end_date ? `to ${parseLocalDate(data.season.end_date).toLocaleDateString()}` : '(ongoing)'}
     <br>
     <strong>Status:</strong> <span class="${data.season.is_active ? 'status-active' : 'status-inactive'}">${data.season.is_active ? 'Active' : 'Inactive'}</span>
     <br>
@@ -390,19 +443,16 @@ export async function exportSeasonHTML(seasonId) {
           <th>Team Name</th>
           <th>Division</th>
           <th>Players</th>
-          <th>Coaches</th>
         </tr>
       </thead>
       <tbody>
         ${data.teams.map(team => {
           const teamPlayers = playersByTeam[team.id] || []
-          const teamCoaches = data.teamCoaches.filter(tc => tc.team_id === team.id)
           return `
             <tr>
               <td><strong>${team.name}</strong></td>
               <td><span class="division-badge division-${team.division.toLowerCase()}">${team.division}</span></td>
               <td>${teamPlayers.length}</td>
-              <td>${teamCoaches.length}</td>
             </tr>
           `
         }).join('')}
@@ -427,7 +477,6 @@ export async function exportSeasonHTML(seasonId) {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
-                <th>Can Edit</th>
               </tr>
             </thead>
             <tbody>
@@ -436,7 +485,6 @@ export async function exportSeasonHTML(seasonId) {
                   <td>${tc.user_profiles?.name || 'N/A'}</td>
                   <td>${tc.user_profiles?.email || 'N/A'}</td>
                   <td>${tc.role.replace('_', ' ')}</td>
-                  <td>${tc.can_edit ? '✓' : '✗'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -479,7 +527,7 @@ export async function exportSeasonHTML(seasonId) {
             <tbody>
               ${teamGames.map(game => `
                 <tr>
-                  <td>${new Date(game.game_date).toLocaleDateString()}</td>
+                  <td>${parseLocalDate(game.game_date).toLocaleDateString()}</td>
                   <td>${teamLookup[game.home_team_id]?.name || 'Unknown'}</td>
                   <td>${teamLookup[game.away_team_id]?.name || 'Unknown'}</td>
                   <td><strong>${game.home_score || 0} - ${game.away_score || 0}</strong></td>
@@ -493,9 +541,13 @@ export async function exportSeasonHTML(seasonId) {
   }).join('')}
   ` : '<div class="section"><p>No teams in this season</p></div>'}
 
-  ${data.games.length > 0 ? `
+  ${['Training', 'Minor', 'Major'].map(division => {
+    const divisionGames = gamesByDivision[division]
+    if (divisionGames.length === 0) return ''
+
+    return `
   <div class="section">
-    <h2>All Games (${data.games.length})</h2>
+    <h2>${division} Division Games (${divisionGames.length})</h2>
     <table>
       <thead>
         <tr>
@@ -507,9 +559,9 @@ export async function exportSeasonHTML(seasonId) {
         </tr>
       </thead>
       <tbody>
-        ${data.games.map(game => `
+        ${divisionGames.map(game => `
           <tr>
-            <td>${new Date(game.game_date).toLocaleDateString()}</td>
+            <td>${parseLocalDate(game.game_date).toLocaleDateString()}</td>
             <td>${teamLookup[game.home_team_id]?.name || 'Unknown'}</td>
             <td>${teamLookup[game.away_team_id]?.name || 'Unknown'}</td>
             <td><strong>${game.home_score || 0} - ${game.away_score || 0}</strong></td>
@@ -519,43 +571,51 @@ export async function exportSeasonHTML(seasonId) {
       </tbody>
     </table>
   </div>
-  ` : ''}
+    `
+  }).join('')}
 
-  ${data.pitchingLogs.length > 0 ? `
+  ${['Training', 'Minor', 'Major'].map(division => {
+    const divisionLogs = logsByDivision[division]
+    if (divisionLogs.length === 0) return ''
+
+    return `
   <div class="section">
-    <h2>Pitching Logs (${data.pitchingLogs.length})</h2>
+    <h2>${division} Division Pitching Logs (${divisionLogs.length})</h2>
     <table>
       <thead>
         <tr>
           <th>Date</th>
           <th>Player</th>
           <th>Game</th>
-          <th>Pitch Count</th>
+          <th>Final Pitch Count</th>
+          <th>Official Pitch Count</th>
           <th>Next Eligible</th>
         </tr>
       </thead>
       <tbody>
-        ${data.pitchingLogs.map(log => {
+        ${divisionLogs.map(log => {
           const game = data.games.find(g => g.id === log.game_id)
           const player = playerLookup[log.player_id]
           return `
             <tr>
-              <td>${game ? new Date(game.game_date).toLocaleDateString() : 'N/A'}</td>
+              <td>${game ? parseLocalDate(game.game_date).toLocaleDateString() : 'N/A'}</td>
               <td>${player?.name || 'Unknown'}</td>
               <td>${game ? `${teamLookup[game.home_team_id]?.name} vs ${teamLookup[game.away_team_id]?.name}` : 'N/A'}</td>
               <td><strong>${log.final_pitch_count}</strong></td>
-              <td>${log.next_eligible_pitch_date ? new Date(log.next_eligible_pitch_date).toLocaleDateString() : 'N/A'}</td>
+              <td><strong>${getOfficialPitchCount(log.penultimate_batter_count)}</strong></td>
+              <td>${log.next_eligible_pitch_date ? parseLocalDate(log.next_eligible_pitch_date).toLocaleDateString() : 'N/A'}</td>
             </tr>
           `
         }).join('')}
       </tbody>
     </table>
   </div>
-  ` : ''}
+    `
+  }).join('')}
 
 </body>
 </html>`
 
-  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.html`
+  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.html`
   downloadFile(html, filename, 'text/html')
 }
