@@ -252,15 +252,11 @@ function arrayToCSV(data, headers) {
 /**
  * Export season data as multiple CSV files in a ZIP
  *
- * Creates 8 separate CSV files packaged in a ZIP archive:
- * - season.csv - Season metadata
- * - teams.csv - All teams with divisions
- * - players.csv - All players with ages and jersey numbers
- * - team_coaches.csv - Coach assignments with names and emails
- * - games.csv - All games with scores and scorekeeper info
- * - game_players.csv - Player attendance records
- * - pitching_logs.csv - Pitch counts and eligibility dates
- * - positions_played.csv - Position tracking by inning
+ * Creates 3 human-readable CSV files packaged in a ZIP archive:
+ * - teams_roster.csv - All players organized by division and team
+ * - games.csv - All games organized by division and date
+ * - pitching_catching_log.csv - All pitching and catching activities by division and date
+ *   (includes innings played as comma-separated list, e.g., "1,2,3")
  *
  * Filename format: csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip
  *
@@ -272,47 +268,174 @@ export async function exportSeasonCSV(seasonId) {
   const data = await fetchSeasonData(seasonId)
   const zip = new JSZip()
 
-  // Create season.csv
-  const seasonCSV = arrayToCSV([data.season], ['id', 'name', 'start_date', 'end_date', 'is_active', 'created_by', 'created_at', 'updated_at'])
-  zip.file('season.csv', seasonCSV)
+  // Build lookups for efficient data access
+  const teamLookup = {}
+  data.teams.forEach(team => {
+    teamLookup[team.id] = team
+  })
 
-  // Create teams.csv
-  const teamsCSV = arrayToCSV(data.teams, ['id', 'season_id', 'name', 'division', 'created_at', 'updated_at'])
-  zip.file('teams.csv', teamsCSV)
+  const playerLookup = {}
+  data.players.forEach(player => {
+    playerLookup[player.id] = player
+  })
 
-  // Create players.csv
-  const playersCSV = arrayToCSV(data.players, ['id', 'team_id', 'name', 'age', 'jersey_number', 'created_at', 'updated_at'])
-  zip.file('players.csv', playersCSV)
+  // Division sorting order
+  const divOrder = { 'Training': 1, 'Minor': 2, 'Major': 3 }
 
-  // Create team_coaches.csv with simplified coach info
-  const coachesData = data.teamCoaches.map(tc => ({
-    id: tc.id,
-    team_id: tc.team_id,
-    user_id: tc.user_id,
-    coach_name: tc.user_profiles?.name || '',
-    coach_email: tc.user_profiles?.email || '',
-    role: tc.role,
-    can_edit: tc.can_edit,
-    created_at: tc.created_at
-  }))
-  const coachesCSV = arrayToCSV(coachesData, ['id', 'team_id', 'user_id', 'coach_name', 'coach_email', 'role', 'can_edit', 'created_at'])
-  zip.file('team_coaches.csv', coachesCSV)
+  // 1. CREATE TEAMS_ROSTER.CSV
+  // Flatten teams and players data
+  const rosterData = []
+  data.players.forEach(player => {
+    const team = teamLookup[player.team_id]
+    if (team) {
+      rosterData.push({
+        division: team.division,
+        teamName: team.name,
+        playerName: player.name,
+        age: player.age,
+        jerseyNumber: player.jersey_number || ''
+      })
+    }
+  })
 
-  // Create games.csv
-  const gamesCSV = arrayToCSV(data.games, ['id', 'season_id', 'game_date', 'home_team_id', 'away_team_id', 'home_score', 'away_score', 'scorekeeper_name', 'scorekeeper_team_id', 'notes', 'created_at', 'updated_at'])
+  // Sort by division, team name, player name
+  rosterData.sort((a, b) => {
+    if (divOrder[a.division] !== divOrder[b.division]) {
+      return divOrder[a.division] - divOrder[b.division]
+    }
+    if (a.teamName !== b.teamName) {
+      return a.teamName.localeCompare(b.teamName)
+    }
+    return a.playerName.localeCompare(b.playerName)
+  })
+
+  const rosterCSV = arrayToCSV(rosterData, ['division', 'teamName', 'playerName', 'age', 'jerseyNumber'])
+  zip.file('teams_roster.csv', rosterCSV)
+
+  // 2. CREATE GAMES.CSV
+  // Flatten games data with team names
+  const gamesData = data.games.map(game => {
+    const homeTeam = teamLookup[game.home_team_id]
+    const awayTeam = teamLookup[game.away_team_id]
+    return {
+      division: homeTeam?.division || 'Unknown',
+      date: game.game_date,
+      homeTeam: homeTeam?.name || 'Unknown',
+      awayTeam: awayTeam?.name || 'Unknown',
+      homeScore: game.home_score || 0,
+      awayScore: game.away_score || 0
+    }
+  })
+
+  // Sort by division, then date
+  gamesData.sort((a, b) => {
+    if (divOrder[a.division] !== divOrder[b.division]) {
+      return divOrder[a.division] - divOrder[b.division]
+    }
+    return new Date(a.date) - new Date(b.date)
+  })
+
+  const gamesCSV = arrayToCSV(gamesData, ['division', 'date', 'homeTeam', 'awayTeam', 'homeScore', 'awayScore'])
   zip.file('games.csv', gamesCSV)
 
-  // Create game_players.csv
-  const gamePlayersCSV = arrayToCSV(data.gamePlayers, ['id', 'game_id', 'player_id', 'was_present', 'absence_note', 'created_at'])
-  zip.file('game_players.csv', gamePlayersCSV)
+  // 3. CREATE PITCHING_CATCHING_LOG.CSV
+  const logData = []
 
-  // Create pitching_logs.csv
-  const pitchingLogsCSV = arrayToCSV(data.pitchingLogs, ['id', 'game_id', 'player_id', 'final_pitch_count', 'penultimate_batter_count', 'next_eligible_pitch_date', 'created_at'])
-  zip.file('pitching_logs.csv', pitchingLogsCSV)
+  // Build innings lookup for pitchers from positions_played
+  const pitchingInningsByPlayerGame = {}
+  data.positionsPlayed.forEach(pos => {
+    if (pos.position === 'pitcher') {
+      const key = `${pos.player_id}_${pos.game_id}`
+      if (!pitchingInningsByPlayerGame[key]) {
+        pitchingInningsByPlayerGame[key] = []
+      }
+      pitchingInningsByPlayerGame[key].push(pos.inning_number)
+    }
+  })
 
-  // Create positions_played.csv
-  const positionsPlayedCSV = arrayToCSV(data.positionsPlayed, ['id', 'game_id', 'player_id', 'inning_number', 'position', 'created_at'])
-  zip.file('positions_played.csv', positionsPlayedCSV)
+  // Add pitching logs
+  data.pitchingLogs.forEach(log => {
+    const player = playerLookup[log.player_id]
+    const game = data.games.find(g => g.id === log.game_id)
+    if (player && game) {
+      const team = teamLookup[player.team_id]
+      const homeTeam = teamLookup[game.home_team_id]
+      const awayTeam = teamLookup[game.away_team_id]
+
+      // Get innings from positions_played
+      const key = `${log.player_id}_${log.game_id}`
+      const innings = pitchingInningsByPlayerGame[key] || []
+      const inningsStr = innings.sort((a, b) => a - b).join(',')
+
+      logData.push({
+        division: team?.division || 'Unknown',
+        playerName: player.name,
+        age: player.age,
+        jerseyNumber: player.jersey_number || '',
+        position: 'Pitch',
+        innings: inningsStr,
+        finalPitchCount: log.final_pitch_count,
+        officialPitchCount: getOfficialPitchCount(log.penultimate_batter_count),
+        date: game.game_date,
+        game: `${homeTeam?.name || 'Unknown'} vs ${awayTeam?.name || 'Unknown'}`
+      })
+    }
+  })
+
+  // Add catching data from positions_played
+  // Group positions_played by player and game to collect inning numbers
+  const catchingByPlayerGame = {}
+  data.positionsPlayed.forEach(pos => {
+    if (pos.position === 'catcher') {
+      const key = `${pos.player_id}_${pos.game_id}`
+      if (!catchingByPlayerGame[key]) {
+        catchingByPlayerGame[key] = {
+          player_id: pos.player_id,
+          game_id: pos.game_id,
+          inningNumbers: []
+        }
+      }
+      catchingByPlayerGame[key].inningNumbers.push(pos.inning_number)
+    }
+  })
+
+  // Convert catching data to log format
+  Object.values(catchingByPlayerGame).forEach(catchData => {
+    const player = playerLookup[catchData.player_id]
+    const game = data.games.find(g => g.id === catchData.game_id)
+    if (player && game) {
+      const team = teamLookup[player.team_id]
+      const homeTeam = teamLookup[game.home_team_id]
+      const awayTeam = teamLookup[game.away_team_id]
+
+      // Format innings as comma-separated string
+      const inningsStr = catchData.inningNumbers.sort((a, b) => a - b).join(',')
+
+      logData.push({
+        division: team?.division || 'Unknown',
+        playerName: player.name,
+        age: player.age,
+        jerseyNumber: player.jersey_number || '',
+        position: 'Catch',
+        innings: inningsStr,
+        finalPitchCount: '',
+        officialPitchCount: '',
+        date: game.game_date,
+        game: `${homeTeam?.name || 'Unknown'} vs ${awayTeam?.name || 'Unknown'}`
+      })
+    }
+  })
+
+  // Sort by division, then date
+  logData.sort((a, b) => {
+    if (divOrder[a.division] !== divOrder[b.division]) {
+      return divOrder[a.division] - divOrder[b.division]
+    }
+    return new Date(a.date) - new Date(b.date)
+  })
+
+  const logCSV = arrayToCSV(logData, ['division', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
+  zip.file('pitching_catching_log.csv', logCSV)
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({ type: 'blob' })
