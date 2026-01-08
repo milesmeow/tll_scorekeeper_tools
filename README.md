@@ -26,6 +26,19 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - ✅ **Game Editing** - Edit all game data
 - ✅ **Game Deletion** - Delete games with confirmation
 
+#### Phase 3.5: Data Export Tools (Complete)
+- ✅ **Tools Section** - Admin-only tools accessible from dashboard sidebar
+- ✅ **JSON Backup Export** - Complete season data export for backup/restore
+- ✅ **CSV Export** - 4 human-readable, denormalized CSV files (teams roster, games, pitching/catching log, absent players) packaged in ZIP
+- ✅ **HTML Report Export** - Formatted, human-readable season report with:
+  - Teams overview and detailed rosters
+  - Games organized by division (Training, Minor, Major)
+  - Pitching logs organized by division
+  - Coach assignments per team
+  - Print-friendly styling
+- ✅ **Timezone-Correct Dates** - Uses `parseLocalDate()` utility to prevent date offset issues
+- ✅ **Timestamped Filenames** - All exports include date and time (YYYY-MM-DD_HH-MM-SS)
+
 ### 🚧 Upcoming Features
 
 #### Phase 4: Rules Engine (Planned)
@@ -35,10 +48,80 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - Rule flags on game entry
 - **See RULES.md for complete rule documentation**
 
-#### Phase 5: Reporting (Planned)
-- PDF exports of season data
-- Player statistics (absences, pitch counts, playing time)
-- Compliance reports
+#### Phase 5: Advanced Reporting & Data Management (Planned)
+- Import season data from backup JSON files
+- Player statistics dashboards (absences, pitch counts, playing time)
+- Compliance reports with rule violation summaries
+- Additional export formats (Excel with formulas, custom date ranges)
+
+## Tools Section (Admin Only)
+
+### Overview
+The Tools section provides data export functionality for admins and super admins. Access it from the dashboard sidebar (🛠️ Tools).
+
+### Export Features
+
+#### 1. JSON Backup Export
+**Purpose**: Complete season data backup for archival or future import functionality
+**Output**: Single JSON file with all related data
+**Filename**: `backup_SeasonName_YYYY-MM-DD_HH-MM-SS.json`
+**Contains**:
+- Season metadata
+- All teams with their divisions
+- Complete player rosters
+- Team coach assignments
+- All games with scores
+- Player attendance records (game_players)
+- Pitching logs (pitch counts and rest dates)
+- Positions played by inning
+
+**Use Case**: Create backups before major changes, archive completed seasons, prepare for future import feature
+
+#### 2. CSV Export
+**Purpose**: Human-readable, spreadsheet-friendly format for data analysis
+**Output**: ZIP file containing 4 denormalized CSV files
+**Filename**: `csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip`
+**Files Included**:
+- `teams_roster.csv` - Division, Team Name, Player Name, Age, Jersey Number (sorted by division)
+- `games.csv` - Division, Date, Home Team, Away Team, Home Score, Away Score (sorted by division then date)
+- `pitching_catching_log.csv` - Division, Player Name, Age, Jersey Number, Position (Catch/Pitch), Innings, Final Pitch Count, Official Pitch Count, Date, Game (sorted by division then date)
+- `absent_players.csv` - Division, Player Name, Date Absent, Team, Jersey Number (sorted by division then player name)
+
+**Use Case**: Easy-to-read format for analyzing team rosters, game results, player activities, and attendance in Excel/Google Sheets. Data is denormalized and pre-sorted for immediate analysis.
+
+#### 3. HTML Report Export
+**Purpose**: Human-readable, formatted season report
+**Output**: Single HTML file viewable in any browser
+**Filename**: `report_SeasonName_YYYY-MM-DD_HH-MM-SS.html`
+**Sections**:
+- Season overview with dates and status
+- Teams Overview table (Name, Division, Player Count)
+- Detailed team sections with:
+  - Coach assignments (Name, Email, Role)
+  - Complete roster with jersey numbers
+  - Team's game schedule
+- Games by Division (Training, Minor, Major)
+  - Chronologically ordered within each division
+  - Shows Date, Home Team, Away Team, Score, Scorekeeper
+- Pitching Logs by Division
+  - Shows Date, Player, Game, Final Pitch Count, Official Pitch Count, Next Eligible Date
+  - Official Pitch Count = Penultimate Batter Count + 1 (per Pitch Smart rules)
+
+**Features**:
+- Print-friendly styling with proper page breaks
+- Color-coded division badges
+- Responsive design for mobile viewing
+- All dates use local timezone (no UTC offset issues)
+
+**Use Case**: Share with league officials, print for physical records, review season at a glance
+
+### Date Handling
+All exports use the `parseLocalDate()` utility function to ensure dates display correctly without timezone offset issues. This prevents the common problem where database dates (stored as YYYY-MM-DD) appear one day earlier due to UTC conversion.
+
+### Access Control
+- Only users with `admin` or `super_admin` roles can access the Tools section
+- Tools menu item only appears in dashboard sidebar for authorized users
+- Coaches do not have access to export functionality
 
 ## Key Design Decisions
 
@@ -76,6 +159,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - **Frontend**: React 18 + Vite
 - **Backend**: Supabase (PostgreSQL + Auth + Row Level Security)
 - **Styling**: Tailwind CSS 3.4.1 (NOT v4 - causes PostCSS issues)
+- **Export Tools**: JSZip 3.10.1 (for CSV ZIP file generation)
 - **Hosting**: Vercel (frontend) + Supabase (backend)
 - **Cost**: $0/month on free tiers
 
@@ -157,10 +241,16 @@ baseball-app/
 │   │   │   └── PlayerManagement.jsx  # CRUD players + CSV bulk import
 │   │   ├── coaches/
 │   │   │   └── CoachManagement.jsx   # View coaches and assignments
-│   │   └── games/
-│   │       └── GameEntry.jsx         # Two-step game entry form
+│   │   ├── games/
+│   │   │   └── GameEntry.jsx         # Two-step game entry form
+│   │   ├── tools/
+│   │   │   └── ToolsManagement.jsx   # Admin tools for data export
+│   │   └── reports/
+│   │       └── Reports.jsx           # Game lists and player absence reports
 │   ├── lib/
-│   │   └── supabase.js         # API client
+│   │   ├── supabase.js              # API client
+│   │   ├── exportUtils.js           # Season data export functions
+│   │   └── pitchCountUtils.js       # Date parsing and pitch count utilities
 │   ├── App.jsx                 # Main app with auth flow
 │   ├── main.jsx                # Entry point
 │   └── index.css               # Tailwind + custom styles
@@ -289,4 +379,5 @@ Private/Proprietary
 
 ---
 
-**Current Version**: Phases 1, 2, & 3 Complete (as of Dec 2024)
+**Current Version**: Phases 1, 2, 3, & 3.5 Complete (as of Jan 2026)
+- Added Tools section with JSON, CSV, and HTML export functionality
