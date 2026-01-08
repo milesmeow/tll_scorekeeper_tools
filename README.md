@@ -216,10 +216,74 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 
 - **Frontend**: React 18 + Vite
 - **Backend**: Supabase (PostgreSQL + Auth + Row Level Security)
+- **Routing**: React Router v7.10.1 (URL-based navigation)
 - **Styling**: Tailwind CSS 3.4.1 (NOT v4 - causes PostCSS issues)
 - **Export Tools**: JSZip 3.10.1 (for CSV ZIP file generation)
 - **Hosting**: Vercel (frontend) + Supabase (backend)
 - **Cost**: $0/month on free tiers
+
+## Navigation & Routing
+
+### URL-Based Routing (React Router v7)
+
+The app uses React Router for client-side navigation, providing several benefits:
+
+**Features:**
+- **Persistent URLs** - Each view has its own route (`/games`, `/teams`, `/reports`, etc.)
+- **Browser Navigation** - Back/forward buttons work as expected
+- **Deep Linking** - Direct navigation to specific pages via URL
+- **Role-Based Access** - Routes enforce role permissions with automatic redirects
+
+**Route Structure:**
+```
+/ (root) → Redirects based on user role
+├─ /users      → User Management (super_admin only)
+├─ /games      → Games (all roles)
+├─ /teams      → Teams (all roles)
+├─ /seasons    → Seasons (admin+ only)
+├─ /players    → Players (admin+ only)
+├─ /coaches    → Coaches (all roles)
+├─ /reports    → Reports (all roles)
+├─ /rules      → Rules (all roles)
+└─ /tools      → Tools (admin+ only)
+```
+
+**Role-Based Default Routes:**
+- Super Admin → `/users`
+- Admin → `/games`
+- Coach → `/teams`
+
+### Smart Auth State Management
+
+**Problem Solved:** Previously, when switching browser tabs or applications and returning, Supabase's `onAuthStateChange` would fire a session validation event. This caused the profile to be cleared and reloaded unnecessarily, resulting in the Dashboard unmounting and remounting, creating a jarring "flash" effect even though the user hadn't actually changed.
+
+**Solution:** Implemented smart session change detection in [App.jsx](src/App.jsx):
+
+```javascript
+const previousUserIdRef = useRef(null)
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  const currentUserId = session?.user?.id
+  const previousUserId = previousUserIdRef.current
+
+  // Only clear profile if user actually changed or signed out
+  if (!session || currentUserId !== previousUserId) {
+    setProfile(null)
+    previousUserIdRef.current = currentUserId
+  }
+  // ... load profile only if user changed
+})
+```
+
+**Benefits:**
+- ✅ No unnecessary re-renders when switching tabs
+- ✅ Smooth user experience without flashing/reloading
+- ✅ Profile only clears on actual sign-out or user change
+- ✅ Combined with URL routing, users stay on their current page
+
+**Key Components:**
+- `RoleBasedRedirect` - Handles default route selection based on user role
+- `Dashboard` - Main layout using React Router's `useNavigate()` and `useLocation()`
 
 ## Database Schema
 
@@ -290,7 +354,10 @@ baseball-app/
 │   │   ├── admin/
 │   │   │   └── UserManagement.jsx  # Create/manage users (uses Edge Function)
 │   │   ├── layout/
-│   │   │   └── Dashboard.jsx   # Main layout with navigation
+│   │   │   ├── Dashboard.jsx   # Main layout with React Router navigation
+│   │   │   └── Footer.jsx      # Footer component
+│   │   ├── routing/
+│   │   │   └── RoleBasedRedirect.jsx  # Default route selection by role
 │   │   ├── seasons/
 │   │   │   └── SeasonManagement.jsx  # CRUD seasons
 │   │   ├── teams/
@@ -311,8 +378,8 @@ baseball-app/
 │   │   ├── pitchCountUtils.js       # Date parsing and pitch count utilities
 │   │   ├── pitchSmartRules.js       # Pitch Smart guidelines and rest day calculations
 │   │   └── violationRules.js        # Shared validation utilities for all 5 rules
-│   ├── App.jsx                 # Main app with auth flow
-│   ├── main.jsx                # Entry point
+│   ├── App.jsx                 # Main app with smart auth state management
+│   ├── main.jsx                # Entry point with BrowserRouter
 │   └── index.css               # Tailwind + custom styles
 ├── .env.local                  # Supabase credentials (not in repo)
 ├── package.json
@@ -445,3 +512,5 @@ Private/Proprietary
 - ✅ Added Rule 5: Age-based pitch count limits enforcement
 - ✅ Refactored validation logic into shared utilities (`violationRules.js`)
 - ✅ Violation warnings displayed in games list, game entry, and game details
+- ✅ Implemented URL-based routing with React Router v7 (navigation improvements)
+- ✅ Fixed tab focus issue with smart auth state management (prevents unnecessary re-renders)
