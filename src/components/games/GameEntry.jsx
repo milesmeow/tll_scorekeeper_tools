@@ -11,7 +11,8 @@ import {
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  exceedsMaxPitchesForAge
+  exceedsMaxPitchesForAge,
+  calculateGameHasViolations
 } from '../../lib/violationRules'
 
 export default function GameEntry({ profile, isAdmin }) {
@@ -22,7 +23,6 @@ export default function GameEntry({ profile, isAdmin }) {
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
-  const [gameViolations, setGameViolations] = useState({}) // Track which games have violations
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
@@ -118,106 +118,9 @@ export default function GameEntry({ profile, isAdmin }) {
       // Filter games by coach's divisions (show games where home OR away team is in coach's divisions)
       const filteredGames = coachData.filterGamesByCoachDivisions(data)
       setGames(filteredGames)
-
-      // Check violations for all games
-      checkGameViolations(filteredGames)
     } catch (err) {
       setError(err.message)
     }
-  }
-
-  const checkGameViolations = async (gamesToCheck) => {
-    if (gamesToCheck.length === 0) {
-      setGameViolations({})
-      return
-    }
-
-    try {
-      const gameIds = gamesToCheck.map(g => g.id)
-
-      // Fetch all positions and pitching data for all games in bulk (much faster!)
-      const [positionsRes, pitchingRes, playersRes] = await Promise.all([
-        supabase.from('positions_played').select('*').in('game_id', gameIds),
-        supabase.from('pitching_logs').select('*').in('game_id', gameIds),
-        supabase.from('game_players').select('player_id, players!inner(age)').in('game_id', gameIds)
-      ])
-
-      if (positionsRes.error || pitchingRes.error || playersRes.error) {
-        setGameViolations({})
-        return
-      }
-
-      const allPositions = positionsRes.data
-      const allPitchingLogs = pitchingRes.data
-
-      // Create player age lookup map
-      const playerAges = {}
-      playersRes.data?.forEach(gp => {
-        playerAges[gp.player_id] = gp.players.age
-      })
-
-      // Group data by game and player
-      const violations = {}
-
-      for (const gameId of gameIds) {
-        violations[gameId] = checkGameHasViolations(
-          gameId,
-          allPositions.filter(p => p.game_id === gameId),
-          allPitchingLogs.filter(p => p.game_id === gameId),
-          playerAges
-        )
-      }
-
-      setGameViolations(violations)
-    } catch (err) {
-      setGameViolations({})
-    }
-  }
-
-  const checkGameHasViolations = (gameId, positions, pitchingLogs, playerAges) => {
-    // Group by player
-    const playerData = {}
-
-    positions.forEach(pos => {
-      if (!playerData[pos.player_id]) {
-        playerData[pos.player_id] = { pitched: [], caught: [], pitching: null }
-      }
-      if (pos.position === 'pitcher') {
-        playerData[pos.player_id].pitched.push(pos.inning_number)
-      } else if (pos.position === 'catcher') {
-        playerData[pos.player_id].caught.push(pos.inning_number)
-      }
-    })
-
-    pitchingLogs.forEach(log => {
-      if (playerData[log.player_id]) {
-        playerData[log.player_id].pitching = log
-      }
-    })
-
-    // Check each player for violations
-    for (const [playerId, player] of Object.entries(playerData)) {
-      const pitchedInnings = player.pitched.sort((a, b) => a - b)
-      const caughtInnings = player.caught.sort((a, b) => a - b)
-      const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
-
-      // Check Rule 1: Consecutive innings
-      if (hasInningsGap(pitchedInnings)) return true
-
-      // Check Rule 2: 41+ pitches -> cannot catch after
-      if (cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)) return true
-
-      // Check Rule 3: 4 innings catching -> cannot pitch after
-      if (cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)) return true
-
-      // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
-      if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
-
-      // Check Rule 5: Pitch count exceeds age limit
-      if (exceedsMaxPitchesForAge(playerAges[playerId], effectivePitches)) return true
-    }
-
-    return false
   }
 
   const handleDeleteGame = async () => {
@@ -391,7 +294,7 @@ export default function GameEntry({ profile, isAdmin }) {
                           {game.home_team?.division || game.away_team?.division}
                         </span>
                       )}
-                      {gameViolations[game.id] && (
+                      {game.has_violation === true && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                           ⚠️ Rule Violation
                         </span>
@@ -1120,6 +1023,34 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           .insert(positionsData)
 
         if (positionsError) throw positionsError
+      }
+
+      // Calculate violations for this game
+      const playerAges = {}
+      allPlayers.forEach(p => {
+        playerAges[p.id] = p.age
+      })
+
+      const [positionsRes, pitchingRes] = await Promise.all([
+        supabase.from('positions_played').select('*').eq('game_id', finalGameId),
+        supabase.from('pitching_logs').select('*').eq('game_id', finalGameId)
+      ])
+
+      const hasViolation = calculateGameHasViolations(
+        positionsRes.data || [],
+        pitchingRes.data || [],
+        playerAges
+      )
+
+      // Update the game record with violation status
+      const { error: violationError } = await supabase
+        .from('games')
+        .update({ has_violation: hasViolation })
+        .eq('id', finalGameId)
+
+      if (violationError) {
+        console.error('Failed to update violation status:', violationError)
+        // Don't throw - game already saved successfully
       }
 
       onSuccess()

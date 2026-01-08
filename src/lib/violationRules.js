@@ -95,3 +95,58 @@ export function exceedsMaxPitchesForAge(age, effectivePitches) {
   if (!maxPitches) return false
   return effectivePitches > maxPitches
 }
+
+/**
+ * Calculate if a game has violations given its related data
+ * This function is reusable for both save-time calculation and on-demand checks
+ *
+ * @param {Array} positions - positions_played records for the game
+ * @param {Array} pitchingLogs - pitching_logs records for the game
+ * @param {Object} playerAges - Map of player_id -> age
+ * @returns {boolean} - true if any violations exist, false otherwise
+ */
+export function calculateGameHasViolations(positions, pitchingLogs, playerAges) {
+  // Group by player
+  const playerData = {}
+
+  positions.forEach(pos => {
+    if (!playerData[pos.player_id]) {
+      playerData[pos.player_id] = { pitched: [], caught: [], pitching: null }
+    }
+    if (pos.position === 'pitcher') {
+      playerData[pos.player_id].pitched.push(pos.inning_number)
+    } else if (pos.position === 'catcher') {
+      playerData[pos.player_id].caught.push(pos.inning_number)
+    }
+  })
+
+  pitchingLogs.forEach(log => {
+    if (playerData[log.player_id]) {
+      playerData[log.player_id].pitching = log
+    }
+  })
+
+  // Check each player for violations
+  for (const [playerId, player] of Object.entries(playerData)) {
+    const pitchedInnings = player.pitched.sort((a, b) => a - b)
+    const caughtInnings = player.caught.sort((a, b) => a - b)
+    const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
+
+    // Check Rule 1: Consecutive innings
+    if (hasInningsGap(pitchedInnings)) return true
+
+    // Check Rule 2: 41+ pitches -> cannot catch after
+    if (cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)) return true
+
+    // Check Rule 3: 4 innings catching -> cannot pitch after
+    if (cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)) return true
+
+    // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
+    if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
+
+    // Check Rule 5: Pitch count exceeds age limit
+    if (exceedsMaxPitchesForAge(playerAges[playerId], effectivePitches)) return true
+  }
+
+  return false
+}
