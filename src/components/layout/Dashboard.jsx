@@ -23,7 +23,7 @@ export default function Dashboard({ user, profile }) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    window.location.reload()
+    navigate('/')
   }
 
   return (
