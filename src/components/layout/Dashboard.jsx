@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import UserManagement from '../admin/UserManagement'
 import SeasonManagement from '../seasons/SeasonManagement'
@@ -9,17 +9,12 @@ import GameEntry from '../games/GameEntry'
 import Reports from '../reports/Reports'
 import RulesManagement from '../rules/RulesManagement'
 import ToolsManagement from '../tools/ToolsManagement'
+import RoleBasedRedirect from '../routing/RoleBasedRedirect'
 import Footer from './Footer'
 
 export default function Dashboard({ user, profile }) {
-  // Determine initial view based on role
-  const getInitialView = () => {
-    if (profile.role === 'super_admin') return 'users'
-    if (profile.role === 'admin') return 'games'
-    return 'teams' // coach and any other roles default to teams
-  }
-
-  const [currentView, setCurrentView] = useState(getInitialView())
+  const navigate = useNavigate()
+  const location = useLocation()
 
   // Calculate role flags once and pass down to child components
   const isSuperAdmin = profile.role === 'super_admin'
@@ -74,9 +69,9 @@ export default function Dashboard({ user, profile }) {
 
               {isSuperAdmin && (
                 <button
-                  onClick={() => setCurrentView('users')}
+                  onClick={() => navigate('/users')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                    currentView === 'users'
+                    location.pathname === '/users'
                       ? 'bg-blue-50 text-blue-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -86,9 +81,9 @@ export default function Dashboard({ user, profile }) {
               )}
 
               <button
-                onClick={() => setCurrentView('games')}
+                onClick={() => navigate('/games')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'games'
+                  location.pathname === '/games'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -97,9 +92,9 @@ export default function Dashboard({ user, profile }) {
               </button>
 
                <button
-                onClick={() => setCurrentView('teams')}
+                onClick={() => navigate('/teams')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'teams'
+                  location.pathname === '/teams'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -109,15 +104,15 @@ export default function Dashboard({ user, profile }) {
 
               {isAdmin &&
                 (<><button
-                  onClick={() => setCurrentView('seasons')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'seasons'
+                  onClick={() => navigate('/seasons')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${location.pathname === '/seasons'
                       ? 'bg-blue-50 text-blue-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'}`}
                 >
                   📅 Seasons
                 </button><button
-                  onClick={() => setCurrentView('players')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${currentView === 'players'
+                  onClick={() => navigate('/players')}
+                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${location.pathname === '/players'
                       ? 'bg-blue-50 text-blue-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'}`}
                 >
@@ -126,9 +121,9 @@ export default function Dashboard({ user, profile }) {
               }
 
               <button
-                onClick={() => setCurrentView('coaches')}
+                onClick={() => navigate('/coaches')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'coaches'
+                  location.pathname === '/coaches'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -137,9 +132,9 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
-                onClick={() => setCurrentView('reports')}
+                onClick={() => navigate('/reports')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'reports'
+                  location.pathname === '/reports'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -148,9 +143,9 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
-                onClick={() => setCurrentView('rules')}
+                onClick={() => navigate('/rules')}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'rules'
+                  location.pathname === '/rules'
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
@@ -160,9 +155,9 @@ export default function Dashboard({ user, profile }) {
 
               {isAdmin && (
                 <button
-                  onClick={() => setCurrentView('tools')}
+                  onClick={() => navigate('/tools')}
                   className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                    currentView === 'tools'
+                    location.pathname === '/tools'
                       ? 'bg-blue-50 text-blue-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -175,93 +170,25 @@ export default function Dashboard({ user, profile }) {
 
           {/* Main Content */}
           <main className="flex-1">
-            {currentView === 'home' && <HomeView profile={profile} />}
-            {currentView === 'users' && isSuperAdmin && <UserManagement />}
-            {currentView === 'seasons' && <SeasonManagement isAdmin={isAdmin} />}
-            {currentView === 'teams' && <TeamManagement profile={profile} isCoach={isCoach} />}
-            {currentView === 'players' && <PlayerManagement profile={profile} isAdmin={isAdmin} />}
-            {currentView === 'coaches' && <CoachManagement isAdmin={isAdmin} />}
-            {currentView === 'games' && <GameEntry profile={profile} isAdmin={isAdmin} />}
-            {currentView === 'reports' && <Reports profile={profile} />}
-            {currentView === 'rules' && <RulesManagement />}
-            {currentView === 'tools' && isAdmin && <ToolsManagement isAdmin={isAdmin} />}
+            <Routes>
+              <Route path="/" element={<RoleBasedRedirect profile={profile} />} />
+              <Route path="/users" element={isSuperAdmin ? <UserManagement /> : <Navigate to="/teams" replace />} />
+              <Route path="/games" element={<GameEntry profile={profile} isAdmin={isAdmin} />} />
+              <Route path="/teams" element={<TeamManagement profile={profile} isCoach={isCoach} />} />
+              <Route path="/seasons" element={isAdmin ? <SeasonManagement isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
+              <Route path="/players" element={isAdmin ? <PlayerManagement profile={profile} isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
+              <Route path="/coaches" element={<CoachManagement isAdmin={isAdmin} />} />
+              <Route path="/reports" element={<Reports profile={profile} />} />
+              <Route path="/rules" element={<RulesManagement />} />
+              <Route path="/tools" element={isAdmin ? <ToolsManagement isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </main>
         </div>
         </div>
       </div>
 
       <Footer />
-    </div>
-  )
-}
-
-function HomeView({ profile }) {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Welcome back, {profile.name}!</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-2">🎯 Quick Stats</h3>
-          <p className="text-gray-600">Season statistics will appear here</p>
-        </div>
-
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-2">📋 Recent Activity</h3>
-          <p className="text-gray-600">Recent games and updates will appear here</p>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">✨ Getting Started</h3>
-        <ol className="space-y-3 text-gray-700">
-          <li className="flex items-start">
-            <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">1</span>
-            <div>
-              <strong>Create a Season</strong>
-              <p className="text-sm text-gray-600">Set up your season with start and end dates</p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">2</span>
-            <div>
-              <strong>Add Teams</strong>
-              <p className="text-sm text-gray-600">Create teams for Training, Minor, and Major divisions</p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">3</span>
-            <div>
-              <strong>Build Rosters</strong>
-              <p className="text-sm text-gray-600">Add players to your teams with their ages</p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">4</span>
-            <div>
-              <strong>Enter Game Data</strong>
-              <p className="text-sm text-gray-600">Track scores, attendance, pitch counts, and positions</p>
-            </div>
-          </li>
-          <li className="flex items-start">
-            <span className="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium mr-3 flex-shrink-0">5</span>
-            <div>
-              <strong>Monitor Compliance</strong>
-              <p className="text-sm text-gray-600">System automatically tracks pitch count rules and rest days</p>
-            </div>
-          </li>
-        </ol>
-      </div>
-    </div>
-  )
-}
-
-function ComingSoon({ feature }) {
-  return (
-    <div className="card text-center py-12">
-      <div className="text-6xl mb-4">🚧</div>
-      <h2 className="text-2xl font-bold mb-2">{feature}</h2>
-      <p className="text-gray-600">This feature is coming in the next phase</p>
     </div>
   )
 }

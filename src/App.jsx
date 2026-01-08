@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import Login from './components/auth/Login'
 import ChangePassword from './components/auth/ChangePassword'
@@ -10,12 +10,14 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [requirePasswordChange, setRequirePasswordChange] = useState(false)
   const [loginError, setLoginError] = useState(null)
+  const previousUserIdRef = useRef(null)
 
   useEffect(() => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session) {
+        previousUserIdRef.current = session.user.id
         loadProfile(session.user.id)
       } else {
         setLoading(false)
@@ -26,10 +28,22 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      const currentUserId = session?.user?.id
+      const previousUserId = previousUserIdRef.current
+
+      // Only clear profile if user actually changed or signed out
+      if (!session || currentUserId !== previousUserId) {
+        setProfile(null)
+        previousUserIdRef.current = currentUserId
+      }
+
       setSession(session)
-      setProfile(null) // Clear profile immediately to prevent stale data
+
       if (session) {
-        loadProfile(session.user.id)
+        // Only load profile if we cleared it (user changed)
+        if (currentUserId !== previousUserId) {
+          loadProfile(session.user.id)
+        }
       } else {
         setLoading(false)
       }
