@@ -370,6 +370,7 @@ export async function exportSeasonCSV(seasonId) {
 
       logData.push({
         division: team?.division || 'Unknown',
+        team: team?.name || 'Unknown',
         playerName: player.name,
         age: player.age,
         jerseyNumber: player.jersey_number || '',
@@ -414,6 +415,7 @@ export async function exportSeasonCSV(seasonId) {
 
       logData.push({
         division: team?.division || 'Unknown',
+        team: team?.name || 'Unknown',
         playerName: player.name,
         age: player.age,
         jerseyNumber: player.jersey_number || '',
@@ -435,7 +437,7 @@ export async function exportSeasonCSV(seasonId) {
     return new Date(a.date) - new Date(b.date)
   })
 
-  const logCSV = arrayToCSV(logData, ['division', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
+  const logCSV = arrayToCSV(logData, ['division', 'team', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
   zip.file('pitching_catching_log.csv', logCSV)
 
   // 4. CREATE ABSENT_PLAYERS.CSV
@@ -838,6 +840,7 @@ export async function exportSeasonHTML(seasonId) {
         <tr>
           <th>Date</th>
           <th>Player</th>
+          <th>Team</th>
           <th>Game</th>
           <th>Final Pitch Count</th>
           <th>Official Pitch Count</th>
@@ -848,10 +851,12 @@ export async function exportSeasonHTML(seasonId) {
         ${divisionLogs.map(log => {
           const game = data.games.find(g => g.id === log.game_id)
           const player = playerLookup[log.player_id]
+          const team = player ? teamLookup[player.team_id] : null
           return `
             <tr>
               <td>${game ? parseLocalDate(game.game_date).toLocaleDateString() : 'N/A'}</td>
               <td>${player?.name || 'Unknown'}</td>
+              <td>${team?.name || 'Unknown'}</td>
               <td>${game ? `${teamLookup[game.home_team_id]?.name} vs ${teamLookup[game.away_team_id]?.name}` : 'N/A'}</td>
               <td><strong>${log.final_pitch_count}</strong></td>
               <td><strong>${getOfficialPitchCount(log.penultimate_batter_count)}</strong></td>
