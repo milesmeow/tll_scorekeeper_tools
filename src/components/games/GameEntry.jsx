@@ -2,7 +2,7 @@ import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
-import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
+import { calculateNextEligibleDate, PITCH_SMART_RULES } from '../../lib/pitchSmartRules'
 import { formatGameDate } from '../../lib/pitchCountUtils'
 
 export default function GameEntry({ profile, isAdmin }) {
@@ -127,18 +127,25 @@ export default function GameEntry({ profile, isAdmin }) {
       const gameIds = gamesToCheck.map(g => g.id)
 
       // Fetch all positions and pitching data for all games in bulk (much faster!)
-      const [positionsRes, pitchingRes] = await Promise.all([
+      const [positionsRes, pitchingRes, playersRes] = await Promise.all([
         supabase.from('positions_played').select('*').in('game_id', gameIds),
-        supabase.from('pitching_logs').select('*').in('game_id', gameIds)
+        supabase.from('pitching_logs').select('*').in('game_id', gameIds),
+        supabase.from('game_players').select('player_id, players!inner(age)').in('game_id', gameIds)
       ])
 
-      if (positionsRes.error || pitchingRes.error) {
+      if (positionsRes.error || pitchingRes.error || playersRes.error) {
         setGameViolations({})
         return
       }
 
       const allPositions = positionsRes.data
       const allPitchingLogs = pitchingRes.data
+
+      // Create player age lookup map
+      const playerAges = {}
+      playersRes.data?.forEach(gp => {
+        playerAges[gp.player_id] = gp.players.age
+      })
 
       // Group data by game and player
       const violations = {}
@@ -147,7 +154,8 @@ export default function GameEntry({ profile, isAdmin }) {
         violations[gameId] = checkGameHasViolations(
           gameId,
           allPositions.filter(p => p.game_id === gameId),
-          allPitchingLogs.filter(p => p.game_id === gameId)
+          allPitchingLogs.filter(p => p.game_id === gameId),
+          playerAges
         )
       }
 
@@ -157,7 +165,7 @@ export default function GameEntry({ profile, isAdmin }) {
     }
   }
 
-  const checkGameHasViolations = (gameId, positions, pitchingLogs) => {
+  const checkGameHasViolations = (gameId, positions, pitchingLogs, playerAges) => {
     // Group by player
     const playerData = {}
 
@@ -179,7 +187,7 @@ export default function GameEntry({ profile, isAdmin }) {
     })
 
     // Check each player for violations
-    for (const player of Object.values(playerData)) {
+    for (const [playerId, player] of Object.entries(playerData)) {
       const pitchedInnings = player.pitched.sort((a, b) => a - b)
       const caughtInnings = player.caught.sort((a, b) => a - b)
       const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
@@ -195,6 +203,9 @@ export default function GameEntry({ profile, isAdmin }) {
 
       // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
       if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
+
+      // Check Rule 5: Pitch count exceeds age limit
+      if (exceedsMaxPitchesForAge(playerId, effectivePitches, playerAges)) return true
     }
 
     return false
@@ -228,6 +239,25 @@ export default function GameEntry({ profile, isAdmin }) {
     const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
     const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
     return hasCaughtBeforePitching && hasReturnedToCatch
+  }
+
+  // Helper function to get max allowed pitches for a player's age
+  const getMaxPitchesForAge = (age) => {
+    const rule = PITCH_SMART_RULES.find(
+      r => age >= r.ageMin && age <= r.ageMax
+    )
+    return rule ? rule.maxPitchesPerGame : null
+  }
+
+  // Helper function to check Rule 5: Pitch count exceeds age limit
+  const exceedsMaxPitchesForAge = (playerId, effectivePitches, playerAges) => {
+    const age = playerAges[playerId]
+    if (!age) return false  // No age data, can't validate
+
+    const maxPitches = getMaxPitchesForAge(age)
+    if (!maxPitches) return false  // No rule for this age
+
+    return effectivePitches > maxPitches
   }
 
   const handleDeleteGame = async () => {
@@ -1262,6 +1292,26 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
+  // Helper function to get max allowed pitches for a player's age
+  const getMaxPitchesForAge = (age) => {
+    const rule = PITCH_SMART_RULES.find(
+      r => age >= r.ageMin && age <= r.ageMax
+    )
+    return rule ? rule.maxPitchesPerGame : null
+  }
+
+  // Helper function to check Rule 5: Pitch count exceeds age limit
+  const exceedsMaxPitchesForAge = (player) => {
+    const effectivePitches = getEffectivePitchCount(player)
+    const age = player.age
+
+    if (!age) return false
+    const maxPitches = getMaxPitchesForAge(age)
+    if (!maxPitches) return false
+
+    return effectivePitches > maxPitches
+  }
+
   const updatePlayerField = useCallback((playerIndex, isHome, field, value) => {
     const updateFn = (players) => {
       const newPlayers = [...players]
@@ -1624,6 +1674,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
             {/* Away Team Players */}
@@ -1636,6 +1688,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
 
@@ -1831,7 +1885,9 @@ function ConfirmationTeamSection({
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  getEffectivePitchCount,
+  exceedsMaxPitchesForAge,
+  getMaxPitchesForAge
 }) {
   return (
     <div className="card border border-gray-300">
@@ -1854,7 +1910,8 @@ function ConfirmationTeamSection({
               const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
               const violationCombinedRule = cannotCatchAgainDueToCombined(player)
-              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule
+              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(player)
+              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit
 
               return (
                 <div key={player.id} className={`border rounded p-3 ${hasViolation ? 'bg-red-50 border-red-300' : 'bg-gray-50'}`}>
@@ -1953,6 +2010,11 @@ function ConfirmationTeamSection({
                   {violationCombinedRule && (
                     <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
                       ⚠️ Violation: Caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                    </div>
+                  )}
+                  {violationExceedsPitchLimit && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(player.age)} for age {player.age}.
                     </div>
                   )}
                 </div>
