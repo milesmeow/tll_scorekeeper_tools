@@ -2,7 +2,7 @@
 
 A comprehensive web application for managing baseball teams, tracking pitch counts, monitoring player compliance with Pitch Smart guidelines, and managing game data.
 
-## Current Status: Phases 1, 2 & 3 Complete
+## Current Status: Phases 1-3 Complete, Phase 4 In Progress
 
 ### ✅ Completed Features
 
@@ -39,13 +39,21 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - ✅ **Timezone-Correct Dates** - Uses `parseLocalDate()` utility to prevent date offset issues
 - ✅ **Timestamped Filenames** - All exports include date and time (YYYY-MM-DD_HH-MM-SS)
 
-### 🚧 Upcoming Features
-
-#### Phase 4: Rules Engine (Planned)
-- Automatic Pitch Smart compliance checking
-- Rest day calculations based on pitch counts and age
-- Violation warnings (e.g., 4 innings catching → can't pitch, 41+ pitches → can't catch)
-- Rule flags on game entry
+#### Phase 4: Rules Engine (In Progress)
+- ✅ **Automatic Violation Detection** - Real-time compliance checking during game entry
+- ✅ **5 Rule Validation System** - Complete implementation of pitching/catching restrictions:
+  - **Rule 1**: Pitchers must pitch consecutive innings (cannot return after being taken out)
+  - **Rule 2**: 41+ pitches → cannot catch for remainder of game
+  - **Rule 3**: 4+ innings catching → cannot pitch in this game
+  - **Rule 4**: Caught 1-3 innings + 21+ pitches → cannot return to catch
+  - **Rule 5**: Pitch count exceeds age-based maximum (NEW - Jan 2026)
+- ✅ **Violation Warnings** - Red badges and detailed messages shown in:
+  - Games list (violation badge if any rule violated)
+  - Game entry confirmation view (all violations displayed)
+  - Game detail modal (violation warnings with explanations)
+- ✅ **Shared Validation Utilities** - Centralized rules in `/src/lib/violationRules.js` for consistency
+- ✅ **Rest Day Calculations** - Calculate next eligible pitch date based on pitch count and age
+- 🚧 **Compliance Dashboard** - Overview of rule adherence across teams (planned)
 - **See RULES.md for complete rule documentation**
 
 #### Phase 5: Advanced Reporting & Data Management (Planned)
@@ -122,6 +130,56 @@ All exports use the `parseLocalDate()` utility function to ensure dates display 
 - Only users with `admin` or `super_admin` roles can access the Tools section
 - Tools menu item only appears in dashboard sidebar for authorized users
 - Coaches do not have access to export functionality
+
+## Violation Rules Implementation (Jan 2026)
+
+### Rule 5: Age-Based Pitch Count Limits
+
+Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitch counts per game based on player age:
+
+| Age Range | Max Pitches Per Game |
+|-----------|---------------------|
+| 7-8       | 50                  |
+| 9-10      | 75                  |
+| 11-12     | 85                  |
+
+**Implementation Details:**
+- Added `exceedsMaxPitchesForAge()` function to check if a player's effective pitch count exceeds their age-based limit
+- Integrated into all violation checking locations:
+  - `GameEntry.jsx` - Shows violation badge on games list
+  - `GameFormModal` - Displays violation in confirmation view during game creation/editing
+  - `GameDetailModal` - Shows violation warning when viewing game details
+- Uses "Official Pitch Count" calculation (penultimate batter count + 1) per Pitch Smart guidelines
+
+### Code Refactoring: Shared Validation Utilities
+
+**Problem:** All 5 validation rules were duplicated across multiple components, leading to:
+- Code duplication (~120 lines duplicated in GameEntry.jsx and GameDetailModal.jsx)
+- Inconsistent validation logic
+- Difficult maintenance (updates needed in multiple places)
+
+**Solution:** Created `/src/lib/violationRules.js` - a centralized utility module containing:
+
+**Exported Functions:**
+- `getEffectivePitchCount(penultimateBatterCount)` - Calculate official pitch count
+- `getMaxPitchesForAge(age)` - Get max pitches allowed for a given age
+- `hasInningsGap(innings)` - Rule 1: Check for consecutive innings
+- `cannotCatchDueToHighPitchCount(...)` - Rule 2: 41+ pitches restriction
+- `cannotPitchDueToFourInningsCatching(...)` - Rule 3: 4 innings catching restriction
+- `cannotCatchAgainDueToCombined(...)` - Rule 4: Combined catching/pitching restriction
+- `exceedsMaxPitchesForAge(age, effectivePitches)` - Rule 5: Age-based pitch limit
+
+**Benefits:**
+- ✅ Single source of truth for all validation logic
+- ✅ Eliminated ~240 lines of duplicate code
+- ✅ Consistent rule enforcement across all components
+- ✅ Clear JSDoc documentation for each rule
+- ✅ Easier to maintain and update rules
+
+**Components Updated:**
+- `GameEntry.jsx` - Now imports shared utilities, created wrapper functions for modal's player objects
+- `GameDetailModal.jsx` - Removed duplicate code, uses shared utilities directly
+- Both components maintain the same validation behavior with cleaner code
 
 ## Key Design Decisions
 
@@ -250,7 +308,9 @@ baseball-app/
 │   ├── lib/
 │   │   ├── supabase.js              # API client
 │   │   ├── exportUtils.js           # Season data export functions
-│   │   └── pitchCountUtils.js       # Date parsing and pitch count utilities
+│   │   ├── pitchCountUtils.js       # Date parsing and pitch count utilities
+│   │   ├── pitchSmartRules.js       # Pitch Smart guidelines and rest day calculations
+│   │   └── violationRules.js        # Shared validation utilities for all 5 rules
 │   ├── App.jsx                 # Main app with auth flow
 │   ├── main.jsx                # Entry point
 │   └── index.css               # Tailwind + custom styles
@@ -379,5 +439,9 @@ Private/Proprietary
 
 ---
 
-**Current Version**: Phases 1, 2, 3, & 3.5 Complete (as of Jan 2026)
-- Added Tools section with JSON, CSV, and HTML export functionality
+**Current Version**: Phases 1, 2, 3, 3.5 Complete + Phase 4 In Progress (as of Jan 2026)
+- ✅ Added Tools section with JSON, CSV, and HTML export functionality (Phase 3.5)
+- ✅ Implemented 5-rule validation system with real-time violation detection (Phase 4)
+- ✅ Added Rule 5: Age-based pitch count limits enforcement
+- ✅ Refactored validation logic into shared utilities (`violationRules.js`)
+- ✅ Violation warnings displayed in games list, game entry, and game details
