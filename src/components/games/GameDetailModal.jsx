@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 import { formatGameDate } from '../../lib/pitchCountUtils'
+import {
+  getEffectivePitchCount,
+  getMaxPitchesForAge,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  exceedsMaxPitchesForAge
+} from '../../lib/violationRules'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -11,51 +20,6 @@ export default function GameDetailModal({ game, onClose }) {
   useEffect(() => {
     fetchGameDetails()
   }, [])
-
-  // Validation helper functions (same as in form)
-  const getEffectivePitchCount = (penultimate) => {
-    if (!penultimate || penultimate === 0) return 0
-    return penultimate + 1
-  }
-
-  const hasInningsGap = (innings) => {
-    if (innings.length <= 1) return false
-    const sorted = [...innings].sort((a, b) => a - b)
-    for (let i = 0; i < sorted.length - 1; i++) {
-      if (sorted[i + 1] - sorted[i] !== 1) {
-        return true
-      }
-    }
-    return false
-  }
-
-  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
-    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) {
-      return false
-    }
-    const maxPitchingInning = Math.max(...pitchedInnings)
-    return caughtInnings.some(inning => inning > maxPitchingInning)
-  }
-
-  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
-    if (caughtInnings.length < 4 || pitchedInnings.length === 0) {
-      return false
-    }
-    const sortedCatchingInnings = [...caughtInnings].sort((a, b) => a - b)
-    const fourthCatchingInning = sortedCatchingInnings[3]
-    return pitchedInnings.some(inning => inning > fourthCatchingInning)
-  }
-
-  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
-    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) {
-      return false
-    }
-    const minPitchingInning = Math.min(...pitchedInnings)
-    const maxPitchingInning = Math.max(...pitchedInnings)
-    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
-    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
-    return hasCaughtBeforePitching && hasReturnedToCatch
-  }
 
   const fetchGameDetails = async () => {
     try {
@@ -179,6 +143,8 @@ export default function GameDetailModal({ game, onClose }) {
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
             {/* Away Team Section */}
@@ -192,6 +158,8 @@ export default function GameDetailModal({ game, onClose }) {
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
         )}
@@ -218,7 +186,9 @@ function TeamDetailSection({
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  getEffectivePitchCount,
+  exceedsMaxPitchesForAge,
+  getMaxPitchesForAge
 }) {
   // Only show players who pitched, caught, or were absent
   const pitchersAndCatchers = players.filter(p => p.was_present && p.positions.length > 0)
@@ -252,6 +222,7 @@ function TeamDetailSection({
               const violationHighPitchCount = cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
               const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
+              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches)
 
               return (
                 <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
@@ -370,6 +341,13 @@ function TeamDetailSection({
                         <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
                           <p className="text-sm text-red-700">
                             ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                          </p>
+                        </div>
+                      )}
+                      {violationExceedsPitchLimit && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                          <p className="text-sm text-red-700">
+                            ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(playerData.player.age)} for age {playerData.player.age}.
                           </p>
                         </div>
                       )}
