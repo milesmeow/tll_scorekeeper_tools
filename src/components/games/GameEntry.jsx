@@ -4,6 +4,16 @@ import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 import { formatGameDate } from '../../lib/pitchCountUtils'
+import {
+  getEffectivePitchCount as getEffectivePitchCountUtil,
+  getMaxPitchesForAge,
+  hasInningsGap,
+  cannotCatchDueToHighPitchCount,
+  cannotPitchDueToFourInningsCatching,
+  cannotCatchAgainDueToCombined,
+  exceedsMaxPitchesForAge,
+  calculateGameHasViolations
+} from '../../lib/violationRules'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -13,7 +23,6 @@ export default function GameEntry({ profile, isAdmin }) {
   const [loading, setLoading] = useState(true)
   const [showGameForm, setShowGameForm] = useState(false)
   const [games, setGames] = useState([])
-  const [gameViolations, setGameViolations] = useState({}) // Track which games have violations
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [gameToDelete, setGameToDelete] = useState(null) // For delete confirmation
@@ -109,125 +118,9 @@ export default function GameEntry({ profile, isAdmin }) {
       // Filter games by coach's divisions (show games where home OR away team is in coach's divisions)
       const filteredGames = coachData.filterGamesByCoachDivisions(data)
       setGames(filteredGames)
-
-      // Check violations for all games
-      checkGameViolations(filteredGames)
     } catch (err) {
       setError(err.message)
     }
-  }
-
-  const checkGameViolations = async (gamesToCheck) => {
-    if (gamesToCheck.length === 0) {
-      setGameViolations({})
-      return
-    }
-
-    try {
-      const gameIds = gamesToCheck.map(g => g.id)
-
-      // Fetch all positions and pitching data for all games in bulk (much faster!)
-      const [positionsRes, pitchingRes] = await Promise.all([
-        supabase.from('positions_played').select('*').in('game_id', gameIds),
-        supabase.from('pitching_logs').select('*').in('game_id', gameIds)
-      ])
-
-      if (positionsRes.error || pitchingRes.error) {
-        setGameViolations({})
-        return
-      }
-
-      const allPositions = positionsRes.data
-      const allPitchingLogs = pitchingRes.data
-
-      // Group data by game and player
-      const violations = {}
-
-      for (const gameId of gameIds) {
-        violations[gameId] = checkGameHasViolations(
-          gameId,
-          allPositions.filter(p => p.game_id === gameId),
-          allPitchingLogs.filter(p => p.game_id === gameId)
-        )
-      }
-
-      setGameViolations(violations)
-    } catch (err) {
-      setGameViolations({})
-    }
-  }
-
-  const checkGameHasViolations = (gameId, positions, pitchingLogs) => {
-    // Group by player
-    const playerData = {}
-
-    positions.forEach(pos => {
-      if (!playerData[pos.player_id]) {
-        playerData[pos.player_id] = { pitched: [], caught: [], pitching: null }
-      }
-      if (pos.position === 'pitcher') {
-        playerData[pos.player_id].pitched.push(pos.inning_number)
-      } else if (pos.position === 'catcher') {
-        playerData[pos.player_id].caught.push(pos.inning_number)
-      }
-    })
-
-    pitchingLogs.forEach(log => {
-      if (playerData[log.player_id]) {
-        playerData[log.player_id].pitching = log
-      }
-    })
-
-    // Check each player for violations
-    for (const player of Object.values(playerData)) {
-      const pitchedInnings = player.pitched.sort((a, b) => a - b)
-      const caughtInnings = player.caught.sort((a, b) => a - b)
-      const effectivePitches = player.pitching ? (player.pitching.penultimate_batter_count + 1) : 0
-
-      // Check Rule 1: Consecutive innings
-      if (hasInningsGap(pitchedInnings)) return true
-
-      // Check Rule 2: 41+ pitches -> cannot catch after
-      if (cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)) return true
-
-      // Check Rule 3: 4 innings catching -> cannot pitch after
-      if (cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)) return true
-
-      // Check Rule 4: Catch 1-3 + pitch 21+ -> cannot return to catch
-      if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
-    }
-
-    return false
-  }
-
-  // Validation helper functions
-  const hasInningsGap = (innings) => {
-    if (innings.length <= 1) return false
-    for (let i = 0; i < innings.length - 1; i++) {
-      if (innings[i + 1] - innings[i] !== 1) return true
-    }
-    return false
-  }
-
-  const cannotCatchDueToHighPitchCount = (pitchedInnings, caughtInnings, effectivePitches) => {
-    if (effectivePitches < 41 || caughtInnings.length === 0 || pitchedInnings.length === 0) return false
-    const maxPitchingInning = Math.max(...pitchedInnings)
-    return caughtInnings.some(inning => inning > maxPitchingInning)
-  }
-
-  const cannotPitchDueToFourInningsCatching = (pitchedInnings, caughtInnings) => {
-    if (caughtInnings.length < 4 || pitchedInnings.length === 0) return false
-    const fourthCatchingInning = [...caughtInnings].sort((a, b) => a - b)[3]
-    return pitchedInnings.some(inning => inning > fourthCatchingInning)
-  }
-
-  const cannotCatchAgainDueToCombined = (pitchedInnings, caughtInnings, effectivePitches) => {
-    if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) return false
-    const minPitchingInning = Math.min(...pitchedInnings)
-    const maxPitchingInning = Math.max(...pitchedInnings)
-    const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
-    const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
-    return hasCaughtBeforePitching && hasReturnedToCatch
   }
 
   const handleDeleteGame = async () => {
@@ -401,7 +294,7 @@ export default function GameEntry({ profile, isAdmin }) {
                           {game.home_team?.division || game.away_team?.division}
                         </span>
                       )}
-                      {gameViolations[game.id] && (
+                      {game.has_violation === true && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
                           ⚠️ Rule Violation
                         </span>
@@ -1132,6 +1025,34 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         if (positionsError) throw positionsError
       }
 
+      // Calculate violations for this game
+      const playerAges = {}
+      allPlayers.forEach(p => {
+        playerAges[p.id] = p.age
+      })
+
+      const [positionsRes, pitchingRes] = await Promise.all([
+        supabase.from('positions_played').select('*').eq('game_id', finalGameId),
+        supabase.from('pitching_logs').select('*').eq('game_id', finalGameId)
+      ])
+
+      const hasViolation = calculateGameHasViolations(
+        positionsRes.data || [],
+        pitchingRes.data || [],
+        playerAges
+      )
+
+      // Update the game record with violation status
+      const { error: violationError } = await supabase
+        .from('games')
+        .update({ has_violation: hasViolation })
+        .eq('id', finalGameId)
+
+      if (violationError) {
+        console.error('Failed to update violation status:', violationError)
+        // Don't throw - game already saved successfully
+      }
+
       onSuccess()
     } catch (err) {
       setModalError(err.message)
@@ -1169,97 +1090,38 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     }
   }, [])
 
-  // Helper function to check if innings are consecutive (for validation display)
-  const hasInningsGap = (innings) => {
-    if (innings.length <= 1) return false
-
-    const sorted = [...innings].sort((a, b) => a - b)
-    for (let i = 0; i < sorted.length - 1; i++) {
-      if (sorted[i + 1] - sorted[i] !== 1) {
-        return true
-      }
-    }
-    return false
-  }
+  // Wrapper functions for GameFormModal that work with player objects
+  // These wrap the shared validation utilities from violationRules.js
 
   // Helper function to get effective pitch count (penultimate + 1)
   const getEffectivePitchCount = (player) => {
     if (!player.penultimate_batter_count || player.penultimate_batter_count === '') {
       return 0
     }
-    return parseInt(player.penultimate_batter_count) + 1
+    return getEffectivePitchCountUtil(parseInt(player.penultimate_batter_count))
   }
 
-  // Helper function to check Rule 2: 41+ pitches -> cannot catch AFTER pitching
-  // Only show violation if player pitched 41+ AND catches AFTER pitching
-  const cannotCatchDueToHighPitchCount = (player) => {
+  // Wrapper for Rule 2: 41+ pitches -> cannot catch AFTER pitching
+  const cannotCatchDueToHighPitchCountWrapper = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
-
-    // Must have pitched 41+ and have catching innings
-    if (effectivePitches < 41 || player.innings_caught.length === 0) {
-      return false
-    }
-
-    // Must have pitched to violate this rule
-    if (player.innings_pitched.length === 0) {
-      return false
-    }
-
-    // Check if there are catching innings that occur AFTER pitching innings
-    const maxPitchingInning = Math.max(...player.innings_pitched)
-    const hasCaughtAfterPitching = player.innings_caught.some(inning => inning > maxPitchingInning)
-
-    return hasCaughtAfterPitching
+    return cannotCatchDueToHighPitchCount(player.innings_pitched, player.innings_caught, effectivePitches)
   }
 
-  // Helper function to check Rule 3: 4+ innings catching -> cannot pitch AFTER catching
-  // Only show violation if player caught 4+ innings AND pitches AFTER catching 4
-  const cannotPitchDueToFourInningsCatching = (player) => {
-    // Must have caught 4+ innings and have pitching innings
-    if (player.innings_caught.length < 4 || player.innings_pitched.length === 0) {
-      return false
-    }
-
-    // Find when they reached 4 innings caught (the 4th catching inning chronologically)
-    const sortedCatchingInnings = [...player.innings_caught].sort((a, b) => a - b)
-    const fourthCatchingInning = sortedCatchingInnings[3] // 0-indexed, so [3] is the 4th element
-
-    // Check if any pitching innings occur after they reached 4 catches
-    const hasPitchedAfterFourCatches = player.innings_pitched.some(inning => inning > fourthCatchingInning)
-
-    return hasPitchedAfterFourCatches
+  // Wrapper for Rule 3: 4+ innings catching -> cannot pitch AFTER catching
+  const cannotPitchDueToFourInningsCatchingWrapper = (player) => {
+    return cannotPitchDueToFourInningsCatching(player.innings_pitched, player.innings_caught)
   }
 
-  // Helper function to check Rule 4: Catcher ≤3 innings + 21+ pitches -> cannot RETURN to catch
-  // "A player who played catcher for three innings or less, moves to pitcher position,
-  // and delivers 21 pitches or more, may not RETURN to the catcher position"
-  // Must have: Catch (1-3) THEN Pitch (21+) THEN Return to Catch
-  const cannotCatchAgainDueToCombined = (player) => {
-    const caughtInnings = player.innings_caught.length
-    const pitchedInnings = player.innings_pitched
+  // Wrapper for Rule 4: Catcher ≤3 innings + 21+ pitches -> cannot RETURN to catch
+  const cannotCatchAgainDueToCombinedWrapper = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
+    return cannotCatchAgainDueToCombined(player.innings_pitched, player.innings_caught, effectivePitches)
+  }
 
-    // Rule only applies if caught 1-3 innings and pitched 21+
-    if (caughtInnings < 1 || caughtInnings > 3 || effectivePitches < 21) {
-      return false
-    }
-
-    // Must have pitched to violate "return to catch"
-    if (pitchedInnings.length === 0) {
-      return false
-    }
-
-    const minPitchingInning = Math.min(...pitchedInnings)
-    const maxPitchingInning = Math.max(...pitchedInnings)
-
-    // Check if there are catching innings BEFORE pitching started
-    const hasCaughtBeforePitching = player.innings_caught.some(inning => inning < minPitchingInning)
-
-    // Check if there are catching innings AFTER pitching ended
-    const hasReturnedToCatch = player.innings_caught.some(inning => inning > maxPitchingInning)
-
-    // Violation only if they caught BEFORE pitching AND AFTER pitching (the "return")
-    return hasCaughtBeforePitching && hasReturnedToCatch
+  // Wrapper for Rule 5: Pitch count exceeds age limit
+  const exceedsMaxPitchesForAgeWrapper = (player) => {
+    const effectivePitches = getEffectivePitchCount(player)
+    return exceedsMaxPitchesForAge(player.age, effectivePitches)
   }
 
   const updatePlayerField = useCallback((playerIndex, isHome, field, value) => {
@@ -1620,10 +1482,12 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               pitchersAndCatchers={homePitchersAndCatchers}
               absentPlayers={homeAbsent}
               hasInningsGap={hasInningsGap}
-              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCountWrapper}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatchingWrapper}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombinedWrapper}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
             {/* Away Team Players */}
@@ -1632,10 +1496,12 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               pitchersAndCatchers={awayPitchersAndCatchers}
               absentPlayers={awayAbsent}
               hasInningsGap={hasInningsGap}
-              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
-              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
-              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
+              cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCountWrapper}
+              cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatchingWrapper}
+              cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombinedWrapper}
               getEffectivePitchCount={getEffectivePitchCount}
+              exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
+              getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
 
@@ -1831,7 +1697,9 @@ function ConfirmationTeamSection({
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  getEffectivePitchCount
+  getEffectivePitchCount,
+  exceedsMaxPitchesForAge,
+  getMaxPitchesForAge
 }) {
   return (
     <div className="card border border-gray-300">
@@ -1854,7 +1722,8 @@ function ConfirmationTeamSection({
               const violationHighPitchCount = cannotCatchDueToHighPitchCount(player)
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
               const violationCombinedRule = cannotCatchAgainDueToCombined(player)
-              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule
+              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(player)
+              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit
 
               return (
                 <div key={player.id} className={`border rounded p-3 ${hasViolation ? 'bg-red-50 border-red-300' : 'bg-gray-50'}`}>
@@ -1953,6 +1822,11 @@ function ConfirmationTeamSection({
                   {violationCombinedRule && (
                     <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
                       ⚠️ Violation: Caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
+                    </div>
+                  )}
+                  {violationExceedsPitchLimit && (
+                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
+                      ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(player.age)} for age {player.age}.
                     </div>
                   )}
                 </div>
