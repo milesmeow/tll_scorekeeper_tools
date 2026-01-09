@@ -17,7 +17,7 @@ import JSZip from 'jszip'
 import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
 
 /**
- * Fetch all season data including all related tables
+ * Fetch all season data including all related tables (ACCEPTS DEPENDENCY)
  *
  * Retrieves a complete snapshot of a season including:
  * - Season metadata
@@ -29,14 +29,14 @@ import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
  * - Pitching logs (pitch counts and rest dates)
  * - Positions played (by inning)
  *
+ * @param {Object} supabaseClient - Supabase client instance
  * @param {string} seasonId - UUID of the season to export
  * @returns {Promise<Object>} Complete season data object
  * @throws {Error} If any database query fails
  */
-async function fetchSeasonData(seasonId) {
-  try {
-    // Fetch season info
-    const { data: season, error: seasonError } = await supabase
+export async function fetchSeasonData(supabaseClient, seasonId) {
+  // Fetch season info
+  const { data: season, error: seasonError } = await supabaseClient
       .from('seasons')
       .select('*')
       .eq('id', seasonId)
@@ -45,7 +45,7 @@ async function fetchSeasonData(seasonId) {
     if (seasonError) throw seasonError
 
     // Fetch teams
-    const { data: teams, error: teamsError } = await supabase
+    const { data: teams, error: teamsError } = await supabaseClient
       .from('teams')
       .select('*')
       .eq('season_id', seasonId)
@@ -58,7 +58,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch players
     const { data: players, error: playersError } = teamIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('players')
           .select('*')
           .in('team_id', teamIds)
@@ -69,7 +69,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch team coaches
     const { data: teamCoaches, error: teamCoachesError } = teamIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('team_coaches')
           .select('*, user_profiles(name, email)')
           .in('team_id', teamIds)
@@ -78,7 +78,7 @@ async function fetchSeasonData(seasonId) {
     if (teamCoachesError) throw teamCoachesError
 
     // Fetch games
-    const { data: games, error: gamesError } = await supabase
+    const { data: games, error: gamesError } = await supabaseClient
       .from('games')
       .select('*')
       .eq('season_id', seasonId)
@@ -90,7 +90,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch game players
     const { data: gamePlayers, error: gamePlayersError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('game_players')
           .select('*')
           .in('game_id', gameIds)
@@ -100,7 +100,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch pitching logs
     const { data: pitchingLogs, error: pitchingLogsError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('pitching_logs')
           .select('*')
           .in('game_id', gameIds)
@@ -110,7 +110,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch positions played
     const { data: positionsPlayed, error: positionsPlayedError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('positions_played')
           .select('*')
           .in('game_id', gameIds)
@@ -128,10 +128,6 @@ async function fetchSeasonData(seasonId) {
       pitchingLogs,
       positionsPlayed
     }
-  } catch (error) {
-    console.error('Error fetching season data:', error)
-    throw error
-  }
 }
 
 /**
@@ -191,7 +187,7 @@ function downloadFile(content, filename, contentType) {
  * @throws {Error} If data fetch or download fails
  */
 export async function exportSeasonBackup(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
 
   const backup = {
     exportDate: new Date().toISOString(),
@@ -266,7 +262,7 @@ function arrayToCSV(data, headers) {
  * @throws {Error} If data fetch, CSV conversion, or ZIP generation fails
  */
 export async function exportSeasonCSV(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
   const zip = new JSZip()
 
   // Build lookups for efficient data access
@@ -509,7 +505,7 @@ export async function exportSeasonCSV(seasonId) {
  * @throws {Error} If data fetch or HTML generation fails
  */
 export async function exportSeasonHTML(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
 
   // Build team lookup for easy reference
   const teamLookup = {}
