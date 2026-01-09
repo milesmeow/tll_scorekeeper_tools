@@ -327,9 +327,12 @@ CREATE POLICY "Admins can manage team coaches"
   ON public.team_coaches FOR ALL
   USING (public.is_admin());
 
-CREATE POLICY "Users can view their coach assignments"
+-- Updated Jan 2026: Changed from restrictive (user_id = auth.uid()) to permissive
+-- to allow all authenticated users to view coach assignments.
+-- This enables coaches to see who coaches other teams in TeamManagement display.
+CREATE POLICY "All authenticated users can view coach assignments"
   ON public.team_coaches FOR SELECT
-  USING (user_id = auth.uid());
+  USING (auth.uid() IS NOT NULL);
 
 -- PLAYERS
 -- Admins can manage all players
