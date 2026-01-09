@@ -340,6 +340,12 @@ All tables including `user_profiles` have Row Level Security (RLS) enabled. To p
 - RLS policies can safely use helper functions without infinite loops
 - Resolves Supabase security warnings while maintaining protection
 
+**Recent Policy Updates (Jan 2026):**
+- **team_coaches table**: Changed SELECT policy from restrictive (`user_id = auth.uid()`) to permissive (all authenticated users can view)
+  - **Reason**: Enables coaches to see who coaches other teams in TeamManagement UI
+  - **Impact**: Coach assignments are not sensitive information; all authenticated users can now view them
+  - **Security**: Write access still restricted to admins only via separate policy
+
 ## Project Structure
 
 ```
@@ -514,3 +520,8 @@ Private/Proprietary
 - ✅ Violation warnings displayed in games list, game entry, and game details
 - ✅ Implemented URL-based routing with React Router v7 (navigation improvements)
 - ✅ Fixed tab focus issue with smart auth state management (prevents unnecessary re-renders)
+- ✅ **Team Management UI Enhancement** (Jan 2026):
+  - Display head coach names as green badges on teams in TeamManagement view
+  - Updated RLS policy on `team_coaches` table to allow all authenticated users to view coach assignments
+  - Coaches can now see who coaches other teams in their division
+  - "My Team" badge (blue) shown for coach's own team, head coach name (green) shown for other teams

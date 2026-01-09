@@ -75,15 +75,32 @@ export default function TeamManagement({ profile, isCoach }) {
     try {
       const { data, error } = await supabase
         .from('teams')
-        .select('*')
+        .select(`
+          *,
+          team_coaches(
+            role,
+            user_profiles(name)
+          )
+        `)
         .eq('season_id', selectedSeason)
         .order('division')
         .order('name')
 
       if (error) throw error
 
+      // Process teams to extract head coach information
+      const processedTeams = data.map(team => {
+        // Find head coach from team_coaches array
+        const headCoach = team.team_coaches?.find(tc => tc.role === 'head_coach')
+
+        return {
+          ...team,
+          headCoachName: headCoach?.user_profiles?.name || null
+        }
+      })
+
       // Filter teams by coach's divisions
-      const filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      const filteredTeams = coachData.filterTeamsByCoachDivisions(processedTeams)
 
       // For coaches, mark which teams they're assigned to
       if (isCoach && coachData.teams.length > 0) {
@@ -299,11 +316,15 @@ export default function TeamManagement({ profile, isCoach }) {
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-medium">{team.name}</h4>
-                            {isCoach && team.isMyTeam && (
+                            {isCoach && team.isMyTeam ? (
                               <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
                                 My Team
                               </span>
-                            )}
+                            ) : team.headCoachName ? (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                {team.headCoachName}
+                              </span>
+                            ) : null}
                           </div>
                           <p className="text-sm text-gray-500">{team.division}</p>
                         </div>

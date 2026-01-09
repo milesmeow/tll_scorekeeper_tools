@@ -17,7 +17,7 @@ import JSZip from 'jszip'
 import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
 
 /**
- * Fetch all season data including all related tables
+ * Fetch all season data including all related tables (ACCEPTS DEPENDENCY)
  *
  * Retrieves a complete snapshot of a season including:
  * - Season metadata
@@ -29,14 +29,14 @@ import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
  * - Pitching logs (pitch counts and rest dates)
  * - Positions played (by inning)
  *
+ * @param {Object} supabaseClient - Supabase client instance
  * @param {string} seasonId - UUID of the season to export
  * @returns {Promise<Object>} Complete season data object
  * @throws {Error} If any database query fails
  */
-async function fetchSeasonData(seasonId) {
-  try {
-    // Fetch season info
-    const { data: season, error: seasonError } = await supabase
+export async function fetchSeasonData(supabaseClient, seasonId) {
+  // Fetch season info
+  const { data: season, error: seasonError } = await supabaseClient
       .from('seasons')
       .select('*')
       .eq('id', seasonId)
@@ -45,7 +45,7 @@ async function fetchSeasonData(seasonId) {
     if (seasonError) throw seasonError
 
     // Fetch teams
-    const { data: teams, error: teamsError } = await supabase
+    const { data: teams, error: teamsError } = await supabaseClient
       .from('teams')
       .select('*')
       .eq('season_id', seasonId)
@@ -58,7 +58,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch players
     const { data: players, error: playersError } = teamIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('players')
           .select('*')
           .in('team_id', teamIds)
@@ -69,7 +69,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch team coaches
     const { data: teamCoaches, error: teamCoachesError } = teamIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('team_coaches')
           .select('*, user_profiles(name, email)')
           .in('team_id', teamIds)
@@ -78,7 +78,7 @@ async function fetchSeasonData(seasonId) {
     if (teamCoachesError) throw teamCoachesError
 
     // Fetch games
-    const { data: games, error: gamesError } = await supabase
+    const { data: games, error: gamesError } = await supabaseClient
       .from('games')
       .select('*')
       .eq('season_id', seasonId)
@@ -90,7 +90,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch game players
     const { data: gamePlayers, error: gamePlayersError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('game_players')
           .select('*')
           .in('game_id', gameIds)
@@ -100,7 +100,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch pitching logs
     const { data: pitchingLogs, error: pitchingLogsError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('pitching_logs')
           .select('*')
           .in('game_id', gameIds)
@@ -110,7 +110,7 @@ async function fetchSeasonData(seasonId) {
 
     // Fetch positions played
     const { data: positionsPlayed, error: positionsPlayedError } = gameIds.length > 0
-      ? await supabase
+      ? await supabaseClient
           .from('positions_played')
           .select('*')
           .in('game_id', gameIds)
@@ -128,34 +128,30 @@ async function fetchSeasonData(seasonId) {
       pitchingLogs,
       positionsPlayed
     }
-  } catch (error) {
-    console.error('Error fetching season data:', error)
-    throw error
-  }
 }
 
 /**
- * Get formatted timestamp for filenames
+ * Get formatted timestamp for filenames (PURE)
  *
  * Creates a timestamp string suitable for filenames with date and time
  * Format: YYYY-MM-DD_HH-MM-SS (24-hour time)
  * Example: 2026-01-06_14-30-45
  *
+ * @param {Date} date - Date object to format
  * @returns {string} Formatted timestamp
  */
-function getTimestamp() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
+export function getTimestamp(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
   return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`
 }
 
 /**
- * Download a file to the user's computer
+ * Download a file to the user's computer (BROWSER SIDE EFFECT)
  *
  * Creates a blob, generates a temporary URL, triggers download, then cleans up
  *
@@ -163,7 +159,7 @@ function getTimestamp() {
  * @param {string} filename - Name for the downloaded file
  * @param {string} contentType - MIME type (e.g., 'application/json', 'text/html')
  */
-function downloadFile(content, filename, contentType) {
+export function browserDownloadFile(content, filename, contentType) {
   const blob = new Blob([content], { type: contentType })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -191,7 +187,7 @@ function downloadFile(content, filename, contentType) {
  * @throws {Error} If data fetch or download fails
  */
 export async function exportSeasonBackup(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
 
   const backup = {
     exportDate: new Date().toISOString(),
@@ -200,9 +196,9 @@ export async function exportSeasonBackup(seasonId) {
   }
 
   const json = JSON.stringify(backup, null, 2)
-  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.json`
+  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.json`
 
-  downloadFile(json, filename, 'application/json')
+  browserDownloadFile(json, filename, 'application/json')
 }
 
 /**
@@ -266,7 +262,7 @@ function arrayToCSV(data, headers) {
  * @throws {Error} If data fetch, CSV conversion, or ZIP generation fails
  */
 export async function exportSeasonCSV(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
   const zip = new JSZip()
 
   // Build lookups for efficient data access
@@ -437,7 +433,7 @@ export async function exportSeasonCSV(seasonId) {
     return new Date(a.date) - new Date(b.date)
   })
 
-  const logCSV = arrayToCSV(logData, ['division', 'team', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
+  const logCSV = arrayToCSV(logData, ['division', 'date', 'team', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'game'])
   zip.file('pitching_catching_log.csv', logCSV)
 
   // 4. CREATE ABSENT_PLAYERS.CSV
@@ -473,7 +469,7 @@ export async function exportSeasonCSV(seasonId) {
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({ type: 'blob' })
-  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.zip`
+  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.zip`
 
   const url = URL.createObjectURL(zipBlob)
   const link = document.createElement('a')
@@ -509,7 +505,7 @@ export async function exportSeasonCSV(seasonId) {
  * @throws {Error} If data fetch or HTML generation fails
  */
 export async function exportSeasonHTML(seasonId) {
-  const data = await fetchSeasonData(seasonId)
+  const data = await fetchSeasonData(supabase, seasonId)
 
   // Build team lookup for easy reference
   const teamLookup = {}
@@ -873,6 +869,6 @@ export async function exportSeasonHTML(seasonId) {
 </body>
 </html>`
 
-  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.html`
-  downloadFile(html, filename, 'text/html')
+  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.html`
+  browserDownloadFile(html, filename, 'text/html')
 }

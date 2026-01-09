@@ -60,7 +60,6 @@ export function getRequiredRestDays(playerAge, pitchCount) {
   )
 
   if (!rule) {
-    console.warn(`No pitch count rule found for age ${playerAge}`)
     return null
   }
 
@@ -70,7 +69,6 @@ export function getRequiredRestDays(playerAge, pitchCount) {
   )
 
   if (!range) {
-    console.warn(`No rest day range found for ${pitchCount} pitches at age ${playerAge}`)
     return null
   }
 
@@ -95,9 +93,9 @@ export function calculateNextEligibleDate(gameDate, playerAge, pitchCount) {
     return null
   }
 
-  const date = new Date(gameDate)
-  // Add rest days + 1 to get the next eligible date
-  date.setDate(date.getDate() + restDays + 1)
+  const gameDateObj = new Date(gameDate)
+  const daysToAdd = restDays + 1
+  const eligibleDateMs = gameDateObj.getTime() + (daysToAdd * 24 * 60 * 60 * 1000)
 
-  return date
+  return new Date(eligibleDateMs)
 }
