@@ -135,22 +135,22 @@ async function fetchSeasonData(seasonId) {
 }
 
 /**
- * Get formatted timestamp for filenames
+ * Get formatted timestamp for filenames (PURE)
  *
  * Creates a timestamp string suitable for filenames with date and time
  * Format: YYYY-MM-DD_HH-MM-SS (24-hour time)
  * Example: 2026-01-06_14-30-45
  *
+ * @param {Date} date - Date object to format
  * @returns {string} Formatted timestamp
  */
-function getTimestamp() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
+export function getTimestamp(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
   return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`
 }
 
@@ -200,7 +200,7 @@ export async function exportSeasonBackup(seasonId) {
   }
 
   const json = JSON.stringify(backup, null, 2)
-  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.json`
+  const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.json`
 
   downloadFile(json, filename, 'application/json')
 }
@@ -473,7 +473,7 @@ export async function exportSeasonCSV(seasonId) {
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({ type: 'blob' })
-  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.zip`
+  const filename = `csv_export_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.zip`
 
   const url = URL.createObjectURL(zipBlob)
   const link = document.createElement('a')
@@ -873,6 +873,6 @@ export async function exportSeasonHTML(seasonId) {
 </body>
 </html>`
 
-  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp()}.html`
+  const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.html`
   downloadFile(html, filename, 'text/html')
 }
