@@ -151,7 +151,7 @@ export function getTimestamp(date) {
 }
 
 /**
- * Download a file to the user's computer
+ * Download a file to the user's computer (BROWSER SIDE EFFECT)
  *
  * Creates a blob, generates a temporary URL, triggers download, then cleans up
  *
@@ -159,7 +159,7 @@ export function getTimestamp(date) {
  * @param {string} filename - Name for the downloaded file
  * @param {string} contentType - MIME type (e.g., 'application/json', 'text/html')
  */
-function downloadFile(content, filename, contentType) {
+export function browserDownloadFile(content, filename, contentType) {
   const blob = new Blob([content], { type: contentType })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -198,7 +198,7 @@ export async function exportSeasonBackup(seasonId) {
   const json = JSON.stringify(backup, null, 2)
   const filename = `backup_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.json`
 
-  downloadFile(json, filename, 'application/json')
+  browserDownloadFile(json, filename, 'application/json')
 }
 
 /**
@@ -870,5 +870,5 @@ export async function exportSeasonHTML(seasonId) {
 </html>`
 
   const filename = `report_${data.season.name.replace(/[^a-z0-9]/gi, '_')}_${getTimestamp(new Date())}.html`
-  downloadFile(html, filename, 'text/html')
+  browserDownloadFile(html, filename, 'text/html')
 }
