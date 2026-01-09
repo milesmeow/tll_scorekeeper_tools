@@ -433,7 +433,7 @@ export async function exportSeasonCSV(seasonId) {
     return new Date(a.date) - new Date(b.date)
   })
 
-  const logCSV = arrayToCSV(logData, ['division', 'team', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'date', 'game'])
+  const logCSV = arrayToCSV(logData, ['division', 'date', 'team', 'playerName', 'age', 'jerseyNumber', 'position', 'innings', 'finalPitchCount', 'officialPitchCount', 'game'])
   zip.file('pitching_catching_log.csv', logCSV)
 
   // 4. CREATE ABSENT_PLAYERS.CSV
