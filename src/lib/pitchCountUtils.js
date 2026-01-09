@@ -9,7 +9,9 @@
  * @returns {Date} - Date object in local timezone
  */
 export function parseLocalDate(dateString) {
-  if (!dateString) return new Date()
+  if (!dateString) {
+    throw new Error('parseLocalDate requires a valid date string')
+  }
   return new Date(dateString + 'T00:00:00')
 }
 
