@@ -14,7 +14,7 @@
 
 import { supabase } from './supabase'
 import JSZip from 'jszip'
-import { parseLocalDate, getOfficialPitchCount } from './pitchCountUtils'
+import { parseLocalDate, getOfficialPitchCount, formatDate } from './pitchCountUtils'
 
 /**
  * Fetch all season data including all related tables (ACCEPTS DEPENDENCY)
@@ -674,8 +674,8 @@ export async function exportSeasonHTML(seasonId) {
   <h1>⚾ ${data.season.name} - Season Report</h1>
 
   <div class="meta">
-    <strong>Season Period:</strong> ${parseLocalDate(data.season.start_date).toLocaleDateString()}
-    ${data.season.end_date ? `to ${parseLocalDate(data.season.end_date).toLocaleDateString()}` : '(ongoing)'}
+    <strong>Season Period:</strong> ${formatDate(data.season.start_date)}
+    ${data.season.end_date ? `to ${formatDate(data.season.end_date)}` : '(ongoing)'}
     <br>
     <strong>Status:</strong> <span class="${data.season.is_active ? 'status-active' : 'status-inactive'}">${data.season.is_active ? 'Active' : 'Inactive'}</span>
     <br>
@@ -775,7 +775,7 @@ export async function exportSeasonHTML(seasonId) {
             <tbody>
               ${teamGames.map(game => `
                 <tr>
-                  <td>${parseLocalDate(game.game_date).toLocaleDateString()}</td>
+                  <td>${formatDate(game.game_date)}</td>
                   <td>${teamLookup[game.home_team_id]?.name || 'Unknown'}</td>
                   <td>${teamLookup[game.away_team_id]?.name || 'Unknown'}</td>
                   <td><strong>${game.home_score || 0} - ${game.away_score || 0}</strong></td>
@@ -810,7 +810,7 @@ export async function exportSeasonHTML(seasonId) {
       <tbody>
         ${divisionGames.map(game => `
           <tr>
-            <td>${parseLocalDate(game.game_date).toLocaleDateString()}</td>
+            <td>${formatDate(game.game_date)}</td>
             <td>${teamLookup[game.home_team_id]?.name || 'Unknown'}</td>
             <td>${teamLookup[game.away_team_id]?.name || 'Unknown'}</td>
             <td><strong>${game.home_score || 0} - ${game.away_score || 0}</strong></td>
@@ -850,13 +850,13 @@ export async function exportSeasonHTML(seasonId) {
           const team = player ? teamLookup[player.team_id] : null
           return `
             <tr>
-              <td>${game ? parseLocalDate(game.game_date).toLocaleDateString() : 'N/A'}</td>
+              <td>${game ? formatDate(game.game_date) : 'N/A'}</td>
               <td>${player?.name || 'Unknown'}</td>
               <td>${team?.name || 'Unknown'}</td>
               <td>${game ? `${teamLookup[game.home_team_id]?.name} vs ${teamLookup[game.away_team_id]?.name}` : 'N/A'}</td>
               <td><strong>${log.final_pitch_count}</strong></td>
               <td><strong>${getOfficialPitchCount(log.penultimate_batter_count)}</strong></td>
-              <td>${log.next_eligible_pitch_date ? parseLocalDate(log.next_eligible_pitch_date).toLocaleDateString() : 'N/A'}</td>
+              <td>${formatDate(log.next_eligible_pitch_date)}</td>
             </tr>
           `
         }).join('')}
