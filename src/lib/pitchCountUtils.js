@@ -46,7 +46,7 @@ export function getOfficialPitchCount(penultimate) {
 export function formatRosterDate(dateString) {
   if (!dateString) return 'N/A'
 
-  const date = new Date(dateString)
+  const date = parseLocalDate(dateString)
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
