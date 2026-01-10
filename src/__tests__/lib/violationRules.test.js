@@ -39,6 +39,11 @@ describe('violationRules', () => {
     })
   })
 
+
+  /**
+   * Rule 1: Pitchers must pitch consecutive innings
+   * A pitcher cannot return after being taken out
+   */
   describe('Rule 1: hasInningsGap', () => {
     it('should return false for consecutive innings', () => {
       expect(hasInningsGap([1, 2, 3])).toBe(false)
@@ -66,6 +71,11 @@ describe('violationRules', () => {
     })
   })
 
+
+  /**
+   * Rule 2: 41+ pitches -> cannot catch after pitching
+   * If a pitcher throws 41+ pitches, they cannot catch for the remainder of the game
+   */ 
   describe('Rule 2: cannotCatchDueToHighPitchCount', () => {
     it('should return false if pitch count is below 41', () => {
       expect(cannotCatchDueToHighPitchCount([1, 2], [3, 4], 40)).toBe(false)
@@ -90,6 +100,10 @@ describe('violationRules', () => {
     })
   })
 
+  /**
+   * Rule 3: 4 innings catching -> cannot pitch after
+   * A player who catches 4+ innings cannot pitch in this game
+   */
   describe('Rule 3: cannotPitchDueToFourInningsCatching', () => {
     it('should return false if caught less than 4 innings', () => {
       expect(cannotPitchDueToFourInningsCatching([5, 6], [1, 2, 3])).toBe(false)
@@ -114,6 +128,11 @@ describe('violationRules', () => {
     })
   })
 
+  /**
+   * Rule 4: Catch 1-3 innings + 21+ pitches -> cannot return to catch
+   * A player who caught 1-3 innings, moved to pitcher, and delivered 21+ pitches
+   * may not return to the catcher position
+   */
   describe('Rule 4: cannotCatchAgainDueToCombined', () => {
     it('should return false if caught less than 1 inning', () => {
       expect(cannotCatchAgainDueToCombined([2, 3], [], 25)).toBe(false)
@@ -146,6 +165,13 @@ describe('violationRules', () => {
     })
   })
 
+  /**
+   * Rule 5: Pitch count exceeds age-based limit
+   * Players cannot exceed their age-specific pitch count limit per game
+   * - Ages 7-8: Max 50 pitches
+   * - Ages 9-10: Max 75 pitches
+   * - Ages 11-12: Max 85 pitches
+   */  
   describe('Rule 5: exceedsMaxPitchesForAge', () => {
     it('should return false if no age provided', () => {
       expect(exceedsMaxPitchesForAge(null, 100)).toBe(false)
