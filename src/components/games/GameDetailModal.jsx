@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
-import { formatGameDate } from '../../lib/pitchCountUtils'
+import { formatGameDate, parseLocalDate } from '../../lib/pitchCountUtils'
 import {
   getEffectivePitchCount,
   getMaxPitchesForAge,
@@ -267,6 +267,7 @@ function TeamDetailSection({
                                   // Calculate eligibility based on THIS game's data (snapshot)
                                   // Use penultimate_batter_count + 1 as per pitch count rules
                                   const effectivePitchCount = (playerData.pitching.penultimate_batter_count || 0) + 1
+                                  // calculateNextEligibleDate now returns YYYY-MM-DD string directly
                                   const nextEligibleDate = calculateNextEligibleDate(
                                     gameDate,
                                     playerData.player.age,
@@ -275,7 +276,8 @@ function TeamDetailSection({
 
                                   if (!nextEligibleDate) return null
 
-                                  const eligibleDate = new Date(nextEligibleDate)
+                                  // Use parseLocalDate to avoid timezone issues (UTC midnight shows as previous day)
+                                  const eligibleDate = parseLocalDate(nextEligibleDate)
 
                                   return (
                                     <div className="mt-2">

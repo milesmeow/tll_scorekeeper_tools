@@ -956,22 +956,22 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
         if (!recentGames || recentGames.length === 0) {
           // This is player's first pitching game, so update eligibility
-          const nextEligibleDate = calculateNextEligibleDate(
+          // calculateNextEligibleDate now returns YYYY-MM-DD string directly
+          nextEligiblePitchDate = calculateNextEligibleDate(
             formData.game_date,
             p.age,
             effectivePitchCount
           )
-          nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
         } else {
           // Compare dates - only update if this game is newer or equal
           const mostRecentGameDate = new Date(recentGames[0].games.game_date)
           if (thisGameDate >= mostRecentGameDate) {
-            const nextEligibleDate = calculateNextEligibleDate(
+            // calculateNextEligibleDate now returns YYYY-MM-DD string directly
+            nextEligiblePitchDate = calculateNextEligibleDate(
               formData.game_date,
               p.age,
               effectivePitchCount
             )
-            nextEligiblePitchDate = nextEligibleDate ? nextEligibleDate.toISOString().split('T')[0] : null
           }
         }
 

@@ -139,36 +139,31 @@ describe('pitchSmartRules', () => {
       it('should calculate next day for 0 rest days', () => {
         const gameDate = '2025-05-10'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 15)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-11')
+        expect(nextDate).toBe('2025-05-11')
       })
 
       it('should calculate 2 days later for 1 rest day', () => {
         const gameDate = '2025-05-10'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 25)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-12')
+        expect(nextDate).toBe('2025-05-12')
       })
 
       it('should calculate 3 days later for 2 rest days', () => {
         const gameDate = '2025-05-10'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 40)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-13')
+        expect(nextDate).toBe('2025-05-13')
       })
 
       it('should calculate 4 days later for 3 rest days', () => {
         const gameDate = '2025-05-10'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 55)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-14')
+        expect(nextDate).toBe('2025-05-14')
       })
 
       it('should calculate 5 days later for 4 rest days', () => {
         const gameDate = '2025-05-10'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 70)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-15')
+        expect(nextDate).toBe('2025-05-15')
       })
     })
 
@@ -177,30 +172,29 @@ describe('pitchSmartRules', () => {
         const gameDate = '2025-05-10'
         // 30 pitches = 1 rest day for ages 7-8
         const nextDate = calculateNextEligibleDate(gameDate, 7, 30)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-12')
+        expect(nextDate).toBe('2025-05-12')
       })
 
       it('should work for ages 9-10', () => {
         const gameDate = '2025-05-10'
         // 55 pitches = 3 rest days for ages 9-10
         const nextDate = calculateNextEligibleDate(gameDate, 9, 55)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-14')
+        expect(nextDate).toBe('2025-05-14')
       })
 
       it('should work for ages 11-12', () => {
         const gameDate = '2025-05-10'
         // 66 pitches = 4 rest days for ages 11-12
         const nextDate = calculateNextEligibleDate(gameDate, 12, 66)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-15')
+        expect(nextDate).toBe('2025-05-15')
       })
     })
 
     describe('date object input', () => {
-      it('should accept Date object as input', () => {
+      it('should accept Date object as input and return string', () => {
         const gameDate = new Date('2025-05-10')
         const nextDate = calculateNextEligibleDate(gameDate, 10, 25)
-        expect(nextDate).toBeInstanceOf(Date)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-12')
+        expect(nextDate).toBe('2025-05-12')
       })
     })
 
@@ -217,13 +211,13 @@ describe('pitchSmartRules', () => {
       it('should handle month boundaries', () => {
         const gameDate = '2025-05-30'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 70)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-06-04')
+        expect(nextDate).toBe('2025-06-04')
       })
 
       it('should handle year boundaries', () => {
         const gameDate = '2025-12-30'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 70)
-        expect(nextDate.toISOString().split('T')[0]).toBe('2026-01-04')
+        expect(nextDate).toBe('2026-01-04')
       })
     })
 
@@ -233,7 +227,7 @@ describe('pitchSmartRules', () => {
         const gameDate = '2025-05-11'
         const nextDate = calculateNextEligibleDate(gameDate, 12, 75)
         // Game on May 11, needs 4 rest days, eligible on May 16
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-16')
+        expect(nextDate).toBe('2025-05-16')
       })
 
       it('should allow same-day eligibility for minimal pitches', () => {
@@ -241,7 +235,7 @@ describe('pitchSmartRules', () => {
         const gameDate = '2025-05-11'
         const nextDate = calculateNextEligibleDate(gameDate, 10, 10)
         // Eligible next day
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-12')
+        expect(nextDate).toBe('2025-05-12')
       })
 
       it('should handle mid-range pitch counts', () => {
@@ -249,7 +243,7 @@ describe('pitchSmartRules', () => {
         const gameDate = '2025-05-15'
         const nextDate = calculateNextEligibleDate(gameDate, 9, 40)
         // Game on May 15, needs 2 rest days, eligible on May 18
-        expect(nextDate.toISOString().split('T')[0]).toBe('2025-05-18')
+        expect(nextDate).toBe('2025-05-18')
       })
     })
   })
