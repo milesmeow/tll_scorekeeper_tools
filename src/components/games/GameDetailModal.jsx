@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
-import { formatGameDate, parseLocalDate } from '../../lib/pitchCountUtils'
+import { formatDate, parseLocalDate } from '../../lib/pitchCountUtils'
 import {
   getEffectivePitchCount,
   getMaxPitchesForAge,
@@ -92,7 +92,7 @@ export default function GameDetailModal({ game, onClose }) {
           <div>
             <h3 className="text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
             <p className="text-gray-600 mt-1">
-              {formatGameDate(game.game_date, {
+              {formatDate(game.game_date, {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
-import { formatGameDate } from '../../lib/pitchCountUtils'
+import { formatDate } from '../../lib/pitchCountUtils'
 import {
   getEffectivePitchCount as getEffectivePitchCountUtil,
   getMaxPitchesForAge,
@@ -287,7 +287,7 @@ export default function GameEntry({ profile, isAdmin }) {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-gray-600">
-                        {formatGameDate(game.game_date)}
+                        {formatDate(game.game_date)}
                       </p>
                       {(game.home_team?.division || game.away_team?.division) && (
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
@@ -1438,7 +1438,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                 <div>
-                  <span className="font-semibold">Date:</span> {formatGameDate(formData.game_date)}
+                  <span className="font-semibold">Date:</span> {formatDate(formData.game_date)}
                 </div>
                 <div>
                   <span className="font-semibold">Division:</span> {homeTeam?.division}

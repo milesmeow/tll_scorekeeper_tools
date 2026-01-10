@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseLocalDate,
-  formatGameDate,
+  formatDate,
   getOfficialPitchCount,
   formatRosterDate,
   getPitchingDisplayData
@@ -46,14 +46,14 @@ describe('pitchCountUtils', () => {
     })
   })
 
-  describe('formatGameDate', () => {
+  describe('formatDate', () => {
     it('should format date with default options', () => {
-      const formatted = formatGameDate('2025-05-15')
+      const formatted = formatDate('2025-05-15')
       expect(formatted).toBe('5/15/2025')
     })
 
     it('should format date with custom options', () => {
-      const formatted = formatGameDate('2025-05-15', {
+      const formatted = formatDate('2025-05-15', {
         month: 'long',
         day: 'numeric',
         year: 'numeric'
@@ -62,7 +62,7 @@ describe('pitchCountUtils', () => {
     })
 
     it('should format date with short month', () => {
-      const formatted = formatGameDate('2025-05-15', {
+      const formatted = formatDate('2025-05-15', {
         month: 'short',
         day: 'numeric',
         year: 'numeric'
@@ -71,20 +71,20 @@ describe('pitchCountUtils', () => {
     })
 
     it('should return "N/A" for null', () => {
-      expect(formatGameDate(null)).toBe('N/A')
+      expect(formatDate(null)).toBe('N/A')
     })
 
     it('should return "N/A" for undefined', () => {
-      expect(formatGameDate(undefined)).toBe('N/A')
+      expect(formatDate(undefined)).toBe('N/A')
     })
 
     it('should return "N/A" for empty string', () => {
-      expect(formatGameDate('')).toBe('N/A')
+      expect(formatDate('')).toBe('N/A')
     })
 
     it('should handle different dates correctly', () => {
-      expect(formatGameDate('2025-01-01')).toBe('1/1/2025')
-      expect(formatGameDate('2025-12-31')).toBe('12/31/2025')
+      expect(formatDate('2025-01-01')).toBe('1/1/2025')
+      expect(formatDate('2025-12-31')).toBe('12/31/2025')
     })
   })
 
