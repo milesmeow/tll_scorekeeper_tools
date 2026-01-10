@@ -218,9 +218,50 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 - **Backend**: Supabase (PostgreSQL + Auth + Row Level Security)
 - **Routing**: React Router v7.10.1 (URL-based navigation)
 - **Styling**: Tailwind CSS 3.4.1 (NOT v4 - causes PostCSS issues)
+- **Testing**: Vitest 4.0 + React Testing Library
 - **Export Tools**: JSZip 3.10.1 (for CSV ZIP file generation)
 - **Hosting**: Vercel (frontend) + Supabase (backend)
 - **Cost**: $0/month on free tiers
+
+## Testing
+
+**Framework**: Vitest + React Testing Library
+
+This project uses **Vitest** as its testing framework, chosen specifically for its seamless integration with our Vite build setup.
+
+### Why Vitest?
+
+- **Native Vite Integration** - Same config file, same transformation pipeline, zero duplication
+- **Speed** - Tests start in 0.5-2s (vs Jest's 3-8s) and rerun in 100-500ms
+- **Modern ES Modules** - Works perfectly with `"type": "module"` (no experimental flags needed)
+- **Jest-Compatible API** - Same `describe`, `it`, `expect` syntax you already know
+- **Built-in Coverage** - V8 coverage provider included
+
+### Running Tests
+
+```bash
+npm run test              # Watch mode (reruns on file changes)
+npm run test:run          # Run once (for CI/CD)
+npm run test:ui           # Visual test dashboard in browser
+npm run test:coverage     # Generate coverage report
+```
+
+### Current Test Coverage
+
+✅ **violationRules.js** - 30 tests covering all 5 Pitch Smart rules (95%+ coverage)
+- Rule 1: Consecutive innings validation
+- Rule 2: 41+ pitches cannot catch after
+- Rule 3: 4 innings catching cannot pitch after
+- Rule 4: Combined catching/pitching restrictions
+- Rule 5: Age-based pitch count limits
+
+### Test Infrastructure
+
+- **Global Mocks**: Supabase client mocked in `src/__tests__/setup.js`
+- **Browser Simulation**: jsdom provides browser APIs (document, window)
+- **Automatic Reset**: All mocks clear before each test
+
+For detailed testing documentation, see [TESTING.md](TESTING.md).
 
 ## Navigation & Routing
 
@@ -502,6 +543,7 @@ Changes are provided as:
 
 - **Setup Issues**: See QUICKSTART.md
 - **Architecture**: See ARCHITECTURE.md
+- **Testing**: See TESTING.md (Vitest setup, writing tests, best practices)
 - **Summary**: See PROJECT_SUMMARY.md
 - **Game Rules**: See RULES.md (pitching/catching restrictions, Pitch Smart guidelines)
 - **Database**: See database/schema.sql with comments
@@ -525,3 +567,8 @@ Private/Proprietary
   - Updated RLS policy on `team_coaches` table to allow all authenticated users to view coach assignments
   - Coaches can now see who coaches other teams in their division
   - "My Team" badge (blue) shown for coach's own team, head coach name (green) shown for other teams
+- ✅ **Testing Infrastructure** (Jan 2026):
+  - Set up Vitest testing framework with React Testing Library
+  - Comprehensive test suite for `violationRules.js` (30 tests, 95%+ coverage)
+  - Global Supabase mocks and test utilities
+  - Fast test execution (100-500ms watch mode) with visual UI dashboard

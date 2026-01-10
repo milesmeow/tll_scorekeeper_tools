@@ -1,7 +1,7 @@
 # System Architecture - Baseball Team Management App
 
-**Last Updated**: December 2024  
-**Status**: Phase 2 Complete, Phase 3 In Progress
+**Last Updated**: January 2026
+**Status**: Phase 4 In Progress (Testing Infrastructure Complete)
 
 ---
 
@@ -711,6 +711,220 @@ git commit -m "Add coach assignment to team management"
 - ✅ Scales automatically
 - ✅ Free tier sufficient
 
+### Why Vitest?
+- ✅ Native Vite integration (same config, same transforms)
+- ✅ 10x faster than Jest (0.5-2s startup vs 3-8s)
+- ✅ Native ES module support (no experimental flags)
+- ✅ Jest-compatible API (easy migration/familiar syntax)
+- ✅ Built-in coverage and UI dashboard
+- ✅ Perfect match for our Vite+React stack
+
+---
+
+## Testing Architecture
+
+### Testing Framework: Vitest + React Testing Library
+
+**Philosophy**: Test behavior, not implementation. Focus on user-visible outcomes.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  TESTING LAYERS                         │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Unit Tests (Priority 1)                         │  │
+│  │  - Business logic (violationRules.js)            │  │
+│  │  - Utility functions (date, pitch calculations)  │  │
+│  │  - Pure functions (no side effects)              │  │
+│  │  Coverage: 90%+ on critical logic                │  │
+│  └──────────────────────────────────────────────────┘  │
+│                          ↓                              │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Component Tests (Priority 2)                    │  │
+│  │  - User interactions (clicks, form submissions)  │  │
+│  │  - Conditional rendering (role-based UI)         │  │
+│  │  - Data fetching and state updates               │  │
+│  │  Coverage: 70%+ on components                    │  │
+│  └──────────────────────────────────────────────────┘  │
+│                          ↓                              │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Integration Tests (Priority 3)                  │  │
+│  │  - Multi-step workflows (game entry)             │  │
+│  │  - Authentication flows                          │  │
+│  │  - CRUD operations with validation               │  │
+│  │  Coverage: 50%+ on critical paths                │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Test Execution Flow
+
+```
+Developer runs: npm run test
+         ↓
+Vitest starts (reads vite.config.js)
+         ↓
+Loads src/__tests__/setup.js
+  - Mocks Supabase client globally
+  - Mocks browser APIs (matchMedia, alert, confirm)
+  - Configures jsdom environment
+         ↓
+For each test file:
+  1. Uses Vite to transform (same as dev server)
+     - JSX → JavaScript
+     - ES imports → Resolved modules
+  2. Runs in Node.js with jsdom (fake browser)
+  3. Resets all mocks (beforeEach hook)
+  4. Executes test assertions
+         ↓
+Reports results (pass/fail)
+         ↓
+Watch for file changes → Rerun affected tests
+```
+
+### Mocking Strategy
+
+**Supabase Client Mock** (`src/__tests__/setup.js`):
+```javascript
+vi.mock('../lib/supabase.js', () => ({
+  supabase: {
+    auth: {
+      signInWithPassword: vi.fn(),
+      signOut: vi.fn(),
+      getSession: vi.fn(),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe: vi.fn() } }
+      }))
+    },
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis()
+    }))
+  }
+}))
+```
+
+**Why this works:**
+- Tests never hit real Supabase database
+- All database operations are mocked
+- Return values controlled in individual tests
+- Fast execution (no network calls)
+
+**Browser API Mocks**:
+```javascript
+// window.matchMedia (used by some UI components)
+global.matchMedia = vi.fn(...)
+
+// window.alert (used in error displays)
+global.alert = vi.fn()
+
+// window.confirm (used in delete confirmations)
+global.confirm = vi.fn(() => true)
+```
+
+### Test Coverage (Current)
+
+| Module | Tests | Coverage | Priority |
+|--------|-------|----------|----------|
+| `violationRules.js` | 30 | 95%+ | ✅ Critical |
+| `pitchSmartRules.js` | 0 | 0% | 🔴 High |
+| `pitchCountUtils.js` | 0 | 0% | 🔴 High |
+| `exportUtils.js` | 0 | 0% | 🟡 Medium |
+| Components | 0 | 0% | 🟡 Medium |
+
+**Target Coverage Goals:**
+- Business logic (lib/): 90%+
+- Components: 70%+
+- Overall: 65%+
+
+### Vitest Configuration
+
+**vite.config.js**:
+```javascript
+export default defineConfig({
+  plugins: [react()],
+  server: { port: 5173 },
+
+  test: {
+    globals: true,           // No need to import describe/it/expect
+    environment: 'jsdom',    // Browser simulation
+    setupFiles: './src/__tests__/setup.js',  // Global mocks
+    coverage: {
+      provider: 'v8',        // Built-in V8 coverage (fast)
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'src/__tests__/', 'database/', 'dist/']
+    }
+  }
+})
+```
+
+**Key Benefits:**
+- Same file for dev server AND tests
+- No duplicate configs (no jest.config.js or Babel setup)
+- Vite's transform pipeline used for both
+
+### Test Scripts (package.json)
+
+```json
+{
+  "scripts": {
+    "test": "vitest",                    // Watch mode (dev)
+    "test:run": "vitest run",           // Run once (CI)
+    "test:ui": "vitest --ui",           // Visual dashboard
+    "test:coverage": "vitest --coverage" // Coverage report
+  }
+}
+```
+
+### Performance Characteristics
+
+| Operation | Vitest | Jest (for comparison) |
+|-----------|--------|----------------------|
+| **Cold start** | 0.5-2s | 3-8s |
+| **Watch mode rerun** | 100-500ms | 1-3s |
+| **30 tests execution** | 9ms | ~50-100ms |
+| **Coverage generation** | 1-2s | 3-5s |
+
+**Why Vitest is faster:**
+1. Reuses Vite's transformation cache
+2. Native ES modules (no transpilation overhead)
+3. Multi-threaded by default
+4. Smart dependency tracking
+
+### Testing Best Practices (Enforced)
+
+1. **Arrange-Act-Assert Pattern**
+   ```javascript
+   it('should calculate rest days', () => {
+     // Arrange
+     const age = 10, pitches = 55
+
+     // Act
+     const result = calculateRestDays(age, pitches)
+
+     // Assert
+     expect(result).toBe(3)
+   })
+   ```
+
+2. **Descriptive Test Names**
+   - ❌ Bad: `it('works', ...)`
+   - ✅ Good: `it('should return false when pitch count is below 41', ...)`
+
+3. **Test Edge Cases**
+   - Null/undefined inputs
+   - Empty arrays
+   - Boundary values (0, 1, max)
+   - Invalid data
+
+4. **Isolated Tests**
+   - No shared state between tests
+   - Mocks reset before each test
+   - No dependency on test execution order
+
 ---
 
 ## File Structure Explained
@@ -721,6 +935,12 @@ baseball-app/
 │   └── schema.sql              # Single source of truth for DB
 │
 ├── src/
+│   ├── __tests__/              # Test files (mirrors src/ structure)
+│   │   ├── setup.js            # Global test setup & mocks
+│   │   ├── lib/
+│   │   │   └── violationRules.test.js  # 30 tests (95%+ coverage)
+│   │   └── components/         # (future component tests)
+│   │
 │   ├── components/
 │   │   ├── auth/               # Login, password change
 │   │   ├── admin/              # User management
@@ -732,7 +952,11 @@ baseball-app/
 │   │   └── games/              # Game entry (2-step form)
 │   │
 │   ├── lib/
-│   │   └── supabase.js         # Client config (uses .env)
+│   │   ├── supabase.js         # Client config (uses .env)
+│   │   ├── violationRules.js   # Pitch Smart validation (TESTED)
+│   │   ├── pitchSmartRules.js  # Age-based rules
+│   │   ├── pitchCountUtils.js  # Date/pitch utilities
+│   │   └── exportUtils.js      # Export functions
 │   │
 │   ├── App.jsx                 # Auth state + routing
 │   ├── main.jsx                # ReactDOM render
@@ -740,8 +964,8 @@ baseball-app/
 │
 ├── .env.local                  # Supabase credentials (gitignored)
 ├── .gitignore                  # Standard + .env files
-├── package.json                # Dependencies
-├── vite.config.js              # Vite settings
+├── package.json                # Dependencies + test scripts
+├── vite.config.js              # Vite + Vitest config
 ├── tailwind.config.js          # Tailwind v3 config
 └── postcss.config.js           # PostCSS settings
 ```
@@ -785,5 +1009,11 @@ baseball-app/
 
 ---
 
-**Architecture Version**: 2.0 (Updated December 2024)  
-**Next Review**: After Phase 4 completion
+**Architecture Version**: 2.1 (Updated January 2026)
+**Major Updates**:
+- Added comprehensive Testing Architecture section
+- Documented Vitest integration and rationale
+- Updated file structure to include `__tests__/` directory
+- Added testing best practices and coverage goals
+
+**Next Review**: After additional test coverage expansion
