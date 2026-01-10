@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { formatDate } from '../../lib/pitchCountUtils'
 import GameDetailModal from '../games/GameDetailModal'
 
 export default function PlayerAbsencesReport() {
@@ -134,15 +135,6 @@ export default function PlayerAbsencesReport() {
     }
   }
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    })
-  }
-
   const handleViewGame = async (gameId) => {
     try {
       // Fetch full game details with team information
@@ -272,7 +264,7 @@ export default function PlayerAbsencesReport() {
                           className="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:border-blue-300 border border-gray-300 rounded text-sm transition-colors"
                           title={`${absence.awayTeam} @ ${absence.homeTeam}${absence.note ? '\nNote: ' + absence.note : ''}`}
                         >
-                          <span className="font-medium">{formatDate(absence.gameDate)}</span>
+                          <span className="font-medium">{formatDate(absence.gameDate, { month: '2-digit', day: '2-digit', year: 'numeric' })}</span>
                           {absence.note && (
                             <span className="ml-2 text-xs text-gray-500">📝</span>
                           )}
