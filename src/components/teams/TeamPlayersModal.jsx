@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { getPitchingDisplayData } from '../../lib/pitchCountUtils'
+import { getPitchingDisplayData, parseLocalDate } from '../../lib/pitchCountUtils'
 import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
 
 /**
@@ -54,6 +54,7 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
       if (playersError) throw playersError
 
       // Step 2: Fetch pitching data for these players (completed games only)
+      // Get today's date in YYYY-MM-DD format (e.g., "2026-01-09") for filtering completed games
       const today = new Date().toISOString().split('T')[0]
       const playerIds = playersData.map(p => p.id)
 
@@ -205,8 +206,12 @@ export default function TeamPlayersModal({ team, isCoach, onClose }) {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {players.map((player) => {
                     const pitchingDisplay = getPitchingDisplayData(player.lastPitchingLog)
+                    // Check if player is ineligible to pitch today ( new Date() )
+                    // Example: If next_eligible_pitch_date is "2025-01-15"
+                    //   - On Jan 14 at 3:00 PM: parseLocalDate creates "Jan 15 00:00:00" > "Jan 14 15:00:00" = true (ineligible)
+                    //   - On Jan 15 at 8:00 AM: parseLocalDate creates "Jan 15 00:00:00" > "Jan 15 08:00:00" = false (eligible)
                     const isCurrentlyIneligible = player.lastPitchingLog?.next_eligible_pitch_date
-                      && new Date(player.lastPitchingLog.next_eligible_pitch_date) > new Date()
+                      && parseLocalDate(player.lastPitchingLog.next_eligible_pitch_date) > new Date()
 
                     return (
                       <tr key={player.id} className="hover:bg-gray-50">

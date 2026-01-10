@@ -5,6 +5,8 @@
  * to protect young pitchers' arms.
  */
 
+import { parseLocalDate } from './pitchCountUtils'
+
 export const PITCH_SMART_RULES = [
   {
     ageMin: 7,
@@ -78,13 +80,13 @@ export function getRequiredRestDays(playerAge, pitchCount) {
 /**
  * Calculate the next eligible pitch date for a player
  *
- * @param {Date|string} gameDate - The date the player pitched
+ * @param {Date|string} gameDate - The date the player pitched (YYYY-MM-DD format or Date object)
  * @param {number} playerAge - The player's age
  * @param {number} pitchCount - Number of pitches thrown
- * @returns {Date|null} The next date the player is eligible to pitch, or null if no rule found
+ * @returns {string|null} The next date the player is eligible to pitch in YYYY-MM-DD format, or null if no rule found
  *
  * @example
- * calculateNextEligibleDate('2025-05-11', 12, 21) // returns Date('2025-05-13')
+ * calculateNextEligibleDate('2025-05-11', 12, 21) // returns '2025-05-13'
  */
 export function calculateNextEligibleDate(gameDate, playerAge, pitchCount) {
   const restDays = getRequiredRestDays(playerAge, pitchCount)
@@ -93,9 +95,13 @@ export function calculateNextEligibleDate(gameDate, playerAge, pitchCount) {
     return null
   }
 
-  const gameDateObj = new Date(gameDate)
+  // Convert gameDate to Date object, handling both string and Date inputs
+  // Use parseLocalDate for strings to avoid timezone issues (UTC midnight shows as previous day)
+  const gameDateObj = typeof gameDate === 'string' ? parseLocalDate(gameDate) : gameDate
   const daysToAdd = restDays + 1
   const eligibleDateMs = gameDateObj.getTime() + (daysToAdd * 24 * 60 * 60 * 1000)
+  const eligibleDate = new Date(eligibleDateMs)
 
-  return new Date(eligibleDateMs)
+  // Return as YYYY-MM-DD string for consistency with database format
+  return eligibleDate.toISOString().split('T')[0]
 }

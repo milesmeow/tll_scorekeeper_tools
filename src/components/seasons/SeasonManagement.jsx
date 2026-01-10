@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { formatDate } from '../../lib/pitchCountUtils'
 import SeasonModal from './SeasonModal'
 
 export default function SeasonManagement({ isAdmin }) {
@@ -172,8 +173,8 @@ export default function SeasonManagement({ isAdmin }) {
                     )}
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Starts: {new Date(season.start_date).toLocaleDateString()}
-                    {season.end_date && ` • Ends: ${new Date(season.end_date).toLocaleDateString()}`}
+                    Starts: {formatDate(season.start_date)}
+                    {season.end_date && ` • Ends: ${formatDate(season.end_date)}`}
                   </p>
                 </div>
                 {isAdmin && (

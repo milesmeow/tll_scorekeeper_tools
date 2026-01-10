@@ -16,12 +16,12 @@ export function parseLocalDate(dateString) {
 }
 
 /**
- * Format a game date for display
+ * Format a date for display
  * @param {string} dateString - ISO date string (YYYY-MM-DD)
  * @param {Object} options - Intl.DateTimeFormat options
  * @returns {string} - Formatted date string
  */
-export function formatGameDate(dateString, options = {}) {
+export function formatDate(dateString, options = {}) {
   if (!dateString) return 'N/A'
   return parseLocalDate(dateString).toLocaleDateString('en-US', options)
 }
@@ -46,7 +46,7 @@ export function getOfficialPitchCount(penultimate) {
 export function formatRosterDate(dateString) {
   if (!dateString) return 'N/A'
 
-  const date = new Date(dateString)
+  const date = parseLocalDate(dateString)
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

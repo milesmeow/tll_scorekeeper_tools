@@ -1,12 +1,16 @@
 {
   "name": "tll-scorekeeper-tools-app",
-  "version": "1.1.14",
+  "version": "1.2.0",
   "description": "",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -20,10 +24,17 @@
     "react-router-dom": "^7.10.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.16",
     "autoprefixer": "^10.4.22",
+    "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
-    "vite": "^7.2.6"
+    "vite": "^7.2.6",
+    "vitest": "^4.0.16"
   }
 }

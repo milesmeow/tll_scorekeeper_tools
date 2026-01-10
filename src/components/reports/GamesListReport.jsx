@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
-import { formatGameDate } from '../../lib/pitchCountUtils'
+import { formatDate } from '../../lib/pitchCountUtils'
 
 export default function GamesListReport({ profile }) {
   const [seasons, setSeasons] = useState([])
@@ -211,7 +211,7 @@ export default function GamesListReport({ profile }) {
                   {games.map((game) => (
                     <tr key={game.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatGameDate(game.game_date, {
+                        {formatDate(game.game_date, {
                           month: '2-digit',
                           day: '2-digit',
                           year: 'numeric'
