@@ -28,6 +28,23 @@ This section documents decisions about database indexes based on Supabase perfor
 DROP INDEX IF EXISTS public.idx_positions_position;
 ```
 
+#### `idx_players_age` on `players(age)`
+**Status**: Removed
+
+**Reason**: Index was never used in any application queries
+- No queries filter by the `age` column (always filters by `team_id`)
+- Age is only used for:
+  - Display in UI (rosters, game entry forms)
+  - Client-side validation (calculating max pitch counts in JavaScript)
+- All player queries use pattern: "Get all players for team X" then use age in JavaScript
+- Never queries like "Find all 12-year-old players" or "Group by age"
+- Removing improves INSERT/UPDATE performance (especially bulk CSV imports)
+
+**SQL to remove from existing databases**:
+```sql
+DROP INDEX IF EXISTS public.idx_players_age;
+```
+
 ### Declined Indexes (Jan 2026)
 
 #### `idx_games_scorekeeper_team` on `games(scorekeeper_team_id)`
