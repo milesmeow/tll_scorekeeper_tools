@@ -56,3 +56,26 @@ DROP INDEX IF EXISTS public.idx_positions_position;
 - JOIN performance becomes measurably slow
 
 **Note**: Supabase flags this as a best practice for large-scale applications, but our application size doesn't warrant it yet.
+
+#### `idx_seasons_created_by` on `seasons(created_by)`
+**Status**: Column removed (Jan 2026)
+
+**Reason**: Audit field was never used anywhere in the application
+
+**Analysis**:
+- ZERO queries filtered or joined by `created_by`
+- Never displayed in UI or used in business logic
+- Only set during season creation but never read
+- Provided no audit trail value since it was never viewed
+
+**Action Taken**: Removed the `created_by` column entirely from the `seasons` table
+- Simplified schema (removed unused foreign key)
+- Eliminated unnecessary INSERT overhead
+- Reduced storage footprint
+
+**SQL to remove from existing databases**:
+```sql
+ALTER TABLE public.seasons DROP COLUMN IF EXISTS created_by;
+```
+
+**Note**: This is a good example of "YAGNI" (You Aren't Gonna Need It). While audit fields CAN be valuable, they should only be added if there's a clear use case. Unused columns add complexity without benefit.

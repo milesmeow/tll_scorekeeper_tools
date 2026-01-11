@@ -33,7 +33,6 @@ CREATE TABLE public.seasons (
   start_date DATE NOT NULL,
   end_date DATE,
   is_active BOOLEAN DEFAULT false,
-  created_by UUID REFERENCES public.user_profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
