@@ -45,6 +45,39 @@ DROP INDEX IF EXISTS public.idx_positions_position;
 DROP INDEX IF EXISTS public.idx_players_age;
 ```
 
+#### `idx_games_home_team` and `idx_games_away_team` on `games(home_team_id)` and `games(away_team_id)`
+**Status**: Removed
+
+**Reason**: Following "add indexes when needed" principle - current query patterns don't require these indexes
+
+**Analysis**:
+- **Query patterns**: All game queries follow one of these patterns:
+  1. Filter by `season_id` first (indexed), then JOIN to teams for display
+  2. Team deletion check uses `.or()` with `.limit(1)` (rare operation, fast enough without index)
+  3. JavaScript filtering in exports (after data is fetched)
+- **Never queries**: "Show me all games where home_team = Team X" without filtering by season first
+- **Foreign key JOINs**: Work fine without indexes on the referencing column (games side)
+- **Small dataset**: Hundreds of games, not millions - sequential scans are fast
+
+**Trade-offs**:
+- ✅ Faster INSERT/UPDATE operations (2 fewer indexes to maintain)
+- ✅ Reduced storage overhead
+- ✅ Cleaner schema (only indexes that are actually used)
+- ❌ Team deletion check slightly slower (negligible with current data size)
+
+**When to add them back**:
+- Building a "Team Dashboard" that filters games by specific team without season filter
+- Game count exceeds 10,000+ and team-based queries become measurably slow
+- New features require frequent filtering by home_team_id or away_team_id
+
+**SQL to remove from existing databases**:
+```sql
+DROP INDEX IF EXISTS public.idx_games_home_team;
+DROP INDEX IF EXISTS public.idx_games_away_team;
+```
+
+**Philosophy**: This follows the YAGNI principle (You Aren't Gonna Need It). Add indexes when you measure a performance problem, not speculatively. Adding indexes later is easy and non-blocking.
+
 ### Declined Indexes (Jan 2026)
 
 #### `idx_games_scorekeeper_team` on `games(scorekeeper_team_id)`

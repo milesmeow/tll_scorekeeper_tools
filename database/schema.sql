@@ -132,8 +132,6 @@ CREATE TABLE public.games (
 
 CREATE INDEX idx_games_season ON public.games(season_id);
 CREATE INDEX idx_games_date ON public.games(game_date);
-CREATE INDEX idx_games_home_team ON public.games(home_team_id);
-CREATE INDEX idx_games_away_team ON public.games(away_team_id);
 CREATE INDEX idx_games_has_violation ON public.games(has_violation) WHERE has_violation IS NOT NULL;
 
 -- Add comments to clarify fields
