@@ -200,7 +200,6 @@ CREATE TABLE public.positions_played (
 
 CREATE INDEX idx_positions_game ON public.positions_played(game_id);
 CREATE INDEX idx_positions_player ON public.positions_played(player_id);
-CREATE INDEX idx_positions_position ON public.positions_played(position);
 
 -- =====================================================
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
