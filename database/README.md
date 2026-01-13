@@ -12,6 +12,8 @@ The `create-user` edge function allows super admins to create user accounts from
 
 This section documents decisions about database indexes based on Supabase performance recommendations.
 
+**See also**: `database/PERFORMANCE_DECISIONS.md` for detailed analysis of performance optimization decisions.
+
 ### Removed Indexes (Jan 2026)
 
 #### `idx_positions_position` on `positions_played(position)`
@@ -80,7 +82,23 @@ DROP INDEX IF EXISTS public.idx_games_away_team;
 
 ### Declined Indexes (Jan 2026)
 
-#### `idx_games_scorekeeper_team` on `games(scorekeeper_team_id)`
+#### Foreign Key Indexes on `games` table
+**Columns**: `home_team_id`, `away_team_id`, `scorekeeper_team_id`
+**Status**: Declined (not added) - Jan 12, 2026
+
+**Supabase Warning**: "Foreign key without covering index can lead to suboptimal query performance"
+
+**Decision**: Do NOT add these indexes. Write performance during active season is more important than rare team deletion operations.
+
+**See**: `database/PERFORMANCE_DECISIONS.md` for complete analysis including:
+- Query pattern investigation
+- Application code review
+- RLS policy impact analysis
+- Trade-off analysis (write overhead vs rare read benefit)
+
+---
+
+#### `idx_games_scorekeeper_team` on `games(scorekeeper_team_id)` [Legacy Note]
 **Status**: Declined (not added)
 
 **Reason**: Cost outweighs benefit for current application scale
