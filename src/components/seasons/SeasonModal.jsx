@@ -30,8 +30,6 @@ export default function SeasonModal({ season, onClose, onSuccess, onError }) {
         if (error) throw error
       } else {
         // Create new season
-        const { data: { user } } = await supabase.auth.getUser()
-        seasonData.created_by = user.id
         seasonData.is_active = false
 
         const { error } = await supabase

@@ -349,6 +349,11 @@ supabase.auth.onAuthStateChange((_event, session) => {
 4. **team_coaches.role** - Removed 'scorekeeper' option
 5. **players** - Added unique constraint: `(team_id, jersey_number)`
 6. **seasons.is_active** - Enforced via unique partial index instead of CHECK constraint
+7. **positions_played.position index** - Removed unused `idx_positions_position` index (Jan 2026)
+   - Index was never used (no queries filter by position column)
+   - Position column has very low cardinality (only 2 values: 'pitcher', 'catcher')
+   - Application-level filtering used instead
+   - Improves INSERT/UPDATE performance and reduces storage overhead
 
 ### RLS Policy Approach
 
