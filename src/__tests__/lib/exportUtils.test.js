@@ -209,7 +209,7 @@ describe('fetchSeasonData', () => {
   })
 
   it('should throw error when teams query fails', async () => {
-    const mockSeason = { id: 'season-1', name: 'Test Season' }
+    const mockSeason = { id: 'season-1', name: 'Integration Test Season' }
     const mockError = new Error('Teams query failed')
 
     const seasonQuery = {
@@ -235,7 +235,7 @@ describe('fetchSeasonData', () => {
   })
 
   it('should throw error when players query fails', async () => {
-    const mockSeason = { id: 'season-1', name: 'Test Season' }
+    const mockSeason = { id: 'season-1', name: 'Integration Test Season' }
     const mockTeams = [{ id: 'team-1', name: 'Team A' }]
     const mockError = new Error('Players query failed')
 
@@ -265,7 +265,7 @@ describe('fetchSeasonData', () => {
   })
 
   it('should throw error when game_players query fails', async () => {
-    const mockSeason = { id: 'season-1', name: 'Test Season' }
+    const mockSeason = { id: 'season-1', name: 'Integration Test Season' }
     const mockTeams = [{ id: 'team-1', name: 'Team A' }]
     const mockPlayers = [{ id: 'player-1', name: 'Player A' }]
     const mockTeamCoaches = []
@@ -301,7 +301,7 @@ describe('fetchSeasonData', () => {
   })
 
   it('should use .in() operator for batch queries when IDs exist', async () => {
-    const mockSeason = { id: 'season-1', name: 'Test Season' }
+    const mockSeason = { id: 'season-1', name: 'Integration Test Season' }
     const mockTeams = [
       { id: 'team-1', name: 'Team A' },
       { id: 'team-2', name: 'Team B' }
@@ -350,7 +350,7 @@ describe('fetchSeasonData', () => {
   })
 
   it('should handle team_coaches with joined user_profiles data', async () => {
-    const mockSeason = { id: 'season-1', name: 'Test Season' }
+    const mockSeason = { id: 'season-1', name: 'Integration Test Season' }
     const mockTeams = [{ id: 'team-1', name: 'Team A' }]
     const mockPlayers = []
     const mockTeamCoaches = [

@@ -12,11 +12,12 @@
  * 3. Environment variables must be set
  */
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import {
   integrationSupabase,
   hasSupabaseCredentials,
   setupTestData,
+  cleanupTestData,
   TEST_DATA
 } from './setup'
 
@@ -51,6 +52,10 @@ describeOrSkip('Coach Assignments - Integration Tests', () => {
 
       coachAssignments = assignments || []
     }
+  })
+
+  afterAll(async () => {
+    await cleanupTestData()
   })
 
   it('should fetch coach assignments with team data joined', async () => {
@@ -111,39 +116,40 @@ describeOrSkip('Coach Assignments - Integration Tests', () => {
     })
   })
 
-  it('should handle queries for non-coach users (admins)', async () => {
-    // Find an admin user
-    const { data: admins } = await integrationSupabase
-      .from('user_profiles')
-      .select('id')
-      .eq('role', 'admin')
-      .limit(1)
+  // COMMENTED OUT: Admins can now be assigned as coaches to teams
+  // it('should handle queries for non-coach users (admins)', async () => {
+  //   // Find an admin user
+  //   const { data: admins } = await integrationSupabase
+  //     .from('user_profiles')
+  //     .select('id')
+  //     .eq('role', 'admin')
+  //     .limit(1)
 
-    if (!admins || admins.length === 0) {
-      console.log('⚠️  No admin users found - skipping test')
-      return
-    }
+  //   if (!admins || admins.length === 0) {
+  //     console.log('⚠️  No admin users found - skipping test')
+  //     return
+  //   }
 
-    const adminId = admins[0].id
+  //   const adminId = admins[0].id
 
-    // Query coach assignments for admin (should return empty)
-    const { data, error } = await integrationSupabase
-      .from('team_coaches')
-      .select(`
-        team_id,
-        teams:team_id (
-          id,
-          name,
-          division
-        )
-      `)
-      .eq('user_id', adminId)
+  //   // Query coach assignments for admin (should return empty)
+  //   const { data, error } = await integrationSupabase
+  //     .from('team_coaches')
+  //     .select(`
+  //       team_id,
+  //       teams:team_id (
+  //         id,
+  //         name,
+  //         division
+  //       )
+  //     `)
+  //     .eq('user_id', adminId)
 
-    expect(error).toBeNull()
-    expect(Array.isArray(data)).toBe(true)
-    // Admins shouldn't have coach assignments
-    expect(data.length).toBe(0)
-  })
+  //   expect(error).toBeNull()
+  //   expect(Array.isArray(data)).toBe(true)
+  //   // Admins shouldn't have coach assignments
+  //   expect(data.length).toBe(0)
+  // })
 
   it('should verify team_coaches RLS allows all authenticated users to view', async () => {
     // Query all team_coaches (RLS should allow viewing with anon key)

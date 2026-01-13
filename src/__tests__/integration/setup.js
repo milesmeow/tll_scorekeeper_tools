@@ -4,40 +4,54 @@
  * This setup file configures integration tests to use the REAL Supabase database.
  *
  * IMPORTANT: These tests require:
- * 1. Valid Supabase credentials in environment variables
- * 2. A test season with known data in the database
- * 3. Proper RLS policies configured
+ * 1. Valid Supabase credentials in .env.local
+ * 2. A test user account with admin role in Supabase Authentication
+ * 3. A test season named "Integration Test Season" with data
+ * 4. Proper RLS policies configured
  *
- * Environment Variables Required:
+ * Environment Variables Required (in .env.local):
  * - VITE_SUPABASE_URL: Your Supabase project URL
  * - VITE_SUPABASE_ANON_KEY: Your Supabase anonymous key
+ * - VITE_TEST_USER_EMAIL: Test user email (must exist in Supabase Auth)
+ * - VITE_TEST_USER_PASSWORD: Test user password (use quotes if special chars)
  *
- * To run integration tests:
- * 1. Create a .env.test file with your Supabase credentials
- * 2. Run: npm run test:integration
+ * Setup Instructions:
+ * 1. Add credentials to .env.local (see TESTING.md)
+ * 2. Create "Integration Test Season" in your database
+ * 3. Add teams, players, games to the test season
+ * 4. Run: npm run test:run
  *
- * Note: Integration tests will NOT run in CI/CD unless credentials are provided
+ * Authentication:
+ * - Tests authenticate before running queries (required for RLS)
+ * - Automatically sign out after test completion
+ * - Read-only operations (no database modifications)
+ *
+ * Note: Integration tests will skip if credentials are missing
  */
 
-import { beforeAll, afterAll } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 
 // Check for environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const testUserEmail = import.meta.env.VITE_TEST_USER_EMAIL
+const testUserPassword = import.meta.env.VITE_TEST_USER_PASSWORD
 
-export const hasSupabaseCredentials = !!(supabaseUrl && supabaseAnonKey)
+export const hasSupabaseCredentials = !!(supabaseUrl && supabaseAnonKey && testUserEmail && testUserPassword)
 
 // Create real Supabase client for integration tests
 export const integrationSupabase = hasSupabaseCredentials
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
 
+// Track authentication state
+let isAuthenticated = false
+
 // Test data constants - update these to match your test season
 export const TEST_DATA = {
   // These will be populated by querying the database for a test season
   SEASON_ID: null,
-  SEASON_NAME: 'Test Season', // Name to search for
+  SEASON_NAME: 'Integration Test Season', // Name to search for
   TEAM_IDS: [],
   PLAYER_IDS: [],
   GAME_IDS: []
@@ -54,6 +68,28 @@ export async function setupTestData() {
   }
 
   try {
+    // Authenticate if not already authenticated
+    if (!isAuthenticated) {
+      const { data: authData, error: authError } = await integrationSupabase.auth.signInWithPassword({
+        email: testUserEmail,
+        password: testUserPassword
+      })
+
+      if (authError) {
+        console.error('❌ Authentication failed:', authError.message)
+        console.log('   Check your VITE_TEST_USER_EMAIL and VITE_TEST_USER_PASSWORD in .env.local')
+        return false
+      }
+
+      if (!authData?.user) {
+        console.error('❌ Authentication succeeded but no user returned')
+        return false
+      }
+
+      console.log(`✅ Authenticated as: ${authData.user.email}`)
+      isAuthenticated = true
+    }
+
     // Find test season by name
     const { data: season, error: seasonError } = await integrationSupabase
       .from('seasons')
@@ -110,9 +146,12 @@ export async function setupTestData() {
 }
 
 /**
- * Cleanup function (optional - for tests that modify data)
+ * Cleanup function - signs out after tests complete
  */
 export async function cleanupTestData() {
-  // Currently no cleanup needed since we use existing test season
-  // Add cleanup logic here if tests start modifying data
+  if (isAuthenticated && integrationSupabase) {
+    await integrationSupabase.auth.signOut()
+    isAuthenticated = false
+    console.log('✅ Signed out test user')
+  }
 }

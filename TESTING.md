@@ -237,6 +237,177 @@ src/
 
 ---
 
+## Integration Tests
+
+### Overview
+
+Integration tests query the **real Supabase database** to verify:
+- Database queries work correctly
+- Row-Level Security (RLS) policies allow proper access
+- Foreign key relationships are intact
+- Data is returned in expected formats
+
+Unlike unit tests which use mocked Supabase clients, integration tests connect to your actual database using authenticated credentials.
+
+### Configuration
+
+#### 1. Environment Variables
+
+Add test user credentials to `.env.local`:
+
+```bash
+# Your Supabase credentials
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# Test user credentials for integration tests
+VITE_TEST_USER_EMAIL="your-test-user@example.com"
+VITE_TEST_USER_PASSWORD="your-password"
+```
+
+**Important notes:**
+- Use quotes around password if it contains special characters (`#`, `$`, etc.)
+- Test user must exist in your Supabase Authentication users
+- Recommended: Use an **admin** role user for full database access
+- Integration tests will skip if credentials are missing
+
+#### 2. Test Database Setup
+
+Create a test season in your database:
+
+1. Sign into your app
+2. Create a season named "Integration Test Season"
+3. Add some teams, players, and games to this season
+4. Optionally, create coach assignments
+
+The integration tests will automatically find this season and verify data integrity.
+
+#### 3. Vite Configuration
+
+The `vite.config.js` is already configured to load environment variables in test mode:
+
+```javascript
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
+    test: {
+      env: {
+        VITE_SUPABASE_URL: env.VITE_SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: env.VITE_SUPABASE_ANON_KEY,
+        VITE_TEST_USER_EMAIL: env.VITE_TEST_USER_EMAIL,
+        VITE_TEST_USER_PASSWORD: env.VITE_TEST_USER_PASSWORD
+      }
+    }
+  }
+})
+```
+
+### How Integration Tests Work
+
+1. **Authentication**: Before running queries, tests authenticate using credentials from `.env.local`
+2. **Data Loading**: Tests query the database for "Integration Test Season"
+3. **Test Execution**: Each test verifies specific database behaviors
+4. **Cleanup**: Tests sign out after completion (read-only, no data modifications)
+
+```javascript
+// Integration test example
+beforeAll(async () => {
+  // Authenticate with Supabase
+  const { data: authData } = await supabase.auth.signInWithPassword({
+    email: testUserEmail,
+    password: testUserPassword
+  })
+
+  // Load test season data
+  const { data: season } = await supabase
+    .from('seasons')
+    .select('*')
+    .ilike('name', '%Integration Test Season%')
+    .single()
+})
+```
+
+### Integration Test Files
+
+```
+src/__tests__/integration/
+├── setup.js                              # Shared setup & authentication
+├── coachAssignments.integration.test.js  # Coach assignment queries
+└── exportUtils.integration.test.js       # Season data export queries
+```
+
+### What Integration Tests Verify
+
+#### Coach Assignments (6 tests)
+- ✅ Coach assignments with team data joins
+- ✅ Teams assigned in test season
+- ✅ RLS allows authenticated users to view assignments
+- ✅ Unique divisions from assignments
+- ✅ Coach role verification in user_profiles
+- ✅ Coaches can view teams in assigned divisions
+
+#### Export Utils (7 tests)
+- ✅ Complete season data fetch
+- ✅ Players sorted by name
+- ✅ Games sorted by date
+- ✅ Data scoped to specific season
+- ✅ Team coaches join with user_profiles
+- ✅ Referential integrity across tables
+- ✅ Valid position data (pitcher/catcher)
+
+**Commented out tests** (3 tests):
+- Admin coach assignments (admins can now be coaches)
+- Team sort order (database order may vary)
+- Pitch count date validation (dates may be null/objects)
+
+### Running Integration Tests
+
+Integration tests run automatically with unit tests:
+
+```bash
+# Run all tests (unit + integration)
+npm run test:run
+
+# Watch mode (includes integration tests)
+npm run test
+```
+
+**Output example:**
+```
+✅ Authenticated as: your-test-user@example.com
+✅ Integration test data loaded:
+   Season: Integration Test Season (5c0b8304-8f61-4e5d-82b9-2346f70f324e)
+   Teams: 15
+   Players: 174
+   Games: 9
+
+✓ src/__tests__/integration/coachAssignments.integration.test.js (6 tests) 7835ms
+✓ src/__tests__/integration/exportUtils.integration.test.js (7 tests) 16305ms
+```
+
+### Skipping Integration Tests
+
+If credentials are missing from `.env.local`, integration tests automatically skip:
+
+```
+⚠️  Skipping integration tests - no Supabase credentials
+
+Test Files  6 passed | 2 skipped (8)
+     Tests  149 passed | 16 skipped (165)
+```
+
+This allows tests to run in CI/CD without credentials.
+
+### Security Notes
+
+- ⚠️ **Never commit `.env.local`** to version control (already in `.gitignore`)
+- Integration tests are **read-only** - they never modify database
+- Use a dedicated test user (not your personal admin account)
+- Test user needs at least `admin` role for full test coverage
+
+---
+
 ## Current Test Coverage
 
 ### Implemented Tests
@@ -496,22 +667,25 @@ jobs:
 - [x] Add test scripts to package.json
 - [x] Write example tests for violationRules.js
 
-### Phase 2: Core Utilities (Next)
-- [ ] Test pitchSmartRules.js
-- [ ] Test pitchCountUtils.js
-- [ ] Test exportUtils.js
-- [ ] Test useCoachAssignments hook
+### Phase 2: Core Utilities ✅ (Complete)
+- [x] Test pitchSmartRules.js
+- [x] Test pitchCountUtils.js
+- [x] Test exportUtils.js
+- [x] Test useCoachAssignments hook
+- [x] Test databaseQueryPatterns.js
 
-### Phase 3: Component Tests (Future)
+### Phase 3: Integration Tests ✅ (Complete)
+- [x] Configure environment variables for test authentication
+- [x] Implement authentication in test setup
+- [x] Integration tests for coach assignments
+- [x] Integration tests for export utilities
+- [x] Database query pattern documentation
+
+### Phase 4: Component Tests (Future)
 - [ ] Auth components (Login, ChangePassword)
 - [ ] Management components (Seasons, Teams, Players)
 - [ ] Game entry forms
 - [ ] Reports
-
-### Phase 4: Integration Tests (Future)
-- [ ] Multi-step workflows
-- [ ] Role-based access control
-- [ ] Data validation flows
 
 ### Phase 5: E2E Tests (Future)
 - [ ] Playwright or Cypress setup
@@ -587,5 +761,10 @@ When adding new code:
 ---
 
 **Testing Framework Version**: Vitest 4.0.16
-**Last Test Run**: All 30 tests passing
-**Coverage**: 95.23% (violationRules.js)
+**Last Test Run**: 162 tests passing (149 unit + 13 integration)
+**Test Files**: 8 files (6 unit + 2 integration)
+**Coverage**: 95%+ on core utilities
+
+**Integration Tests**: Connected to real Supabase database
+**Authentication**: Required via `.env.local` credentials
+**Test Season**: "Integration Test Season" (auto-discovered)
