@@ -408,3 +408,4 @@ const { profile } = useContext(ProfileContext)
 - **TESTING.md** - Detailed testing documentation (Vitest, best practices)
 - **RULES.md** - Complete baseball rules documentation (5 validation rules)
 - **database/schema.sql** - Full database schema with RLS policies
+- **database/PERFORMANCE_DECISIONS.md** - Database performance optimization decisions (indexes, trade-offs)

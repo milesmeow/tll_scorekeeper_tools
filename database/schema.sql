@@ -33,7 +33,6 @@ CREATE TABLE public.seasons (
   start_date DATE NOT NULL,
   end_date DATE,
   is_active BOOLEAN DEFAULT false,
-  created_by UUID REFERENCES public.user_profiles(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -101,7 +100,6 @@ CREATE TABLE public.players (
 );
 
 CREATE INDEX idx_players_team ON public.players(team_id);
-CREATE INDEX idx_players_age ON public.players(age);
 
 -- Add unique constraint on team_id + jersey_number
 -- This ensures jersey numbers are unique per team
@@ -134,8 +132,6 @@ CREATE TABLE public.games (
 
 CREATE INDEX idx_games_season ON public.games(season_id);
 CREATE INDEX idx_games_date ON public.games(game_date);
-CREATE INDEX idx_games_home_team ON public.games(home_team_id);
-CREATE INDEX idx_games_away_team ON public.games(away_team_id);
 CREATE INDEX idx_games_has_violation ON public.games(has_violation) WHERE has_violation IS NOT NULL;
 
 -- Add comments to clarify fields
@@ -200,7 +196,6 @@ CREATE TABLE public.positions_played (
 
 CREATE INDEX idx_positions_game ON public.positions_played(game_id);
 CREATE INDEX idx_positions_player ON public.positions_played(player_id);
-CREATE INDEX idx_positions_position ON public.positions_played(position);
 
 -- =====================================================
 -- 10. ROW LEVEL SECURITY (RLS) POLICIES
@@ -267,34 +262,36 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Layer 3: RLS policies on user_profiles
+-- NOTE: All auth function calls wrapped in subqueries for performance (Jan 2026)
+-- Pattern: auth.uid() → (select auth.uid()) to evaluate once per query instead of per row
 CREATE POLICY "Users can view own profile"
   ON public.user_profiles FOR SELECT
-  USING (id = auth.uid());
+  USING (id = (select auth.uid()));
 
 CREATE POLICY "Admins can view all profiles"
   ON public.user_profiles FOR SELECT
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 CREATE POLICY "Users can view active coaches and admins"
   ON public.user_profiles FOR SELECT
   USING (
-    auth.uid() IS NOT NULL
+    (select auth.uid()) IS NOT NULL
     AND role IN ('coach', 'admin', 'super_admin')
     AND is_active = true
   );
 
 CREATE POLICY "Super admins can update profiles"
   ON public.user_profiles FOR UPDATE
-  USING (public.is_super_admin())
-  WITH CHECK (public.is_super_admin());
+  USING ((select public.is_super_admin()))
+  WITH CHECK ((select public.is_super_admin()));
 
 CREATE POLICY "Users can update own profile"
   ON public.user_profiles FOR UPDATE
-  USING (id = auth.uid());
+  USING (id = (select auth.uid()));
 
 CREATE POLICY "Super admins can insert profiles"
   ON public.user_profiles FOR INSERT
-  WITH CHECK (public.is_super_admin());
+  WITH CHECK ((select public.is_super_admin()));
 
 CREATE POLICY "Prevent direct deletion"
   ON public.user_profiles FOR DELETE
@@ -304,41 +301,41 @@ CREATE POLICY "Prevent direct deletion"
 -- Super admins and admins can manage seasons
 CREATE POLICY "Admins can manage seasons"
   ON public.seasons FOR ALL
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 -- All authenticated users can view seasons
 CREATE POLICY "All authenticated users can view seasons"
   ON public.seasons FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
 -- TEAMS
 -- Admins can manage all teams
 CREATE POLICY "Admins can manage teams"
   ON public.teams FOR ALL
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 -- All authenticated users can view all teams (read-only for non-admins)
 CREATE POLICY "All authenticated users can view teams"
   ON public.teams FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
 -- TEAM_COACHES
 CREATE POLICY "Admins can manage team coaches"
   ON public.team_coaches FOR ALL
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 -- Updated Jan 2026: Changed from restrictive (user_id = auth.uid()) to permissive
 -- to allow all authenticated users to view coach assignments.
 -- This enables coaches to see who coaches other teams in TeamManagement display.
 CREATE POLICY "All authenticated users can view coach assignments"
   ON public.team_coaches FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
 -- PLAYERS
 -- Admins can manage all players
 CREATE POLICY "Admins can manage players"
   ON public.players FOR ALL
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 -- Coaches with edit permission can manage their team's players
 CREATE POLICY "Coaches can manage team players"
@@ -346,8 +343,8 @@ CREATE POLICY "Coaches can manage team players"
   USING (
     EXISTS (
       SELECT 1 FROM public.team_coaches tc
-      WHERE tc.team_id = players.team_id 
-        AND tc.user_id = auth.uid() 
+      WHERE tc.team_id = players.team_id
+        AND tc.user_id = (select auth.uid())
         AND tc.can_edit = true
     )
   );
@@ -355,13 +352,13 @@ CREATE POLICY "Coaches can manage team players"
 -- All authenticated can view players
 CREATE POLICY "Users can view players"
   ON public.players FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
 -- GAMES (and related tables)
 -- Admins can manage all games
 CREATE POLICY "Admins can manage games"
   ON public.games FOR ALL
-  USING (public.is_admin());
+  USING ((select public.is_admin()));
 
 -- Coaches with edit permission can manage games for their teams
 CREATE POLICY "Coaches can manage team games"
@@ -370,7 +367,7 @@ CREATE POLICY "Coaches can manage team games"
     EXISTS (
       SELECT 1 FROM public.team_coaches tc
       WHERE (tc.team_id = games.home_team_id OR tc.team_id = games.away_team_id)
-        AND tc.user_id = auth.uid() 
+        AND tc.user_id = (select auth.uid())
         AND tc.can_edit = true
     )
   );
@@ -378,35 +375,35 @@ CREATE POLICY "Coaches can manage team games"
 -- All authenticated can view games
 CREATE POLICY "Users can view games"
   ON public.games FOR SELECT
-  USING (auth.uid() IS NOT NULL);
+  USING ((select auth.uid()) IS NOT NULL);
 
 -- Similar policies for game-related tables
 CREATE POLICY "Manage game_players" ON public.game_players FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = game_players.game_id) AND
-  (public.is_admin() OR
-   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
-           WHERE g.id = game_players.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
+  ((select public.is_admin()) OR
+   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id)
+           WHERE g.id = game_players.game_id AND tc.user_id = (select auth.uid()) AND tc.can_edit = true))
 );
 
-CREATE POLICY "View game_players" ON public.game_players FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "View game_players" ON public.game_players FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 CREATE POLICY "Manage pitching_logs" ON public.pitching_logs FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = pitching_logs.game_id) AND
-  (public.is_admin() OR
-   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
-           WHERE g.id = pitching_logs.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
+  ((select public.is_admin()) OR
+   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id)
+           WHERE g.id = pitching_logs.game_id AND tc.user_id = (select auth.uid()) AND tc.can_edit = true))
 );
 
-CREATE POLICY "View pitching_logs" ON public.pitching_logs FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "View pitching_logs" ON public.pitching_logs FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 CREATE POLICY "Manage positions_played" ON public.positions_played FOR ALL USING (
   EXISTS (SELECT 1 FROM public.games g WHERE g.id = positions_played.game_id) AND
-  (public.is_admin() OR
-   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id) 
-           WHERE g.id = positions_played.game_id AND tc.user_id = auth.uid() AND tc.can_edit = true))
+  ((select public.is_admin()) OR
+   EXISTS (SELECT 1 FROM public.team_coaches tc JOIN public.games g ON (tc.team_id = g.home_team_id OR tc.team_id = g.away_team_id)
+           WHERE g.id = positions_played.game_id AND tc.user_id = (select auth.uid()) AND tc.can_edit = true))
 );
 
-CREATE POLICY "View positions_played" ON public.positions_played FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "View positions_played" ON public.positions_played FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
 -- =====================================================
 -- 11. FUNCTIONS & TRIGGERS
