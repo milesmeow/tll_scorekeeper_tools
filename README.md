@@ -131,6 +131,93 @@ All exports use the `parseLocalDate()` utility function to ensure dates display 
 - Tools menu item only appears in dashboard sidebar for authorized users
 - Coaches do not have access to export functionality
 
+## Maintenance Mode (Super Admin Only)
+
+### Overview
+Maintenance Mode allows super admins to temporarily restrict application access during critical updates, database migrations, or emergency fixes. When enabled, only super admins can access the application while all other users (admins and coaches) see a maintenance page.
+
+### How to Use
+
+#### Enable Maintenance Mode
+1. Log in as a super admin
+2. Navigate to **🔧 Maintenance Mode** in the dashboard sidebar
+3. Click the **"Enable Maintenance"** button
+4. Changes take effect immediately for all users
+
+#### Customize Maintenance Message
+1. In the Maintenance Mode panel, click **"Edit Message"**
+2. Enter your custom message explaining the maintenance
+3. Click **"Save Message"**
+4. The new message will be displayed to users during maintenance
+
+#### Disable Maintenance Mode
+1. Navigate to **🔧 Maintenance Mode** in the dashboard sidebar
+2. Click **"Disable Maintenance"** button
+3. Application access is restored immediately for all users
+
+### Key Features
+
+**Super Admin Bypass**
+- Super admins can always access the application, even when maintenance mode is enabled
+- This allows you to work on fixes while users are locked out
+- Other super admins can also access to assist with maintenance
+
+**Real-Time Updates**
+- Changes take effect immediately without requiring users to refresh
+- No rebuild or redeployment needed
+- Toggle on/off instantly from the admin panel
+
+**Custom Messaging**
+- Configure a custom message to inform users about the maintenance
+- Default message: "The application is currently undergoing maintenance. Please check back soon."
+- Helpful for setting expectations (e.g., "Back online by 3:00 PM EST")
+
+### Emergency Manual Toggle
+
+If you need to enable/disable maintenance mode directly from the database (e.g., if the UI is unavailable):
+
+```sql
+-- Enable maintenance mode
+UPDATE public.app_config SET maintenance_mode = true WHERE id = 1;
+
+-- Disable maintenance mode
+UPDATE public.app_config SET maintenance_mode = false WHERE id = 1;
+
+-- Update message
+UPDATE public.app_config
+SET maintenance_message = 'Your custom message here'
+WHERE id = 1;
+```
+
+Run these commands in the Supabase SQL Editor.
+
+### Technical Details
+
+**Database Table**: `app_config`
+- Single-row table (id=1) stores maintenance settings
+- `maintenance_mode` (boolean) - On/off flag
+- `maintenance_message` (text) - Custom message
+- `updated_at` (timestamp) - Last update time
+- `updated_by` (UUID) - Who made the change
+
+**Access Control**:
+- Read: Anyone (including non-authenticated users)
+- Write: Super admins only (enforced by RLS policies)
+
+**Files**:
+- Migration: `database/migrations/add_app_config_table.sql`
+- Schema: `database/schema.sql` (section 10)
+- Check Logic: `src/App.jsx`
+- Display: `src/components/common/MaintenancePage.jsx`
+- Admin Panel: `src/components/admin/MaintenanceToggle.jsx`
+
+### Use Cases
+
+- **Database Migrations**: Enable maintenance mode before running schema changes
+- **Critical Bug Fixes**: Lock down the app while deploying urgent fixes
+- **Scheduled Maintenance**: Prevent data entry during system updates
+- **Emergency Situations**: Stop access immediately if data corruption is detected
+
 ## Violation Rules Implementation (Jan 2026)
 
 ### Rule 5: Age-Based Pitch Count Limits

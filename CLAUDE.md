@@ -179,6 +179,61 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 **Benefit**: No flashing/re-rendering when switching tabs.
 
+### Maintenance Mode
+
+**Purpose**: Allows super_admins to put the application into maintenance mode, preventing access for all users except super_admins during critical updates or fixes.
+
+**Architecture**:
+- **Database**: `app_config` table stores `maintenance_mode` boolean and `maintenance_message` text
+- **Single-row table**: Only contains one row (id=1) enforced by constraint
+- **RLS Policies**: Anyone can read config (needed before auth), only super_admins can update
+- **Check on startup**: `App.jsx` queries `app_config` table before authentication
+
+**Implementation Flow**:
+```javascript
+// 1. Check maintenance mode on app startup (App.jsx)
+const checkMaintenanceMode = async () => {
+  const { data } = await supabase
+    .from('app_config')
+    .select('maintenance_mode, maintenance_message')
+    .eq('id', 1)
+    .single()
+
+  setMaintenanceMode(data.maintenance_mode)
+  setMaintenanceMessage(data.maintenance_message)
+}
+
+// 2. Show maintenance page for non-super_admins
+const isSuperAdmin = profile?.role === 'super_admin'
+if (maintenanceMode && !isSuperAdmin) {
+  return <MaintenancePage message={maintenanceMessage} />
+}
+```
+
+**Key Features**:
+- **Super Admin Bypass**: Super admins can always access the app, even in maintenance mode
+- **Real-time Toggle**: Changes take effect immediately for all users
+- **Custom Messaging**: Configurable message displayed to users
+- **Database Function**: `update_maintenance_mode()` handles updates with automatic tracking
+- **Admin UI**: `/maintenance` route provides toggle and message editor
+
+**Files Involved**:
+- `database/schema.sql` - Table definition and RLS policies (section 10)
+- `database/migrations/add_app_config_table.sql` - Migration file
+- `src/App.jsx` - Maintenance check logic
+- `src/components/common/MaintenancePage.jsx` - Maintenance display
+- `src/components/admin/MaintenanceToggle.jsx` - Admin control panel
+- `src/components/layout/Dashboard.jsx` - Navigation link (super_admin only)
+
+**Manual Toggle** (Emergency use via SQL):
+```sql
+-- Enable maintenance mode
+UPDATE public.app_config SET maintenance_mode = true WHERE id = 1;
+
+-- Disable maintenance mode
+UPDATE public.app_config SET maintenance_mode = false WHERE id = 1;
+```
+
 ## Key Constraints & Business Rules
 
 ### Database Constraints

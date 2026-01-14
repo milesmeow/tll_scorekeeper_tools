@@ -198,7 +198,35 @@ CREATE INDEX idx_positions_game ON public.positions_played(game_id);
 CREATE INDEX idx_positions_player ON public.positions_played(player_id);
 
 -- =====================================================
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. APP CONFIG (Maintenance Mode)
+-- =====================================================
+
+CREATE TABLE public.app_config (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  maintenance_mode BOOLEAN NOT NULL DEFAULT FALSE,
+  maintenance_message TEXT DEFAULT 'The application is currently undergoing maintenance. Please check back soon.',
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by UUID REFERENCES auth.users(id),
+  CONSTRAINT single_config_row CHECK (id = 1)
+);
+
+-- Comments for documentation
+COMMENT ON TABLE public.app_config IS
+  'Application-wide configuration settings. Only contains a single row (id=1).';
+
+COMMENT ON COLUMN public.app_config.maintenance_mode IS
+  'When true, only super_admins can access the application.';
+
+COMMENT ON COLUMN public.app_config.maintenance_message IS
+  'Custom message displayed to users during maintenance mode.';
+
+-- Insert default configuration row
+INSERT INTO public.app_config (id, maintenance_mode, maintenance_message)
+VALUES (1, FALSE, 'The application is currently undergoing maintenance. Please check back soon.')
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- 11. ROW LEVEL SECURITY (RLS) POLICIES
 -- =====================================================
 
 -- Enable RLS on all tables INCLUDING user_profiles
@@ -211,6 +239,7 @@ ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pitching_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.positions_played ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- RLS RECURSION PREVENTION ARCHITECTURE
@@ -405,8 +434,20 @@ CREATE POLICY "Manage positions_played" ON public.positions_played FOR ALL USING
 
 CREATE POLICY "View positions_played" ON public.positions_played FOR SELECT USING ((select auth.uid()) IS NOT NULL);
 
+-- app_config policies
+CREATE POLICY "Anyone can view app config"
+  ON public.app_config
+  FOR SELECT
+  USING (true);
+
+CREATE POLICY "Only super_admins can update app config"
+  ON public.app_config
+  FOR UPDATE
+  USING ((select public.is_super_admin()))
+  WITH CHECK ((select public.is_super_admin()));
+
 -- =====================================================
--- 11. FUNCTIONS & TRIGGERS
+-- 12. FUNCTIONS & TRIGGERS
 -- =====================================================
 
 -- Update timestamp trigger
@@ -433,6 +474,55 @@ CREATE TRIGGER update_players_updated_at BEFORE UPDATE ON public.players
 
 CREATE TRIGGER update_games_updated_at BEFORE UPDATE ON public.games
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+CREATE TRIGGER update_app_config_updated_at BEFORE UPDATE ON public.app_config
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- Maintenance mode update function
+CREATE OR REPLACE FUNCTION public.update_maintenance_mode(
+  p_maintenance_mode BOOLEAN,
+  p_maintenance_message TEXT DEFAULT NULL
+)
+RETURNS TABLE(maintenance_mode BOOLEAN, maintenance_message TEXT, updated_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_message TEXT;
+BEGIN
+  -- Check if user is super_admin
+  IF NOT public.is_super_admin() THEN
+    RAISE EXCEPTION 'Only super_admins can update maintenance mode';
+  END IF;
+
+  -- Get current message if new one not provided
+  IF p_maintenance_message IS NULL THEN
+    SELECT ac.maintenance_message INTO v_message
+    FROM public.app_config ac
+    WHERE ac.id = 1;
+  ELSE
+    v_message := p_maintenance_message;
+  END IF;
+
+  -- Update the config
+  UPDATE public.app_config ac
+  SET
+    maintenance_mode = p_maintenance_mode,
+    maintenance_message = v_message,
+    updated_at = NOW(),
+    updated_by = auth.uid()
+  WHERE ac.id = 1;
+
+  -- Return updated values
+  RETURN QUERY
+  SELECT ac.maintenance_mode, ac.maintenance_message, ac.updated_at
+  FROM public.app_config ac
+  WHERE ac.id = 1;
+END;
+$$;
+
+COMMENT ON FUNCTION public.update_maintenance_mode IS
+  'Updates maintenance mode settings. Only callable by super_admins.';
 
 -- =====================================================
 -- SCHEMA COMPLETE
