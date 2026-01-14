@@ -1,6 +1,6 @@
 # 🚀 QUICKSTART - Baseball Team Manager
 
-**Get up and running in 15 minutes**
+**Get up and running in 20 minutes**
 
 ---
 
@@ -22,7 +22,7 @@ npm install
 
 ---
 
-## Step 2: Configure Supabase (5 minutes)
+## Step 2: Configure Supabase (10 minutes)
 
 ### A. Run Database Schema
 
@@ -33,19 +33,223 @@ npm install
 5. Paste and click **Run**
 6. Should see: "Success. No rows returned"
 
-### B. Deploy Edge Function
+### B. Deploy Edge Functions
 
-1. Go to **Edge Functions** in Supabase Dashboard
+#### Overview
+
+Your app needs **two Edge Functions** for user management:
+
+- `create-user` - Creates new users with auth accounts
+- `reset-password` - Allows super admins to reset user passwords
+
+⚠️ **Why Edge Functions?** The client-side cannot access `auth.users` table (requires service role key). Edge Functions use a service role to safely create/modify users.
+
+**Time**: 5-7 minutes (choose Dashboard OR CLI method below)
+
+---
+
+#### Method 1: Dashboard Deployment (Recommended for Beginners)
+
+**Deploy create-user function:**
+
+1. Open **Supabase Dashboard** → **Edge Functions**
 2. Click **Create a new function**
-3. Name it: `create-user`
-4. Replace code with contents from edge function (see below)
-5. Click **Deploy**
+3. Name it exactly: `create-user` (critical!)
+4. Copy the entire code from `/database/create-user-edge-function.ts` in your project
+5. Paste it into the function editor
+6. Click **Deploy**
+7. ✅ You should see: Function deployed successfully
 
-**Edge Function Code** (save as `index.ts`):
-```typescript
-// See ARCHITECTURE.md for full Edge Function code
-// Or check Supabase Dashboard → Edge Functions → create-user
+**Deploy reset-password function:**
+
+1. Still in **Edge Functions**, click **Create a new function** again
+2. Name it exactly: `reset-password` (critical!)
+3. Copy the entire code from `/database/reset-password-edge-function.ts` in your project
+4. Paste it into the function editor
+5. Click **Deploy**
+6. ✅ You should see: Function deployed successfully
+
+**Verify deployment:**
+
+- You should now see both functions listed: `create-user` and `reset-password`
+- Each will show a green "Deployed" status
+- Note the endpoint URLs - they should match:
+  - `https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-user`
+  - `https://YOUR_PROJECT_REF.supabase.co/functions/v1/reset-password`
+
+---
+
+#### Method 2: CLI Deployment (Advanced - Optional)
+
+**Prerequisites:**
+
+- Node.js 18+ (already installed from Step 1)
+- Supabase CLI (we'll install it)
+
+**Install Supabase CLI:**
+
+```bash
+# Install globally
+npm install -g supabase
+
+# Verify installation
+supabase --version
 ```
+
+**Login and link project:**
+
+```bash
+# Login to Supabase
+supabase login
+
+# Link to your project
+supabase link --project-ref YOUR_PROJECT_REF
+```
+
+💡 Find your project ref: **Settings → General → Reference ID**
+
+**Deploy functions:**
+
+⚠️ **Note**: The current project structure has edge functions as `.ts` files in `database/`. For CLI deployment, you'll need to organize them into Supabase's expected structure:
+
+```bash
+# Create functions directory structure
+mkdir -p supabase/functions/create-user
+mkdir -p supabase/functions/reset-password
+
+# Copy function code (rename to index.ts)
+cp database/create-user-edge-function.ts supabase/functions/create-user/index.ts
+cp database/reset-password-edge-function.ts supabase/functions/reset-password/index.ts
+
+# Deploy both functions
+supabase functions deploy create-user --no-verify-jwt
+supabase functions deploy reset-password --no-verify-jwt
+```
+
+💡 `--no-verify-jwt` flag is needed because these functions handle their own authorization
+
+**Verify deployment:**
+
+```bash
+supabase functions list
+
+# Expected output:
+# NAME              VERSION    CREATED AT
+# create-user       1          [timestamp]
+# reset-password    1          [timestamp]
+```
+
+---
+
+#### Environment Variables (Auto-Configured)
+
+Good news! Supabase automatically injects these environment variables into your Edge Functions:
+
+- `SUPABASE_URL` - Your project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Admin key (bypasses RLS)
+
+**No manual configuration needed.** The functions access these via `Deno.env.get()`.
+
+🔒 **Security Note**: Service role key bypasses Row Level Security. Edge functions verify super_admin role before allowing operations.
+
+---
+
+#### Testing Your Functions (Optional but Recommended)
+
+**Get your session token:**
+
+1. Start your app: `npm run dev`
+2. Login as your super admin at `http://localhost:5173`
+3. Open browser console (F12)
+4. Run this command:
+
+```javascript
+(await supabase.auth.getSession()).data.session.access_token;
+```
+
+5. Copy the token (starts with `eyJ...`)
+
+**Test create-user function:**
+
+```bash
+curl -X POST https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/create-user \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -d '{
+    "email": "test@example.com",
+    "password": "TestPassword123",
+    "name": "Test User",
+    "role": "coach"
+  }'
+```
+
+**Expected response (200 Success):**
+
+```json
+{
+  "success": true,
+  "user": {
+    "id": "uuid-here",
+    "email": "test@example.com",
+    "name": "Test User",
+    "role": "coach"
+  }
+}
+```
+
+**If not super_admin (403 Forbidden):**
+
+```json
+{
+  "error": "Only super admins can create users"
+}
+```
+
+**Test reset-password function:**
+
+```bash
+curl -X POST https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/reset-password \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \
+  -d '{
+    "userId": "USER_UUID_HERE",
+    "newPassword": "NewPassword123"
+  }'
+```
+
+**Expected response (200 Success):**
+
+```json
+{
+  "success": true,
+  "message": "Password reset successfully",
+  "user": {
+    "id": "uuid-here",
+    "email": "user@example.com",
+    "name": "User Name"
+  }
+}
+```
+
+---
+
+#### Troubleshooting
+
+| Issue            | Cause                           | Solution                                                       |
+| ---------------- | ------------------------------- | -------------------------------------------------------------- |
+| 401 Unauthorized | Missing or invalid Bearer token | Get fresh token from browser console                           |
+| 403 Forbidden    | Not a super_admin               | Verify `user_profiles.role = 'super_admin'` in Table Editor    |
+| 404 Not Found    | Function not deployed           | Check function name exactly: `create-user` or `reset-password` |
+| 500 Server Error | Missing environment variables   | Check **Dashboard → Edge Functions → Logs** for details        |
+| CORS error       | Browser blocking request        | Use curl for testing, not browser fetch()                      |
+
+**Additional help:**
+
+- **View function logs**: Dashboard → Edge Functions → Select function → Logs tab
+- **Redeploy**: Click function name → Edit → Deploy button
+- **Supabase docs**: https://supabase.com/docs/guides/functions
+
+✅ **Edge Functions deployed!** You can now create and manage users from the app UI.
 
 ### C. Get API Keys
 
@@ -123,18 +327,21 @@ Open browser to: **http://localhost:5173**
 ### Try These Actions:
 
 1. **Create a User** (now works from the app!)
+
    - Click **User Management**
    - Click **+ Add User**
    - Fill form, click **Generate** for password
    - Click **Create User**
 
 2. **Create a Season**
+
    - Click **Seasons**
    - Click **+ Create Season**
    - Enter name and start date
    - Save
 
 3. **Create a Team**
+
    - Click **Teams**
    - Select your season
    - Click **+ Create Team**
@@ -151,19 +358,23 @@ Open browser to: **http://localhost:5173**
 ## Common Issues & Fixes
 
 ### "Invalid API key"
+
 - Double-check `.env.local` file
 - Restart dev server: `Ctrl+C` then `npm run dev`
 
 ### "Permission denied"
+
 - Make sure you ran **entire** `schema.sql`
 - Check user_profiles has your super admin entry
 
 ### "Can't log in"
+
 - Verify user exists in **auth.users**
 - Verify matching entry in **user_profiles**
 - Check `is_active = true`
 
 ### Tailwind not working
+
 - Ensure `package.json` has `tailwindcss@3.4.1` (NOT v4)
 - Run `npm install` again if needed
 
@@ -174,11 +385,13 @@ Open browser to: **http://localhost:5173**
 You're ready to use the app! Try:
 
 1. **Create your league structure**
+
    - Add your season
    - Add all teams
    - Add players (use CSV for speed!)
 
 2. **Assign coaches**
+
    - Create coach users
    - Assign them to teams
 
@@ -193,44 +406,49 @@ You're ready to use the app! Try:
 ### ✅ What Works Now
 
 **Phase 1 (Complete)**
+
 - User login/logout
 - Password changes
 - Create users from app (via Edge Function)
 
 **Phase 2 (Complete)**
+
 - Season management (create, edit, delete, set active)
 - Team management (create, edit, delete, by division)
 - Player management (individual + bulk CSV import)
 - Coach management (view and assign to teams)
 
 **Phase 3 (Complete)**
+
 - ✅ Game entry (basic info + player data)
 - ✅ Game viewing with full details
 - ✅ Game editing
 - ✅ Game deletion
 
+**Phase 4 (Complete)**
+
+- ✅ Pitch Smart rule validation
+- ✅ Rest day calculations
+- ✅ Warning flags
+
+**Phase 5 (Complete)**
+
+- ✅ PDF reports
+
 ### 🚧 Coming Soon
-
-**Phase 4 (Next)**
-- Pitch Smart rule validation
-- Rest day calculations
-- Warning flags
-
-**Phase 5**
-- PDF reports
-- Player statistics
-- Compliance dashboards
 
 ---
 
 ## Key Reminders
 
 ### User Roles
+
 - **Super Admin**: Full access + user management
 - **Admin**: Full data access, no user management
 - **Coach**: Read-only access to assigned teams
 
 ### Design Notes
+
 - Scorekeepers are NOT users (just text when entering games)
 - Coaches are always read-only (can't edit data)
 - Jersey numbers must be unique per team
@@ -254,12 +472,11 @@ Once everything is running:
 
 1. **Create your league data**
    - Seasons, teams, players
-   
 2. **Assign coaches**
    - Create coach accounts
    - Assign to teams
-   
 3. **Start entering games**
+
    - Record game data
    - Track pitch counts
 
