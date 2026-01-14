@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import Login from './components/auth/Login'
 import ChangePassword from './components/auth/ChangePassword'
 import Dashboard from './components/layout/Dashboard'
+import MaintenancePage from './components/common/MaintenancePage'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -10,9 +11,35 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [requirePasswordChange, setRequirePasswordChange] = useState(false)
   const [loginError, setLoginError] = useState(null)
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [maintenanceMessage, setMaintenanceMessage] = useState('')
   const previousUserIdRef = useRef(null)
 
+  // Check maintenance mode on app startup
+  const checkMaintenanceMode = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('app_config')
+        .select('maintenance_mode, maintenance_message')
+        .eq('id', 1)
+        .single()
+
+      if (error) {
+        console.error('Error checking maintenance mode:', error)
+        return
+      }
+
+      setMaintenanceMode(data.maintenance_mode)
+      setMaintenanceMessage(data.maintenance_message)
+    } catch (error) {
+      console.error('Error checking maintenance mode:', error)
+    }
+  }
+
   useEffect(() => {
+    // Check maintenance mode first
+    checkMaintenanceMode()
+
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -108,6 +135,12 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  // Check maintenance mode - allow super_admins to bypass
+  const isSuperAdmin = profile?.role === 'super_admin'
+  if (maintenanceMode && !isSuperAdmin) {
+    return <MaintenancePage message={maintenanceMessage} />
   }
 
   // Not logged in
