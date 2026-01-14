@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import UserManagement from '../admin/UserManagement'
+import MaintenanceToggle from '../admin/MaintenanceToggle'
 import SeasonManagement from '../seasons/SeasonManagement'
 import TeamManagement from '../teams/TeamManagement'
 import PlayerManagement from '../players/PlayerManagement'
@@ -68,16 +69,28 @@ export default function Dashboard({ user, profile }) {
               </button> */}
 
               {isSuperAdmin && (
-                <button
-                  onClick={() => navigate('/users')}
-                  className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                    location.pathname === '/users'
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  👥 User Management
-                </button>
+                <>
+                  <button
+                    onClick={() => navigate('/users')}
+                    className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                      location.pathname === '/users'
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    👥 User Management
+                  </button>
+                  <button
+                    onClick={() => navigate('/maintenance')}
+                    className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                      location.pathname === '/maintenance'
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    🔧 Maintenance Mode
+                  </button>
+                </>
               )}
 
               <button
@@ -173,6 +186,7 @@ export default function Dashboard({ user, profile }) {
             <Routes>
               <Route path="/" element={<RoleBasedRedirect profile={profile} />} />
               <Route path="/users" element={isSuperAdmin ? <UserManagement /> : <Navigate to="/teams" replace />} />
+              <Route path="/maintenance" element={isSuperAdmin ? <MaintenanceToggle /> : <Navigate to="/teams" replace />} />
               <Route path="/games" element={<GameEntry profile={profile} isAdmin={isAdmin} />} />
               <Route path="/teams" element={<TeamManagement profile={profile} isCoach={isCoach} />} />
               <Route path="/seasons" element={isAdmin ? <SeasonManagement isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
