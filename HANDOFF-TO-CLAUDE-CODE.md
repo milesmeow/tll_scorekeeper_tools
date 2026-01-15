@@ -78,7 +78,7 @@ This is a comprehensive handoff for continuing development in Claude Code. It co
 ### 2. Database Constraints
 - Jersey numbers unique per team (enforced by DB)
 - Only one active season (unique partial index)
-- Age range 7-22 (CHECK constraint)
+- Age range 7-12 (CHECK constraint)
 - Home team ≠ Away team (CHECK constraint)
 
 ### 3. RLS Policy Pattern

@@ -7,12 +7,14 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 ### ✅ Completed Features
 
 #### Phase 1: Foundation (Complete)
+
 - **User Authentication** - Supabase-based login with forced password change
 - **User Management** - Super admins can create users via Edge Function
 - **Role-Based Access Control** - Super Admin, Admin, Coach roles
 - **Database Schema** - Complete with RLS policies (fixed for production)
 
 #### Phase 2: Data Management (Complete)
+
 - **Season Management** - Create, edit, delete seasons; set active season
 - **Team Management** - Organize by division (Training, Minor, Major)
 - **Player Management** - Individual add, bulk CSV import, edit/delete
@@ -20,6 +22,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - **Coach Assignments** - Assign coaches to teams (always read-only access)
 
 #### Phase 3: Game Entry (Complete)
+
 - ✅ **Basic Game Entry** - Date, teams, scores, scorekeeper info
 - ✅ **Player Data Entry** - Attendance, innings pitched/caught, pitch counts
 - ✅ **Game Viewing** - View complete game details
@@ -27,6 +30,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - ✅ **Game Deletion** - Delete games with confirmation
 
 #### Phase 3.5: Data Export Tools (Complete)
+
 - ✅ **Tools Section** - Admin-only tools accessible from dashboard sidebar
 - ✅ **JSON Backup Export** - Complete season data export for backup/restore
 - ✅ **CSV Export** - 4 human-readable, denormalized CSV files (teams roster, games, pitching/catching log, absent players) packaged in ZIP
@@ -40,6 +44,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - ✅ **Timestamped Filenames** - All exports include date and time (YYYY-MM-DD_HH-MM-SS)
 
 #### Phase 4: Rules Engine (In Progress)
+
 - ✅ **Automatic Violation Detection** - Real-time compliance checking during game entry
 - ✅ **5 Rule Validation System** - Complete implementation of pitching/catching restrictions:
   - **Rule 1**: Pitchers must pitch consecutive innings (cannot return after being taken out)
@@ -57,6 +62,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - **See RULES.md for complete rule documentation**
 
 #### Phase 5: Advanced Reporting & Data Management (Planned)
+
 - Import season data from backup JSON files
 - Player statistics dashboards (absences, pitch counts, playing time)
 - Compliance reports with rule violation summaries
@@ -65,15 +71,18 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 ## Tools Section (Admin Only)
 
 ### Overview
+
 The Tools section provides data export functionality for admins and super admins. Access it from the dashboard sidebar (🛠️ Tools).
 
 ### Export Features
 
 #### 1. JSON Backup Export
+
 **Purpose**: Complete season data backup for archival or future import functionality
 **Output**: Single JSON file with all related data
 **Filename**: `backup_SeasonName_YYYY-MM-DD_HH-MM-SS.json`
 **Contains**:
+
 - Season metadata
 - All teams with their divisions
 - Complete player rosters
@@ -86,10 +95,12 @@ The Tools section provides data export functionality for admins and super admins
 **Use Case**: Create backups before major changes, archive completed seasons, prepare for future import feature
 
 #### 2. CSV Export
+
 **Purpose**: Human-readable, spreadsheet-friendly format for data analysis
 **Output**: ZIP file containing 4 denormalized CSV files
 **Filename**: `csv_export_SeasonName_YYYY-MM-DD_HH-MM-SS.zip`
 **Files Included**:
+
 - `teams_roster.csv` - Division, Team Name, Player Name, Age, Jersey Number (sorted by division)
 - `games.csv` - Division, Date, Home Team, Away Team, Home Score, Away Score (sorted by division then date)
 - `pitching_catching_log.csv` - Division, Player Name, Age, Jersey Number, Position (Catch/Pitch), Innings, Final Pitch Count, Official Pitch Count, Date, Game (sorted by division then date)
@@ -98,10 +109,12 @@ The Tools section provides data export functionality for admins and super admins
 **Use Case**: Easy-to-read format for analyzing team rosters, game results, player activities, and attendance in Excel/Google Sheets. Data is denormalized and pre-sorted for immediate analysis.
 
 #### 3. HTML Report Export
+
 **Purpose**: Human-readable, formatted season report
 **Output**: Single HTML file viewable in any browser
 **Filename**: `report_SeasonName_YYYY-MM-DD_HH-MM-SS.html`
 **Sections**:
+
 - Season overview with dates and status
 - Teams Overview table (Name, Division, Player Count)
 - Detailed team sections with:
@@ -116,6 +129,7 @@ The Tools section provides data export functionality for admins and super admins
   - Official Pitch Count = Penultimate Batter Count + 1 (per Pitch Smart rules)
 
 **Features**:
+
 - Print-friendly styling with proper page breaks
 - Color-coded division badges
 - Responsive design for mobile viewing
@@ -124,9 +138,11 @@ The Tools section provides data export functionality for admins and super admins
 **Use Case**: Share with league officials, print for physical records, review season at a glance
 
 ### Date Handling
+
 All exports use the `parseLocalDate()` utility function to ensure dates display correctly without timezone offset issues. This prevents the common problem where database dates (stored as YYYY-MM-DD) appear one day earlier due to UTC conversion.
 
 ### Access Control
+
 - Only users with `admin` or `super_admin` roles can access the Tools section
 - Tools menu item only appears in dashboard sidebar for authorized users
 - Coaches do not have access to export functionality
@@ -134,23 +150,27 @@ All exports use the `parseLocalDate()` utility function to ensure dates display 
 ## Maintenance Mode (Super Admin Only)
 
 ### Overview
+
 Maintenance Mode allows super admins to temporarily restrict application access during critical updates, database migrations, or emergency fixes. When enabled, only super admins can access the application while all other users (admins and coaches) see a maintenance page.
 
 ### How to Use
 
 #### Enable Maintenance Mode
+
 1. Log in as a super admin
 2. Navigate to **🔧 Maintenance Mode** in the dashboard sidebar
 3. Click the **"Enable Maintenance"** button
 4. Changes take effect immediately for all users
 
 #### Customize Maintenance Message
+
 1. In the Maintenance Mode panel, click **"Edit Message"**
 2. Enter your custom message explaining the maintenance
 3. Click **"Save Message"**
 4. The new message will be displayed to users during maintenance
 
 #### Disable Maintenance Mode
+
 1. Navigate to **🔧 Maintenance Mode** in the dashboard sidebar
 2. Click **"Disable Maintenance"** button
 3. Application access is restored immediately for all users
@@ -158,16 +178,19 @@ Maintenance Mode allows super admins to temporarily restrict application access 
 ### Key Features
 
 **Super Admin Bypass**
+
 - Super admins can always access the application, even when maintenance mode is enabled
 - This allows you to work on fixes while users are locked out
 - Other super admins can also access to assist with maintenance
 
 **Real-Time Updates**
+
 - Changes take effect immediately without requiring users to refresh
 - No rebuild or redeployment needed
 - Toggle on/off instantly from the admin panel
 
 **Custom Messaging**
+
 - Configure a custom message to inform users about the maintenance
 - Default message: "The application is currently undergoing maintenance. Please check back soon."
 - Helpful for setting expectations (e.g., "Back online by 3:00 PM EST")
@@ -194,6 +217,7 @@ Run these commands in the Supabase SQL Editor.
 ### Technical Details
 
 **Database Table**: `app_config`
+
 - Single-row table (id=1) stores maintenance settings
 - `maintenance_mode` (boolean) - On/off flag
 - `maintenance_message` (text) - Custom message
@@ -201,10 +225,12 @@ Run these commands in the Supabase SQL Editor.
 - `updated_by` (UUID) - Who made the change
 
 **Access Control**:
+
 - Read: Anyone (including non-authenticated users)
 - Write: Super admins only (enforced by RLS policies)
 
 **Files**:
+
 - Migration: `database/migrations/add_app_config_table.sql`
 - Schema: `database/schema.sql` (section 10)
 - Check Logic: `src/App.jsx`
@@ -225,12 +251,13 @@ Run these commands in the Supabase SQL Editor.
 Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitch counts per game based on player age:
 
 | Age Range | Max Pitches Per Game |
-|-----------|---------------------|
-| 7-8       | 50                  |
-| 9-10      | 75                  |
-| 11-12     | 85                  |
+| --------- | -------------------- |
+| 7-8       | 50                   |
+| 9-10      | 75                   |
+| 11-12     | 85                   |
 
 **Implementation Details:**
+
 - Added `exceedsMaxPitchesForAge()` function to check if a player's effective pitch count exceeds their age-based limit
 - Integrated into all violation checking locations:
   - `GameEntry.jsx` - Shows violation badge on games list
@@ -241,6 +268,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 ### Code Refactoring: Shared Validation Utilities
 
 **Problem:** All 5 validation rules were duplicated across multiple components, leading to:
+
 - Code duplication (~120 lines duplicated in GameEntry.jsx and GameDetailModal.jsx)
 - Inconsistent validation logic
 - Difficult maintenance (updates needed in multiple places)
@@ -248,6 +276,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 **Solution:** Created `/src/lib/violationRules.js` - a centralized utility module containing:
 
 **Exported Functions:**
+
 - `getEffectivePitchCount(penultimateBatterCount)` - Calculate official pitch count
 - `getMaxPitchesForAge(age)` - Get max pitches allowed for a given age
 - `hasInningsGap(innings)` - Rule 1: Check for consecutive innings
@@ -257,6 +286,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 - `exceedsMaxPitchesForAge(age, effectivePitches)` - Rule 5: Age-based pitch limit
 
 **Benefits:**
+
 - ✅ Single source of truth for all validation logic
 - ✅ Eliminated ~240 lines of duplicate code
 - ✅ Consistent rule enforcement across all components
@@ -264,6 +294,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 - ✅ Easier to maintain and update rules
 
 **Components Updated:**
+
 - `GameEntry.jsx` - Now imports shared utilities, created wrapper functions for modal's player objects
 - `GameDetailModal.jsx` - Removed duplicate code, uses shared utilities directly
 - Both components maintain the same validation behavior with cleaner code
@@ -273,11 +304,13 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 ### User Roles & Permissions
 
 **Login Accounts (user_profiles):**
+
 - **Super Admin** - Full access + user management
 - **Admin** - Full data access, no user management
 - **Coach** - Read-only access to assigned teams only
 
 **Non-Login Entities:**
+
 - **Scorekeepers** - Just names (text field) when entering game data, not user accounts
 
 ### Important Constraints
@@ -294,6 +327,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 ### Edge Functions
 
 **create-user** - Deployed Supabase Edge Function
+
 - URL: `https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/create-user`
 - Purpose: Allows super admins to create users from the app
 - Auth: Requires super_admin role
@@ -336,6 +370,7 @@ npm run test:coverage     # Generate coverage report
 ### Current Test Coverage
 
 ✅ **violationRules.js** - 30 tests covering all 5 Pitch Smart rules (95%+ coverage)
+
 - Rule 1: Consecutive innings validation
 - Rule 2: 41+ pitches cannot catch after
 - Rule 3: 4 innings catching cannot pitch after
@@ -357,12 +392,14 @@ For detailed testing documentation, see [TESTING.md](TESTING.md).
 The app uses React Router for client-side navigation, providing several benefits:
 
 **Features:**
+
 - **Persistent URLs** - Each view has its own route (`/games`, `/teams`, `/reports`, etc.)
 - **Browser Navigation** - Back/forward buttons work as expected
 - **Deep Linking** - Direct navigation to specific pages via URL
 - **Role-Based Access** - Routes enforce role permissions with automatic redirects
 
 **Route Structure:**
+
 ```
 / (root) → Redirects based on user role
 ├─ /users      → User Management (super_admin only)
@@ -377,6 +414,7 @@ The app uses React Router for client-side navigation, providing several benefits
 ```
 
 **Role-Based Default Routes:**
+
 - Super Admin → `/users`
 - Admin → `/games`
 - Coach → `/teams`
@@ -388,28 +426,30 @@ The app uses React Router for client-side navigation, providing several benefits
 **Solution:** Implemented smart session change detection in [App.jsx](src/App.jsx):
 
 ```javascript
-const previousUserIdRef = useRef(null)
+const previousUserIdRef = useRef(null);
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  const currentUserId = session?.user?.id
-  const previousUserId = previousUserIdRef.current
+  const currentUserId = session?.user?.id;
+  const previousUserId = previousUserIdRef.current;
 
   // Only clear profile if user actually changed or signed out
   if (!session || currentUserId !== previousUserId) {
-    setProfile(null)
-    previousUserIdRef.current = currentUserId
+    setProfile(null);
+    previousUserIdRef.current = currentUserId;
   }
   // ... load profile only if user changed
-})
+});
 ```
 
 **Benefits:**
+
 - ✅ No unnecessary re-renders when switching tabs
 - ✅ Smooth user experience without flashing/reloading
 - ✅ Profile only clears on actual sign-out or user change
 - ✅ Combined with URL routing, users stay on their current page
 
 **Key Components:**
+
 - `RoleBasedRedirect` - Handles default route selection based on user role
 - `Dashboard` - Main layout using React Router's `useNavigate()` and `useLocation()`
 
@@ -449,15 +489,18 @@ All tables including `user_profiles` have Row Level Security (RLS) enabled. To p
 **Three-Layer RLS Architecture:**
 
 1. **Layer 1: Private RLS-Bypass Function**
+
    - `private.get_user_info(user_id)` - Internal function that bypasses RLS using `SET LOCAL row_security = off`
    - SECURITY DEFINER with revoked public access
    - Only returns role and is_active status
 
 2. **Layer 2: Public Helper Functions**
+
    ```sql
    public.is_admin() -- Returns true if user is super_admin or admin
    public.is_super_admin() -- Returns true if user is super_admin
    ```
+
    - These functions call `get_user_info()` instead of directly querying user_profiles
    - Breaks the recursion cycle
 
@@ -468,12 +511,14 @@ All tables including `user_profiles` have Row Level Security (RLS) enabled. To p
    - Admins get full access to everything
 
 **Why This Works:**
+
 - Helper functions no longer query user_profiles directly (which would trigger RLS)
 - They use the private bypass function instead
 - RLS policies can safely use helper functions without infinite loops
 - Resolves Supabase security warnings while maintaining protection
 
 **Recent Policy Updates (Jan 2026):**
+
 - **team_coaches table**: Changed SELECT policy from restrictive (`user_id = auth.uid()`) to permissive (all authenticated users can view)
   - **Reason**: Enables coaches to see who coaches other teams in TeamManagement UI
   - **Impact**: Coach assignments are not sensitive information; all authenticated users can now view them
@@ -529,12 +574,14 @@ baseball-app/
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Supabase account
 
 ### Setup (10 minutes)
 
 1. **Clone repo and install**
+
 ```bash
 git clone <repo-url>
 cd baseball-app
@@ -542,11 +589,13 @@ npm install
 ```
 
 2. **Set up Supabase**
+
 - Create Supabase project
 - Run `database/schema.sql` in SQL Editor
 - Get API keys from Settings → API
 
 3. **Configure environment**
+
 ```bash
 # Create .env.local
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
@@ -554,12 +603,14 @@ VITE_SUPABASE_ANON_KEY=eyJxxx...
 ```
 
 4. **Deploy Edge Function**
+
 - Go to Edge Functions in Supabase Dashboard
 - Create function named `create-user`
 - Paste code from edge function docs
 - Deploy
 
 5. **Create first super admin**
+
 ```sql
 -- In Supabase: Authentication → Users → Add user
 -- Then in SQL Editor:
@@ -575,6 +626,7 @@ VALUES (
 ```
 
 6. **Start app**
+
 ```bash
 npm run dev
 ```
@@ -582,43 +634,48 @@ npm run dev
 ## Known Issues & Solutions
 
 ### Issue: Tailwind PostCSS Error
+
 **Solution**: Must use Tailwind v3.4.1 (NOT v4)
+
 ```bash
 npm install tailwindcss@3.4.1 -D
 ```
 
 ### Issue: RLS Infinite Recursion
+
 **Solution**: Three-layer architecture with private.get_user_info() bypassing RLS internally
 
 ### Issue: Can't Create Users from App
+
 **Solution**: Edge Function `create-user` uses service role key securely
 
 ### Issue: Duplicate Jersey Numbers
+
 **Solution**: Database constraint `unique_jersey_per_team` enforces uniqueness
 
 ## Pitch Smart Guidelines (Embedded in Database)
 
-| Age   | Max Pitches | Rest Days by Pitch Count |
-|-------|-------------|--------------------------|
-| 7-8   | 50          | 1-20: 0d, 21-35: 1d, 36-50: 2d |
+| Age   | Max Pitches | Rest Days by Pitch Count                           |
+| ----- | ----------- | -------------------------------------------------- |
+| 7-8   | 50          | 1-20: 0d, 21-35: 1d, 36-50: 2d                     |
 | 9-10  | 75          | 1-20: 0d, 21-35: 1d, 36-50: 2d, 51-65: 3d, 66+: 4d |
 | 11-12 | 85          | 1-20: 0d, 21-35: 1d, 36-50: 2d, 51-65: 3d, 66+: 4d |
-| 13-14 | 95          | 1-20: 0d, 21-35: 1d, 36-50: 2d, 51-65: 3d, 66+: 4d |
-| 15-16 | 95          | 1-30: 0d, 31-45: 1d, 46-60: 2d, 61-75: 3d, 76+: 4d |
-| 17-18 | 105         | 1-30: 0d, 31-45: 1d, 46-60: 2d, 61-80: 3d, 81+: 4d |
-| 19-22 | 120         | 1-30: 0d, 31-45: 1d, 46-60: 2d, 61-80: 3d, 81-105: 4d, 106+: 5d |
 
 ## Development Workflow
 
 ### Incremental Development Pattern
+
 We follow a step-by-step approach:
+
 1. Build one feature at a time
 2. Test immediately after each addition
 3. Make incremental commits
 4. Get feedback before moving to next feature
 
 ### File Modification Pattern
+
 Changes are provided as:
+
 - Specific file paths
 - Exact code changes (not full file downloads)
 - Clear before/after snippets
@@ -647,6 +704,7 @@ Private/Proprietary
 ---
 
 **Current Version**: Phases 1, 2, 3, 3.5 Complete + Phase 4 In Progress (as of Jan 2026)
+
 - ✅ Added Tools section with JSON, CSV, and HTML export functionality (Phase 3.5)
 - ✅ Implemented 5-rule validation system with real-time violation detection (Phase 4)
 - ✅ Added Rule 5: Age-based pitch count limits enforcement

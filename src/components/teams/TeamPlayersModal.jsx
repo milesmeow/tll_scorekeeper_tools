@@ -410,7 +410,7 @@ function PlayerFormModal({ teamId, player, onClose, onSuccess, onError }) {
             <input
               type="number"
               min="7"
-              max="22"
+              max="12"
               className="input"
               value={formData.age}
               onChange={(e) => setFormData({ ...formData, age: e.target.value })}
@@ -483,8 +483,8 @@ function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
         }
 
         const ageNum = parseInt(age)
-        if (isNaN(ageNum) || ageNum < 7 || ageNum > 22) {
-          throw new Error('Line ' + (i + 1) + ': Age must be between 7 and 22')
+        if (isNaN(ageNum) || ageNum < 7 || ageNum > 12) {
+          throw new Error('Line ' + (i + 1) + ': Age must be between 7 and 12')
         }
 
         players.push({
@@ -547,7 +547,7 @@ Jane Doe, 11, 7
 Bob Johnson, 13</pre>
               <p className="mt-2 text-xs text-gray-600">
                 • One player per line<br />
-                • Age must be 7-22<br />
+                • Age must be 7-12<br />
                 • Jersey numbers must be unique on this team<br />
                 • Jersey number is optional (leave blank for no jersey)
               </p>

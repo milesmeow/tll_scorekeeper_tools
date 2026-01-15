@@ -14,6 +14,9 @@ import {
   exceedsMaxPitchesForAge,
   calculateGameHasViolations
 } from '../../lib/violationRules'
+import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
+import AbsentPlayerCard from './shared/AbsentPlayerCard'
+import InningsVisualDisplay from './shared/InningsVisualDisplay'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -1741,57 +1744,10 @@ function ConfirmationTeamSection({
                   </div>
 
                   {/* Innings Visual Display */}
-                  {(pitchedInnings.length > 0 || caughtInnings.length > 0) && (() => {
-                    // Determine maximum inning from both pitched and caught, with a minimum of 6
-                    const maxInning = Math.max(
-                      6, // Minimum 6 innings
-                      pitchedInnings.length > 0 ? Math.max(...pitchedInnings) : 0,
-                      caughtInnings.length > 0 ? Math.max(...caughtInnings) : 0
-                    )
-                    const innings = Array.from({ length: maxInning }, (_, i) => i + 1)
-
-                    return (
-                      <div className="mt-2 flex flex-wrap gap-6 text-sm items-center">
-                        {/* Pitching */}
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-700">Pitching</span>
-                          <div className="flex gap-1">
-                            {innings.map(inning => (
-                              <div key={`pitch-${inning}`} className="flex flex-col items-center">
-                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
-                                <div
-                                  className={`w-5 h-5 rounded-full border-2 ${
-                                    pitchedInnings.includes(inning)
-                                      ? 'bg-blue-500 border-blue-600'
-                                      : 'bg-white border-gray-300'
-                                  }`}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Catching */}
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-700">Catching</span>
-                          <div className="flex gap-1">
-                            {innings.map(inning => (
-                              <div key={`catch-${inning}`} className="flex flex-col items-center">
-                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
-                                <div
-                                  className={`w-5 h-5 rounded-full border-2 ${
-                                    caughtInnings.includes(inning)
-                                      ? 'bg-green-500 border-green-600'
-                                      : 'bg-white border-gray-300'
-                                  }`}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <InningsVisualDisplay
+                    pitchedInnings={pitchedInnings}
+                    caughtInnings={caughtInnings}
+                  />
 
                   {/* Pitch Count Info */}
                   {player.final_pitch_count && (
@@ -1804,31 +1760,19 @@ function ConfirmationTeamSection({
                   )}
 
                   {/* Violation Messages */}
-                  {hasPitchingGap && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Pitcher cannot return after being taken out. Innings must be consecutive.
-                    </div>
-                  )}
-                  {violationHighPitchCount && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                    </div>
-                  )}
-                  {violationFourInningsCatching && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Caught {caughtInnings.length} innings and cannot pitch in this game.
-                    </div>
-                  )}
-                  {violationCombinedRule && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                    </div>
-                  )}
-                  {violationExceedsPitchLimit && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(player.age)} for age {player.age}.
-                    </div>
-                  )}
+                  <PlayerViolationWarnings
+                    hasPitchingGap={hasPitchingGap}
+                    violationHighPitchCount={violationHighPitchCount}
+                    violationFourInningsCatching={violationFourInningsCatching}
+                    violationCombinedRule={violationCombinedRule}
+                    violationExceedsPitchLimit={violationExceedsPitchLimit}
+                    pitchedInnings={pitchedInnings}
+                    caughtInnings={caughtInnings}
+                    effectivePitches={effectivePitches}
+                    playerAge={player.age}
+                    getMaxPitchesForAge={getMaxPitchesForAge}
+                    variant="confirmation"
+                  />
                 </div>
               )
             })}
@@ -1842,20 +1786,11 @@ function ConfirmationTeamSection({
           <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
           <div className="space-y-2">
             {absentPlayers.map(player => (
-              <div key={player.id} className="bg-red-50 border border-red-200 rounded p-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold">{player.name}</span>
-                  <span className="text-xs text-gray-600">Age: {player.age}</span>
-                  {player.jersey_number && (
-                    <span className="text-xs text-gray-600">#{player.jersey_number}</span>
-                  )}
-                </div>
-                {player.absence_note && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    Reason: {player.absence_note}
-                  </div>
-                )}
-              </div>
+              <AbsentPlayerCard
+                key={player.id}
+                player={player}
+                variant="confirmation"
+              />
             ))}
           </div>
         </div>
