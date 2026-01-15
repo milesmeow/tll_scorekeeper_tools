@@ -11,6 +11,7 @@ import {
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge
 } from '../../lib/violationRules'
+import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -318,41 +319,19 @@ function TeamDetailSection({
                       )}
 
                       {/* Violation Warnings */}
-                      {hasPitchingGap && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
-                          </p>
-                        </div>
-                      )}
-                      {violationFourInningsCatching && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player caught {caughtInnings.length} innings and cannot pitch in this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationHighPitchCount && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationCombinedRule && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationExceedsPitchLimit && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(playerData.player.age)} for age {playerData.player.age}.
-                          </p>
-                        </div>
-                      )}
+                      <PlayerViolationWarnings
+                        hasPitchingGap={hasPitchingGap}
+                        violationHighPitchCount={violationHighPitchCount}
+                        violationFourInningsCatching={violationFourInningsCatching}
+                        violationCombinedRule={violationCombinedRule}
+                        violationExceedsPitchLimit={violationExceedsPitchLimit}
+                        pitchedInnings={pitchedInnings}
+                        caughtInnings={caughtInnings}
+                        effectivePitches={effectivePitches}
+                        playerAge={playerData.player.age}
+                        getMaxPitchesForAge={getMaxPitchesForAge}
+                        variant="detail"
+                      />
                     </div>
                   </div>
                 </div>

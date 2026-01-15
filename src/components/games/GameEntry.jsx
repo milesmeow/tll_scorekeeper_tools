@@ -14,6 +14,7 @@ import {
   exceedsMaxPitchesForAge,
   calculateGameHasViolations
 } from '../../lib/violationRules'
+import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -1804,31 +1805,19 @@ function ConfirmationTeamSection({
                   )}
 
                   {/* Violation Messages */}
-                  {hasPitchingGap && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Pitcher cannot return after being taken out. Innings must be consecutive.
-                    </div>
-                  )}
-                  {violationHighPitchCount && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                    </div>
-                  )}
-                  {violationFourInningsCatching && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Caught {caughtInnings.length} innings and cannot pitch in this game.
-                    </div>
-                  )}
-                  {violationCombinedRule && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                    </div>
-                  )}
-                  {violationExceedsPitchLimit && (
-                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800">
-                      ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(player.age)} for age {player.age}.
-                    </div>
-                  )}
+                  <PlayerViolationWarnings
+                    hasPitchingGap={hasPitchingGap}
+                    violationHighPitchCount={violationHighPitchCount}
+                    violationFourInningsCatching={violationFourInningsCatching}
+                    violationCombinedRule={violationCombinedRule}
+                    violationExceedsPitchLimit={violationExceedsPitchLimit}
+                    pitchedInnings={pitchedInnings}
+                    caughtInnings={caughtInnings}
+                    effectivePitches={effectivePitches}
+                    playerAge={player.age}
+                    getMaxPitchesForAge={getMaxPitchesForAge}
+                    variant="confirmation"
+                  />
                 </div>
               )
             })}
