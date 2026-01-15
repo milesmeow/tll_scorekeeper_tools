@@ -11,6 +11,8 @@ import {
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge
 } from '../../lib/violationRules'
+import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
+import AbsentPlayerCard from './shared/AbsentPlayerCard'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -318,41 +320,19 @@ function TeamDetailSection({
                       )}
 
                       {/* Violation Warnings */}
-                      {hasPitchingGap && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: A pitcher cannot return after being taken out. Innings must be consecutive (e.g., 1,2,3 or 4,5,6).
-                          </p>
-                        </div>
-                      )}
-                      {violationFourInningsCatching && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player caught {caughtInnings.length} innings and cannot pitch in this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationHighPitchCount && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player threw {effectivePitches} pitches (41+) and cannot catch for the remainder of this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationCombinedRule && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Player caught 1-3 innings and threw {effectivePitches} pitches (21+). Cannot catch again in this game.
-                          </p>
-                        </div>
-                      )}
-                      {violationExceedsPitchLimit && (
-                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
-                          <p className="text-sm text-red-700">
-                            ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(playerData.player.age)} for age {playerData.player.age}.
-                          </p>
-                        </div>
-                      )}
+                      <PlayerViolationWarnings
+                        hasPitchingGap={hasPitchingGap}
+                        violationHighPitchCount={violationHighPitchCount}
+                        violationFourInningsCatching={violationFourInningsCatching}
+                        violationCombinedRule={violationCombinedRule}
+                        violationExceedsPitchLimit={violationExceedsPitchLimit}
+                        pitchedInnings={pitchedInnings}
+                        caughtInnings={caughtInnings}
+                        effectivePitches={effectivePitches}
+                        playerAge={playerData.player.age}
+                        getMaxPitchesForAge={getMaxPitchesForAge}
+                        variant="detail"
+                      />
                     </div>
                   </div>
                 </div>
@@ -368,21 +348,16 @@ function TeamDetailSection({
           <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
           <div className="space-y-2">
             {absentPlayers.map(playerData => (
-              <div key={playerData.player_id} className="bg-red-50 border border-red-200 rounded p-3">
-                <div className="flex items-center gap-3">
-                  <h6 className="font-semibold text-gray-800">{playerData.player.name}</h6>
-                  <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
-                  {playerData.player.jersey_number && (
-                    <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
-                  )}
-                </div>
-                {playerData.absence_note && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    <span className="font-medium">Reason: </span>
-                    {playerData.absence_note}
-                  </p>
-                )}
-              </div>
+              <AbsentPlayerCard
+                key={playerData.player_id}
+                player={{
+                  name: playerData.player.name,
+                  age: playerData.player.age,
+                  jersey_number: playerData.player.jersey_number,
+                  absence_note: playerData.absence_note
+                }}
+                variant="detail"
+              />
             ))}
           </div>
         </div>
