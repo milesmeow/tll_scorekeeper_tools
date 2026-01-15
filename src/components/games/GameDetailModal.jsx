@@ -12,6 +12,7 @@ import {
   exceedsMaxPitchesForAge
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
+import AbsentPlayerCard from './shared/AbsentPlayerCard'
 
 export default function GameDetailModal({ game, onClose }) {
   const [loading, setLoading] = useState(true)
@@ -347,21 +348,16 @@ function TeamDetailSection({
           <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
           <div className="space-y-2">
             {absentPlayers.map(playerData => (
-              <div key={playerData.player_id} className="bg-red-50 border border-red-200 rounded p-3">
-                <div className="flex items-center gap-3">
-                  <h6 className="font-semibold text-gray-800">{playerData.player.name}</h6>
-                  <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
-                  {playerData.player.jersey_number && (
-                    <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
-                  )}
-                </div>
-                {playerData.absence_note && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    <span className="font-medium">Reason: </span>
-                    {playerData.absence_note}
-                  </p>
-                )}
-              </div>
+              <AbsentPlayerCard
+                key={playerData.player_id}
+                player={{
+                  name: playerData.player.name,
+                  age: playerData.player.age,
+                  jersey_number: playerData.player.jersey_number,
+                  absence_note: playerData.absence_note
+                }}
+                variant="detail"
+              />
             ))}
           </div>
         </div>

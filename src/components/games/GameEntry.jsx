@@ -15,6 +15,7 @@ import {
   calculateGameHasViolations
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
+import AbsentPlayerCard from './shared/AbsentPlayerCard'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -1831,20 +1832,11 @@ function ConfirmationTeamSection({
           <h5 className="font-semibold mb-3 text-red-700">Absent ({absentPlayers.length})</h5>
           <div className="space-y-2">
             {absentPlayers.map(player => (
-              <div key={player.id} className="bg-red-50 border border-red-200 rounded p-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold">{player.name}</span>
-                  <span className="text-xs text-gray-600">Age: {player.age}</span>
-                  {player.jersey_number && (
-                    <span className="text-xs text-gray-600">#{player.jersey_number}</span>
-                  )}
-                </div>
-                {player.absence_note && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    Reason: {player.absence_note}
-                  </div>
-                )}
-              </div>
+              <AbsentPlayerCard
+                key={player.id}
+                player={player}
+                variant="confirmation"
+              />
             ))}
           </div>
         </div>
