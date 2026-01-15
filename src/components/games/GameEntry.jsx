@@ -16,6 +16,7 @@ import {
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 import AbsentPlayerCard from './shared/AbsentPlayerCard'
+import InningsVisualDisplay from './shared/InningsVisualDisplay'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -1743,57 +1744,10 @@ function ConfirmationTeamSection({
                   </div>
 
                   {/* Innings Visual Display */}
-                  {(pitchedInnings.length > 0 || caughtInnings.length > 0) && (() => {
-                    // Determine maximum inning from both pitched and caught, with a minimum of 6
-                    const maxInning = Math.max(
-                      6, // Minimum 6 innings
-                      pitchedInnings.length > 0 ? Math.max(...pitchedInnings) : 0,
-                      caughtInnings.length > 0 ? Math.max(...caughtInnings) : 0
-                    )
-                    const innings = Array.from({ length: maxInning }, (_, i) => i + 1)
-
-                    return (
-                      <div className="mt-2 flex flex-wrap gap-6 text-sm items-center">
-                        {/* Pitching */}
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-700">Pitching</span>
-                          <div className="flex gap-1">
-                            {innings.map(inning => (
-                              <div key={`pitch-${inning}`} className="flex flex-col items-center">
-                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
-                                <div
-                                  className={`w-5 h-5 rounded-full border-2 ${
-                                    pitchedInnings.includes(inning)
-                                      ? 'bg-blue-500 border-blue-600'
-                                      : 'bg-white border-gray-300'
-                                  }`}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Catching */}
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-700">Catching</span>
-                          <div className="flex gap-1">
-                            {innings.map(inning => (
-                              <div key={`catch-${inning}`} className="flex flex-col items-center">
-                                <span className="text-xs text-gray-400 mb-0.5">{inning}</span>
-                                <div
-                                  className={`w-5 h-5 rounded-full border-2 ${
-                                    caughtInnings.includes(inning)
-                                      ? 'bg-green-500 border-green-600'
-                                      : 'bg-white border-gray-300'
-                                  }`}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <InningsVisualDisplay
+                    pitchedInnings={pitchedInnings}
+                    caughtInnings={caughtInnings}
+                  />
 
                   {/* Pitch Count Info */}
                   {player.final_pitch_count && (
