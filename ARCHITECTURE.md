@@ -121,6 +121,7 @@ Show alert with temp password
 ```
 
 **Why Edge Function?**
+
 - Client (anon key) can't create auth users
 - Service role key must stay server-side
 - Function validates caller is super_admin
@@ -183,13 +184,15 @@ game_players  pitching  positions
 ```
 
 **Key Relationships**:
+
 - Season → Teams (1:N)
-- Team → Players (1:N)  
+- Team → Players (1:N)
 - Team → Coaches (N:M via team_coaches)
 - Games ↔ Teams (N:M - home & away)
 - Game → Player Data (1:N for each type)
 
 **Foreign Key Constraints**:
+
 - ON DELETE CASCADE for child records
 - Protects against orphaned data
 - Enforces deletion order (games → teams → seasons)
@@ -205,12 +208,13 @@ game_players  pitching  positions
 **Solution**: Two-part approach
 
 #### Part 1: Helper Functions
+
 ```sql
 -- Security Definer functions query user_profiles
 CREATE FUNCTION is_admin() RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM user_profiles 
-    WHERE id = auth.uid() 
+    SELECT 1 FROM user_profiles
+    WHERE id = auth.uid()
     AND role IN ('super_admin', 'admin')
     AND is_active = true
   );
@@ -218,8 +222,8 @@ $$ LANGUAGE SQL SECURITY DEFINER;
 
 CREATE FUNCTION is_super_admin() RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM user_profiles 
-    WHERE id = auth.uid() 
+    SELECT 1 FROM user_profiles
+    WHERE id = auth.uid()
     AND role = 'super_admin'
     AND is_active = true
   );
@@ -227,20 +231,21 @@ $$ LANGUAGE SQL SECURITY DEFINER;
 ```
 
 #### Part 2: Policies Use Functions
+
 ```sql
 -- Example: Seasons table
 CREATE POLICY "Admins can manage seasons"
   ON seasons FOR ALL
   USING (is_admin());  -- No recursion!
 
--- Example: Teams table  
+-- Example: Teams table
 CREATE POLICY "Coaches can view assigned teams"
   ON teams FOR SELECT
   USING (
     is_admin() OR
     EXISTS (
       SELECT 1 FROM team_coaches tc
-      WHERE tc.team_id = teams.id 
+      WHERE tc.team_id = teams.id
       AND tc.user_id = auth.uid()
     )
   );
@@ -249,17 +254,20 @@ CREATE POLICY "Coaches can view assigned teams"
 ### Why user_profiles Has NO RLS
 
 **Risks Without RLS**:
+
 - ❌ Anyone can see all users? NO - still requires authentication
 - ❌ Anyone can modify? NO - app logic controls this
 - ❌ Exposed data? NO - only accessible to logged-in users
 
 **Benefits**:
+
 - ✅ Avoids infinite recursion
 - ✅ Helper functions can query it
 - ✅ Simpler policy design
 - ✅ Still protected by auth.uid() requirement
 
 **Protection Layers**:
+
 1. Supabase Auth (must have valid JWT)
 2. Application logic (UI only shows allowed actions)
 3. Helper functions check roles before granting access
@@ -276,25 +284,25 @@ export default function FeatureManagement() {
   // Data state
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
-  
+
   // UI state
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  
+
   // Feedback state
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
-  
+
   // Data fetching
   useEffect(() => {
     fetchItems()
   }, [dependencies])
-  
+
   // CRUD operations
   const handleCreate = async () => { ... }
   const handleUpdate = async () => { ... }
   const handleDelete = async () => { ... }
-  
+
   return (
     // JSX with conditional rendering
   )
@@ -309,10 +317,10 @@ function ItemModal({ item, onClose, onSuccess, onError }) {
   // Local state for form
   const [formData, setFormData] = useState({ ... })
   const [modalError, setModalError] = useState(null)
-  
+
   // Handles both create and edit modes
   const isEditing = !!item
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 ...">
       {/* Modal with error display inside */}
@@ -322,6 +330,7 @@ function ItemModal({ item, onClose, onSuccess, onError }) {
 ```
 
 **Why inline?**
+
 - Related code stays together
 - Easy to share parent state
 - Fewer files to manage
@@ -373,7 +382,7 @@ User pastes CSV:
          ↓
 Parse CSV line by line
   - Split on comma
-  - Validate age (7-22)
+  - Validate age (7-12)
   - Validate format
          ↓
 Build array of player objects
@@ -419,6 +428,7 @@ All success → Close and refresh
 ## UI/UX Patterns
 
 ### Navigation Pattern
+
 ```
 Dashboard (always visible)
   └─ Sidebar navigation (state-based routing)
@@ -433,6 +443,7 @@ Dashboard (always visible)
 ```
 
 **Why state-based routing?**
+
 - Simple to implement
 - No React Router complexity needed yet
 - Easy to control visibility by role
@@ -442,14 +453,14 @@ Dashboard (always visible)
 
 ```javascript
 // Success messages
-setSuccess('Operation completed!')
-setTimeout(() => setSuccess(null), 3000)  // Auto-dismiss
+setSuccess("Operation completed!");
+setTimeout(() => setSuccess(null), 3000); // Auto-dismiss
 
-// Error messages  
-setError(error.message)  // Stay until dismissed or new action
+// Error messages
+setError(error.message); // Stay until dismissed or new action
 
 // Modal errors
-setModalError(error.message)  // Show inside modal (not behind it)
+setModalError(error.message); // Show inside modal (not behind it)
 ```
 
 ### Form Validation Pattern
@@ -457,7 +468,7 @@ setModalError(error.message)  // Show inside modal (not behind it)
 ```javascript
 // Database-level validation
 - Jersey number unique per team → Constraint violation error
-- Age 7-22 → CHECK constraint
+- Age 7-12 → CHECK constraint
 - Required fields → NOT NULL constraints
 
 // Application-level validation
@@ -478,28 +489,28 @@ setModalError(error.message)  // Show inside modal (not behind it)
 
 ```sql
 -- Only one active season
-CREATE UNIQUE INDEX idx_only_one_active_season 
-  ON seasons(is_active) 
+CREATE UNIQUE INDEX idx_only_one_active_season
+  ON seasons(is_active)
   WHERE is_active = true;
 
 -- Unique jersey per team
-ALTER TABLE players 
-  ADD CONSTRAINT unique_jersey_per_team 
+ALTER TABLE players
+  ADD CONSTRAINT unique_jersey_per_team
   UNIQUE (team_id, jersey_number);
 
 -- Age range validation
-ALTER TABLE players 
-  ADD CONSTRAINT players_age_check 
-  CHECK (age >= 7 AND age <= 22);
+ALTER TABLE players
+  ADD CONSTRAINT players_age_check
+  CHECK (age >= 7 AND age <= 12);
 
 -- Pitch count relationship
-ALTER TABLE pitching_logs 
-  ADD CONSTRAINT pitch_count_relationship 
+ALTER TABLE pitching_logs
+  ADD CONSTRAINT pitch_count_relationship
   CHECK (penultimate_batter_count <= final_pitch_count);
 
 -- Home ≠ Away teams
-ALTER TABLE games 
-  ADD CONSTRAINT different_teams 
+ALTER TABLE games
+  ADD CONSTRAINT different_teams
   CHECK (home_team_id != away_team_id);
 ```
 
@@ -530,23 +541,25 @@ ALTER TABLE games
 ### Optimizations Implemented
 
 1. **Database Indexes**
+
    ```sql
    -- Season lookups
    CREATE INDEX idx_seasons_active ON seasons(is_active);
-   
-   -- Team lookups  
+
+   -- Team lookups
    CREATE INDEX idx_teams_season ON teams(season_id);
-   
+
    -- Player lookups
    CREATE INDEX idx_players_team ON players(team_id);
    CREATE INDEX idx_players_age ON players(age);
-   
+
    -- Game lookups
    CREATE INDEX idx_games_season ON games(season_id);
    CREATE INDEX idx_games_date ON games(game_date);
    ```
 
 2. **Query Patterns**
+
    - Fetch with joins for related data
    - Order by at database level
    - Limit results when appropriate
@@ -559,17 +572,20 @@ ALTER TABLE games
 ### Scalability
 
 **Current Capacity** (Free Tiers):
+
 - Supabase: 500MB database, 50K monthly active users
 - Vercel: 100GB bandwidth/month
 
 **Realistic Load** (Per Season):
+
 - 50 user accounts
 - 20 teams
-- 300 players  
+- 300 players
 - 200 games
 - 2000 player-game records
 
 **Database Size Estimate**:
+
 - ~5MB per season of data
 - Can handle 100+ seasons on free tier
 
@@ -580,6 +596,7 @@ ALTER TABLE games
 ### Levels of Error Handling
 
 1. **Database Level**
+
    ```sql
    -- Constraints return specific error codes
    23505 → Unique violation (duplicate)
@@ -588,6 +605,7 @@ ALTER TABLE games
    ```
 
 2. **API Level**
+
    ```javascript
    // Supabase client catches errors
    const { data, error } = await supabase...
@@ -603,10 +621,10 @@ ALTER TABLE games
    ```javascript
    // Component try-catch
    try {
-     await operation()
-     setSuccess('Done!')
+     await operation();
+     setSuccess("Done!");
    } catch (err) {
-     setError(err.message)  // Or setModalError for modals
+     setError(err.message); // Or setModalError for modals
    }
    ```
 
@@ -631,6 +649,7 @@ ALTER TABLE games
 ### Adding a New Feature
 
 1. **Database First** (if schema changes needed)
+
    ```sql
    -- Add table/column in Supabase SQL Editor
    -- Add constraints, indexes
@@ -638,6 +657,7 @@ ALTER TABLE games
    ```
 
 2. **Component Structure**
+
    ```javascript
    // Create new component file
    // Add to Dashboard imports
@@ -646,6 +666,7 @@ ALTER TABLE games
    ```
 
 3. **Incremental Development**
+
    ```
    - Build basic structure first
    - Add one operation (e.g., Create)
@@ -669,7 +690,7 @@ ALTER TABLE games
 git add src/components/seasons/SeasonManagement.jsx
 git commit -m "Add season creation with end_date optional"
 
-git add database/schema.sql  
+git add database/schema.sql
 git commit -m "Add unique constraint for active seasons"
 
 git add src/components/teams/TeamManagement.jsx
@@ -681,6 +702,7 @@ git commit -m "Add coach assignment to team management"
 ## Technology Decisions & Rationale
 
 ### Why Supabase?
+
 - ✅ PostgreSQL (industry standard)
 - ✅ Built-in authentication
 - ✅ Row Level Security (data isolation)
@@ -689,29 +711,34 @@ git commit -m "Add coach assignment to team management"
 - ✅ Auto-generated API
 
 ### Why Vite?
+
 - ✅ Fast dev server (hot reload)
 - ✅ Modern build tool
 - ✅ Better DX than Create React App
 - ✅ Smaller bundle sizes
 
 ### Why Tailwind CSS v3?
+
 - ✅ Utility-first (rapid development)
 - ✅ Consistent design system
 - ✅ v4 has PostCSS issues (locked to v3.4.1)
 
 ### Why NOT Next.js?
+
 - ❌ Overkill for this use case
 - ❌ Server components not needed
 - ❌ Supabase handles backend
 - ✅ Vite is simpler, faster for SPA
 
 ### Why Edge Functions?
+
 - ✅ Secure user creation (service role key)
 - ✅ Server-side logic when needed
 - ✅ Scales automatically
 - ✅ Free tier sufficient
 
 ### Why Vitest?
+
 - ✅ Native Vite integration (same config, same transforms)
 - ✅ 10x faster than Jest (0.5-2s startup vs 3-8s)
 - ✅ Native ES module support (no experimental flags)
@@ -785,35 +812,38 @@ Watch for file changes → Rerun affected tests
 ### Mocking Strategy
 
 **Supabase Client Mock** (`src/__tests__/setup.js`):
+
 ```javascript
-vi.mock('../lib/supabase.js', () => ({
+vi.mock("../lib/supabase.js", () => ({
   supabase: {
     auth: {
       signInWithPassword: vi.fn(),
       signOut: vi.fn(),
       getSession: vi.fn(),
       onAuthStateChange: vi.fn(() => ({
-        data: { subscription: { unsubscribe: vi.fn() } }
-      }))
+        data: { subscription: { unsubscribe: vi.fn() } },
+      })),
     },
     from: vi.fn(() => ({
       select: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       update: vi.fn().mockReturnThis(),
       delete: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis()
-    }))
-  }
-}))
+      eq: vi.fn().mockReturnThis(),
+    })),
+  },
+}));
 ```
 
 **Why this works:**
+
 - Tests never hit real Supabase database
 - All database operations are mocked
 - Return values controlled in individual tests
 - Fast execution (no network calls)
 
 **Browser API Mocks**:
+
 ```javascript
 // window.matchMedia (used by some UI components)
 global.matchMedia = vi.fn(...)
@@ -827,15 +857,16 @@ global.confirm = vi.fn(() => true)
 
 ### Test Coverage (Current)
 
-| Module | Tests | Coverage | Priority |
-|--------|-------|----------|----------|
-| `violationRules.js` | 30 | 95%+ | ✅ Critical |
-| `pitchSmartRules.js` | 0 | 0% | 🔴 High |
-| `pitchCountUtils.js` | 0 | 0% | 🔴 High |
-| `exportUtils.js` | 0 | 0% | 🟡 Medium |
-| Components | 0 | 0% | 🟡 Medium |
+| Module               | Tests | Coverage | Priority    |
+| -------------------- | ----- | -------- | ----------- |
+| `violationRules.js`  | 30    | 95%+     | ✅ Critical |
+| `pitchSmartRules.js` | 0     | 0%       | 🔴 High     |
+| `pitchCountUtils.js` | 0     | 0%       | 🔴 High     |
+| `exportUtils.js`     | 0     | 0%       | 🟡 Medium   |
+| Components           | 0     | 0%       | 🟡 Medium   |
 
 **Target Coverage Goals:**
+
 - Business logic (lib/): 90%+
 - Components: 70%+
 - Overall: 65%+
@@ -843,25 +874,27 @@ global.confirm = vi.fn(() => true)
 ### Vitest Configuration
 
 **vite.config.js**:
+
 ```javascript
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
 
   test: {
-    globals: true,           // No need to import describe/it/expect
-    environment: 'jsdom',    // Browser simulation
-    setupFiles: './src/__tests__/setup.js',  // Global mocks
+    globals: true, // No need to import describe/it/expect
+    environment: "jsdom", // Browser simulation
+    setupFiles: "./src/__tests__/setup.js", // Global mocks
     coverage: {
-      provider: 'v8',        // Built-in V8 coverage (fast)
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/__tests__/', 'database/', 'dist/']
-    }
-  }
-})
+      provider: "v8", // Built-in V8 coverage (fast)
+      reporter: ["text", "json", "html"],
+      exclude: ["node_modules/", "src/__tests__/", "database/", "dist/"],
+    },
+  },
+});
 ```
 
 **Key Benefits:**
+
 - Same file for dev server AND tests
 - No duplicate configs (no jest.config.js or Babel setup)
 - Vite's transform pipeline used for both
@@ -871,9 +904,9 @@ export default defineConfig({
 ```json
 {
   "scripts": {
-    "test": "vitest",                    // Watch mode (dev)
-    "test:run": "vitest run",           // Run once (CI)
-    "test:ui": "vitest --ui",           // Visual dashboard
+    "test": "vitest", // Watch mode (dev)
+    "test:run": "vitest run", // Run once (CI)
+    "test:ui": "vitest --ui", // Visual dashboard
     "test:coverage": "vitest --coverage" // Coverage report
   }
 }
@@ -881,14 +914,15 @@ export default defineConfig({
 
 ### Performance Characteristics
 
-| Operation | Vitest | Jest (for comparison) |
-|-----------|--------|----------------------|
-| **Cold start** | 0.5-2s | 3-8s |
-| **Watch mode rerun** | 100-500ms | 1-3s |
-| **30 tests execution** | 9ms | ~50-100ms |
-| **Coverage generation** | 1-2s | 3-5s |
+| Operation               | Vitest    | Jest (for comparison) |
+| ----------------------- | --------- | --------------------- |
+| **Cold start**          | 0.5-2s    | 3-8s                  |
+| **Watch mode rerun**    | 100-500ms | 1-3s                  |
+| **30 tests execution**  | 9ms       | ~50-100ms             |
+| **Coverage generation** | 1-2s      | 3-5s                  |
 
 **Why Vitest is faster:**
+
 1. Reuses Vite's transformation cache
 2. Native ES modules (no transpilation overhead)
 3. Multi-threaded by default
@@ -897,24 +931,28 @@ export default defineConfig({
 ### Testing Best Practices (Enforced)
 
 1. **Arrange-Act-Assert Pattern**
+
    ```javascript
-   it('should calculate rest days', () => {
+   it("should calculate rest days", () => {
      // Arrange
-     const age = 10, pitches = 55
+     const age = 10,
+       pitches = 55;
 
      // Act
-     const result = calculateRestDays(age, pitches)
+     const result = calculateRestDays(age, pitches);
 
      // Assert
-     expect(result).toBe(3)
-   })
+     expect(result).toBe(3);
+   });
    ```
 
 2. **Descriptive Test Names**
+
    - ❌ Bad: `it('works', ...)`
    - ✅ Good: `it('should return false when pitch count is below 41', ...)`
 
 3. **Test Edge Cases**
+
    - Null/undefined inputs
    - Empty arrays
    - Boundary values (0, 1, max)
@@ -1000,6 +1038,7 @@ baseball-app/
 ```
 
 **Production Checklist** (When Ready):
+
 - [ ] Environment variables in Vercel
 - [ ] Update Supabase auth URLs (redirect, site URL)
 - [ ] Enable 2FA for admin accounts
@@ -1011,6 +1050,7 @@ baseball-app/
 
 **Architecture Version**: 2.1 (Updated January 2026)
 **Major Updates**:
+
 - Added comprehensive Testing Architecture section
 - Documented Vitest integration and rationale
 - Updated file structure to include `__tests__/` directory
