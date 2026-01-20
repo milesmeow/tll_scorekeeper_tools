@@ -5,6 +5,20 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.1] - 2026-01-19
+
+### Changed
+
+- Updated ARCHITECTURE.md documentation accuracy audit
+  - Corrected table count from 9 to 10 (added `app_config` table)
+  - Removed outdated "(NO RLS)" annotation from `user_profiles` (now has RLS via three-layer architecture)
+  - Verified `reset-password` edge function exists and is documented correctly
+  - Corrected foreign key documentation: mixed CASCADE/RESTRICT strategy (not CASCADE-only)
+
+### Fixed
+
+- Documentation inconsistencies in ARCHITECTURE.md that accumulated during feature evolution
+
 ## [1.20.0] - 2026-01-09
 
 ### Added

@@ -41,30 +41,29 @@
 │  │  ├─ Session management                          │  │
 │  │  └─ Password updates                            │  │
 │  └──────────────────────────────────────────────────┘  │
-│                          ↕                              │
+│                          ↕                             │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  PostgreSQL Database (10 tables)                 │  │
-│  │  ├─ user_profiles (NO RLS)                      │  │
-│  │  ├─ seasons, teams, players                     │  │
-│  │  ├─ games, game_players                         │  │
-│  │  ├─ pitching_logs, positions_played             │  │
-│  │  ├─ team_coaches                                │  │
-│  │  └─ pitch_count_rules (reference data)          │  │
+│  │  ├─ user_profiles, seasons, teams, players       │  │
+│  │  ├─ games, game_players, team_coaches            │  │
+│  │  ├─ pitching_logs, positions_played              │  │
+│  │  └─ app_config (maintenance mode)                │  │
 │  └──────────────────────────────────────────────────┘  │
-│                          ↕                              │
+│                          ↕                             │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  Row Level Security (RLS) Policies               │  │
-│  │  ├─ Helper Functions: is_admin(), is_super_admin│  │
-│  │  ├─ Super admins: full access                   │  │
-│  │  ├─ Admins: read/write all data                 │  │
-│  │  └─ Coaches: read-only assigned teams           │  │
+│  │  ├─ Helper Functions: is_admin(), is_super_admin │  │
+│  │  ├─ Super admins: full access                    │  │
+│  │  ├─ Admins: read/write all data                  │  │
+│  │  └─ Coaches: read-only teams, players & games    │  │
 │  └──────────────────────────────────────────────────┘  │
-│                          ↕                              │
+│                          ↕                             │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  Edge Functions (Deno Runtime)                   │  │
-│  │  └─ create-user (service role key)              │  │
+│  │  ├─ create-user (service role key)               │  │
+│  │  └─ reset-password (service role key)                          │  │
 │  └──────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -191,11 +190,15 @@ game_players  pitching  positions
 - Games ↔ Teams (N:M - home & away)
 - Game → Player Data (1:N for each type)
 
-**Foreign Key Constraints**:
+**Foreign Key Constraints** (Mixed Strategy):
 
-- ON DELETE CASCADE for child records
-- Protects against orphaned data
-- Enforces deletion order (games → teams → seasons)
+- **RESTRICT** on core entities: Prevents deleting seasons/teams/players that have dependent records
+  - `teams` → `seasons`: Can't delete season with teams
+  - `players` → `teams`: Can't delete team with players
+  - `games` → `seasons`, `teams`: Can't delete season/team with games
+- **CASCADE** on child records: Auto-removes granular data when parent deleted
+  - `team_coaches`, `game_players`, `pitching_logs`, `positions_played`
+- This protects important data while allowing cleanup of derived records
 
 ---
 
@@ -559,7 +562,6 @@ ALTER TABLE games
    ```
 
 2. **Query Patterns**
-
    - Fetch with joins for related data
    - Order by at database level
    - Limit results when appropriate
@@ -947,12 +949,10 @@ export default defineConfig({
    ```
 
 2. **Descriptive Test Names**
-
    - ❌ Bad: `it('works', ...)`
    - ✅ Good: `it('should return false when pitch count is below 41', ...)`
 
 3. **Test Edge Cases**
-
    - Null/undefined inputs
    - Empty arrays
    - Boundary values (0, 1, max)

@@ -5,9 +5,14 @@ Use this to track your setup progress:
 ## Supabase Setup
 - [ ] Created Supabase account
 - [ ] Created new project
-- [ ] Ran `database/schema.sql` in SQL Editor
+- [ ] Ran `database/schema.sql` in SQL Editor (creates 10 tables)
 - [ ] Copied Project URL
 - [ ] Copied anon/public key
+
+## Edge Functions (Required for User Management)
+- [ ] Deployed `create-user` edge function (see QUICKSTART.md)
+- [ ] Deployed `reset-password` edge function (see QUICKSTART.md)
+- [ ] Verified both functions appear in Supabase Dashboard → Edge Functions
 
 ## Local Setup  
 - [ ] Installed Node.js 18+
@@ -28,6 +33,8 @@ Use this to track your setup progress:
 - [ ] Logged in successfully
 - [ ] Can see Dashboard
 - [ ] Can access User Management (for super admins)
+- [ ] Can create new users via UI (tests edge functions)
+- [ ] Ran `npm run test` (all tests pass)
 
 ## Ready for Phase 2?
 - [ ] Phase 1 working perfectly
@@ -45,3 +52,5 @@ Use this to track your setup progress:
 - "Invalid API key" → Check `.env.local` copied correctly
 - "User not found" → Verify user exists in BOTH auth.users AND user_profiles
 - "Permission denied" → Verify RLS policies by running full schema.sql
+- "Maintenance mode" page → Super admin can disable at `/maintenance` route
+- Edge function errors → Check Supabase Dashboard → Edge Functions → Logs
