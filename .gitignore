@@ -144,3 +144,5 @@ vite.config.ts.timestamp-*
 
 # my notes
 jt_*
+
+_ignored/
