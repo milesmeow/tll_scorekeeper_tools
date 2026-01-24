@@ -317,7 +317,6 @@ SELECT reset_query_stats();
 
 - **Migration**: `database/migrations/enable_query_monitoring.sql`
 - **Review Checklist**: `database/PERFORMANCE_REVIEW_CHECKLIST.md`
-- **Future Enhancement**: `database/FUTURE_REACT_MONITORING.md` (deferred)
 
 ### Review Log
 
@@ -336,7 +335,6 @@ Record quarterly reviews here:
 - `database/check_games_indexes.sql` - Diagnostic queries used for analysis
 - `database/schema.sql:113-140` - Games table definition and indexes
 - `database/PERFORMANCE_REVIEW_CHECKLIST.md` - Quarterly review guide
-- `database/FUTURE_REACT_MONITORING.md` - Deferred client-side monitoring option
 - `CLAUDE.md` - Architecture patterns and query patterns
 
 ---

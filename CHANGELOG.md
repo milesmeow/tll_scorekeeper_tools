@@ -5,6 +5,42 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.2] - 2026-01-19
+
+### Changed
+
+- Major documentation consolidation: reduced from 21 to 12 markdown files (43% reduction)
+  - Merged SETUP.md, CHECKLIST.md into QUICKSTART.md
+  - Added setup progress checklist to QUICKSTART.md
+  - Updated cross-references in README.md and database docs
+
+### Removed
+
+- Deleted 9 redundant/outdated documentation files:
+  - DELIVERY.md (Phase 1 delivery summary - outdated)
+  - PROJECT_SUMMARY.md (overlapped with README)
+  - HANDOFF-TO-CLAUDE-CODE.md (superseded by CLAUDE.md)
+  - INDEX.md (navigation index - README serves this purpose)
+  - START_HERE.md (just linked to other docs)
+  - SETUP.md (merged into QUICKSTART.md)
+  - CHECKLIST.md (merged into QUICKSTART.md)
+  - database/PERFORMANCE_OPTIMIZATION_COMPLETE.md (one-time completion report)
+  - database/FUTURE_REACT_MONITORING.md (speculative/deferred feature)
+
+## [1.20.1] - 2026-01-19
+
+### Changed
+
+- Updated ARCHITECTURE.md documentation accuracy audit
+  - Corrected table count from 9 to 10 (added `app_config` table)
+  - Removed outdated "(NO RLS)" annotation from `user_profiles` (now has RLS via three-layer architecture)
+  - Verified `reset-password` edge function exists and is documented correctly
+  - Corrected foreign key documentation: mixed CASCADE/RESTRICT strategy (not CASCADE-only)
+
+### Fixed
+
+- Documentation inconsistencies in ARCHITECTURE.md that accumulated during feature evolution
+
 ## [1.20.0] - 2026-01-09
 
 ### Added

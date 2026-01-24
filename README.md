@@ -690,10 +690,10 @@ Changes are provided as:
 
 ## Support & Documentation
 
-- **Setup Issues**: See QUICKSTART.md
-- **Architecture**: See ARCHITECTURE.md
+- **Setup Guide**: See QUICKSTART.md (includes setup checklist)
+- **Architecture**: See ARCHITECTURE.md (system design, data flows)
 - **Testing**: See TESTING.md (Vitest setup, writing tests, best practices)
-- **Summary**: See PROJECT_SUMMARY.md
+- **Development**: See CLAUDE.md (patterns, commands, constraints)
 - **Game Rules**: See RULES.md (pitching/catching restrictions, Pitch Smart guidelines)
 - **Database**: See database/schema.sql with comments
 
