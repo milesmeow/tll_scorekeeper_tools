@@ -1,7 +1,9 @@
+import { formatDate } from '../../../lib/pitchCountUtils'
+
 /**
  * PlayerViolationWarnings Component
  *
- * Displays all 5 Pitch Smart violation warnings in a consistent, reusable format.
+ * Displays all 6 Pitch Smart violation warnings in a consistent, reusable format.
  * Used in both GameDetailModal (detail variant) and GameEntry Step 3 (confirmation variant).
  */
 
@@ -11,6 +13,8 @@ export default function PlayerViolationWarnings({
   violationFourInningsCatching,
   violationCombinedRule,
   violationExceedsPitchLimit,
+  violationPitchedBeforeEligible,
+  nextEligiblePitchDate,
   pitchedInnings = [],
   caughtInnings = [],
   effectivePitches = 0,
@@ -72,6 +76,17 @@ export default function PlayerViolationWarnings({
         <div className={containerClasses}>
           <p className={textClasses}>
             ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(playerAge)} for age {playerAge}.
+          </p>
+        </div>
+      )}
+
+      {/* Rule 6: Pitched Before Eligible Date */}
+      {violationPitchedBeforeEligible && (
+        <div className={containerClasses}>
+          <p className={textClasses}>
+            {isDetail
+              ? `⚠️ Violation: Player pitched before their required rest period ended. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
+              : `⚠️ Violation: Pitched before rest period ended. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}.`}
           </p>
         </div>
       )}

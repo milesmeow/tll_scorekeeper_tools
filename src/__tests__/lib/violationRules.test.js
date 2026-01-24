@@ -6,7 +6,8 @@ import {
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  exceedsMaxPitchesForAge
+  exceedsMaxPitchesForAge,
+  pitchedBeforeEligibleDate
 } from '../../lib/violationRules'
 
 describe('violationRules', () => {
@@ -199,6 +200,60 @@ describe('violationRules', () => {
       expect(exceedsMaxPitchesForAge(10, 80)).toBe(true)
       expect(exceedsMaxPitchesForAge(11, 86)).toBe(true)
       expect(exceedsMaxPitchesForAge(12, 90)).toBe(true)
+    })
+  })
+
+  /**
+   * Rule 6: Pitched before eligible date
+   * A player cannot pitch until their next_eligible_pitch_date has arrived
+   */
+  describe('Rule 6: pitchedBeforeEligibleDate', () => {
+    it('should return false if player did not pitch in this game', () => {
+      expect(pitchedBeforeEligibleDate('2025-05-14', '2025-05-14', [])).toBe(false)
+      expect(pitchedBeforeEligibleDate('2025-05-12', '2025-05-14', [])).toBe(false)
+    })
+
+    it('should return false if no previous pitching record (first time pitching)', () => {
+      expect(pitchedBeforeEligibleDate('2025-05-14', null, [1, 2])).toBe(false)
+      expect(pitchedBeforeEligibleDate('2025-05-14', undefined, [1, 2])).toBe(false)
+    })
+
+    it('should return false if no game date provided', () => {
+      expect(pitchedBeforeEligibleDate(null, '2025-05-14', [1, 2])).toBe(false)
+      expect(pitchedBeforeEligibleDate(undefined, '2025-05-14', [1, 2])).toBe(false)
+      expect(pitchedBeforeEligibleDate('', '2025-05-14', [1, 2])).toBe(false)
+    })
+
+    it('should return false if game date is on or after eligible date', () => {
+      // Exactly on eligible date
+      expect(pitchedBeforeEligibleDate('2025-05-14', '2025-05-14', [1, 2])).toBe(false)
+      // One day after eligible date
+      expect(pitchedBeforeEligibleDate('2025-05-15', '2025-05-14', [1, 2])).toBe(false)
+      // Several days after eligible date
+      expect(pitchedBeforeEligibleDate('2025-05-20', '2025-05-14', [1, 2])).toBe(false)
+    })
+
+    it('should return true if game date is before eligible date (violation)', () => {
+      // One day before eligible date
+      expect(pitchedBeforeEligibleDate('2025-05-13', '2025-05-14', [1, 2])).toBe(true)
+      // Two days before eligible date
+      expect(pitchedBeforeEligibleDate('2025-05-12', '2025-05-14', [1, 2])).toBe(true)
+      // Same scenario but with single inning pitched
+      expect(pitchedBeforeEligibleDate('2025-05-13', '2025-05-14', [3])).toBe(true)
+    })
+
+    it('should handle year boundary cases', () => {
+      // December game, January eligibility (not a violation - past date)
+      expect(pitchedBeforeEligibleDate('2025-12-31', '2025-01-01', [1])).toBe(false)
+      // January game, January eligibility (violation)
+      expect(pitchedBeforeEligibleDate('2025-01-01', '2025-01-03', [1])).toBe(true)
+    })
+
+    it('should handle month boundary cases', () => {
+      // Last day of May, eligible June 1 (violation)
+      expect(pitchedBeforeEligibleDate('2025-05-31', '2025-06-01', [1, 2, 3])).toBe(true)
+      // First day of June, eligible June 1 (not a violation)
+      expect(pitchedBeforeEligibleDate('2025-06-01', '2025-06-01', [1, 2, 3])).toBe(false)
     })
   })
 })

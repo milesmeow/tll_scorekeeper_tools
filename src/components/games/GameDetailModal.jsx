@@ -9,7 +9,8 @@ import {
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
-  exceedsMaxPitchesForAge
+  exceedsMaxPitchesForAge,
+  pitchedBeforeEligibleDate
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 import AbsentPlayerCard from './shared/AbsentPlayerCard'
@@ -58,6 +59,10 @@ export default function GameDetailModal({ game, onClose }) {
 
       if (positionsError) throw positionsError
 
+      // Fetch eligibility dates from previous games for Rule 6 checking
+      const allPlayerIds = gamePlayers.map(gp => gp.player_id)
+      const eligibilityMap = await fetchPlayerEligibilityDatesBeforeGame(allPlayerIds, game.game_date, game.id)
+
       // Organize data by team and player
       const homePlayerData = []
       const awayPlayerData = []
@@ -66,7 +71,8 @@ export default function GameDetailModal({ game, onClose }) {
         const playerData = {
           ...gp,
           pitching: pitchingLogs.find(pl => pl.player_id === gp.player_id),
-          positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id)
+          positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id),
+          previousNextEligibleDate: eligibilityMap[gp.player_id] || null
         }
 
         if (gp.player.team_id === game.home_team_id) {
@@ -84,6 +90,42 @@ export default function GameDetailModal({ game, onClose }) {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * Fetch the most recent next_eligible_pitch_date for players from games BEFORE a specific date
+   */
+  const fetchPlayerEligibilityDatesBeforeGame = async (playerIds, gameDate, excludeGameId) => {
+    if (!playerIds || playerIds.length === 0) return {}
+
+    try {
+      const { data: pitchingLogs, error } = await supabase
+        .from('pitching_logs')
+        .select(`
+          player_id,
+          next_eligible_pitch_date,
+          games!inner(game_date)
+        `)
+        .in('player_id', playerIds)
+        .neq('game_id', excludeGameId)
+        .lt('games.game_date', gameDate)
+        .not('next_eligible_pitch_date', 'is', null)
+        .order('games(game_date)', { ascending: false })
+
+      if (error) throw error
+
+      const eligibilityMap = {}
+      for (const log of pitchingLogs) {
+        if (!eligibilityMap[log.player_id]) {
+          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+        }
+      }
+
+      return eligibilityMap
+    } catch (err) {
+      console.error('Error fetching player eligibility dates:', err)
+      return {}
     }
   }
 
@@ -146,6 +188,7 @@ export default function GameDetailModal({ game, onClose }) {
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              pitchedBeforeEligibleDate={pitchedBeforeEligibleDate}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
@@ -161,6 +204,7 @@ export default function GameDetailModal({ game, onClose }) {
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombined}
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
+              pitchedBeforeEligibleDate={pitchedBeforeEligibleDate}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
@@ -190,6 +234,7 @@ function TeamDetailSection({
   cannotCatchAgainDueToCombined,
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
+  pitchedBeforeEligibleDate,
   getMaxPitchesForAge
 }) {
   // Only show players who pitched, caught, or were absent
@@ -225,6 +270,7 @@ function TeamDetailSection({
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
               const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
               const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches)
+              const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(gameDate, playerData.previousNextEligibleDate, pitchedInnings)
 
               return (
                 <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
@@ -326,6 +372,8 @@ function TeamDetailSection({
                         violationFourInningsCatching={violationFourInningsCatching}
                         violationCombinedRule={violationCombinedRule}
                         violationExceedsPitchLimit={violationExceedsPitchLimit}
+                        violationPitchedBeforeEligible={violationPitchedBeforeEligible}
+                        nextEligiblePitchDate={playerData.previousNextEligibleDate}
                         pitchedInnings={pitchedInnings}
                         caughtInnings={caughtInnings}
                         effectivePitches={effectivePitches}
