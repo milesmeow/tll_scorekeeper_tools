@@ -51,7 +51,8 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
   - **Rule 2**: 41+ pitches → cannot catch for remainder of game
   - **Rule 3**: 4+ innings catching → cannot pitch in this game
   - **Rule 4**: Caught 1-3 innings + 21+ pitches → cannot return to catch
-  - **Rule 5**: Pitch count exceeds age-based maximum (NEW - Jan 2026)
+  - **Rule 5**: Pitch count exceeds age-based maximum
+  - **Rule 6**: Pitched before required rest period ended (NEW - Jan 2026)
 - ✅ **Violation Warnings** - Red badges and detailed messages shown in:
   - Games list (violation badge if any rule violated)
   - Game entry confirmation view (all violations displayed)
@@ -265,9 +266,31 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
   - `GameDetailModal` - Shows violation warning when viewing game details
 - Uses "Official Pitch Count" calculation (penultimate batter count + 1) per Pitch Smart guidelines
 
+### Rule 6: Pitched Before Required Rest Period
+
+Added a 6th validation rule to flag when a player pitches before their required rest days have elapsed. This cross-game violation checks the player's `next_eligible_pitch_date` from their most recent pitching appearance.
+
+**How It Works:**
+
+1. When a game is loaded for entry/edit, each player's most recent `next_eligible_pitch_date` is fetched from previous games
+2. If the current game date is before that date, a violation is flagged
+3. The violation message shows when the player was actually eligible to pitch
+
+**Example:**
+- Player pitched 51 pitches on May 10 (requires 3 rest days → eligible May 14)
+- If they pitch in a game on May 12: ❌ **VIOLATION**
+- If they pitch in a game on May 14: ✅ **OK**
+
+**Implementation Details:**
+
+- Added `pitchedBeforeEligibleDate(gameDate, nextEligiblePitchDate, pitchedInnings)` function
+- Fetches eligibility data from `pitching_logs` table for games before the current game date
+- Uses simple string comparison for YYYY-MM-DD formatted dates (lexicographic ordering works correctly)
+- Integrated into `calculateGameHasViolations()` for `has_violation` flag calculation
+
 ### Code Refactoring: Shared Validation Utilities
 
-**Problem:** All 5 validation rules were duplicated across multiple components, leading to:
+**Problem:** All 6 validation rules were duplicated across multiple components, leading to:
 
 - Code duplication (~120 lines duplicated in GameEntry.jsx and GameDetailModal.jsx)
 - Inconsistent validation logic
@@ -284,6 +307,8 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 - `cannotPitchDueToFourInningsCatching(...)` - Rule 3: 4 innings catching restriction
 - `cannotCatchAgainDueToCombined(...)` - Rule 4: Combined catching/pitching restriction
 - `exceedsMaxPitchesForAge(age, effectivePitches)` - Rule 5: Age-based pitch limit
+- `pitchedBeforeEligibleDate(gameDate, nextEligiblePitchDate, pitchedInnings)` - Rule 6: Rest period violation
+- `calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate, playerEligibilityDates)` - Check all 6 rules
 
 **Benefits:**
 
@@ -369,13 +394,14 @@ npm run test:coverage     # Generate coverage report
 
 ### Current Test Coverage
 
-✅ **violationRules.js** - 30 tests covering all 5 Pitch Smart rules (95%+ coverage)
+✅ **violationRules.js** - 37 tests covering all 6 Pitch Smart rules (95%+ coverage)
 
 - Rule 1: Consecutive innings validation
 - Rule 2: 41+ pitches cannot catch after
 - Rule 3: 4 innings catching cannot pitch after
 - Rule 4: Combined catching/pitching restrictions
 - Rule 5: Age-based pitch count limits
+- Rule 6: Pitched before rest period ended (cross-game)
 
 ### Test Infrastructure
 
@@ -561,7 +587,7 @@ baseball-app/
 │   │   ├── exportUtils.js           # Season data export functions
 │   │   ├── pitchCountUtils.js       # Date parsing and pitch count utilities
 │   │   ├── pitchSmartRules.js       # Pitch Smart guidelines and rest day calculations
-│   │   └── violationRules.js        # Shared validation utilities for all 5 rules
+│   │   └── violationRules.js        # Shared validation utilities for all 6 rules
 │   ├── App.jsx                 # Main app with smart auth state management
 │   ├── main.jsx                # Entry point with BrowserRouter
 │   └── index.css               # Tailwind + custom styles
@@ -719,6 +745,6 @@ Private/Proprietary
   - "My Team" badge (blue) shown for coach's own team, head coach name (green) shown for other teams
 - ✅ **Testing Infrastructure** (Jan 2026):
   - Set up Vitest testing framework with React Testing Library
-  - Comprehensive test suite for `violationRules.js` (30 tests, 95%+ coverage)
+  - Comprehensive test suite for `violationRules.js` (37 tests, 95%+ coverage)
   - Global Supabase mocks and test utilities
   - Fast test execution (100-500ms watch mode) with visual UI dashboard

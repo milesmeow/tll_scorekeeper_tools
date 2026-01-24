@@ -97,15 +97,53 @@ export function exceedsMaxPitchesForAge(age, effectivePitches) {
 }
 
 /**
+ * Rule 6: Pitched before required rest days elapsed
+ * A player cannot pitch until their next_eligible_pitch_date has arrived.
+ *
+ * @param {string} gameDate - The date of the current game (YYYY-MM-DD format)
+ * @param {string|null} nextEligiblePitchDate - The player's next eligible pitch date from their most recent game (YYYY-MM-DD format)
+ * @param {number[]} pitchedInnings - Array of innings the player pitched in the current game
+ * @returns {boolean} - true if violation exists (pitched before eligible), false otherwise
+ *
+ * @example
+ * // Player's last game was on May 10, threw 51 pitches (3 rest days required)
+ * // Next eligible date: May 14
+ * pitchedBeforeEligibleDate('2025-05-12', '2025-05-14', [1, 2]) // returns true (pitching on May 12, before May 14)
+ * pitchedBeforeEligibleDate('2025-05-14', '2025-05-14', [1, 2]) // returns false (eligible on May 14)
+ */
+export function pitchedBeforeEligibleDate(gameDate, nextEligiblePitchDate, pitchedInnings) {
+  // No violation if not pitching in this game
+  if (!pitchedInnings || pitchedInnings.length === 0) {
+    return false
+  }
+
+  // No violation if no previous pitching record (first time pitching)
+  if (!nextEligiblePitchDate) {
+    return false
+  }
+
+  // No violation if no game date (shouldn't happen, but defensive)
+  if (!gameDate) {
+    return false
+  }
+
+  // Compare dates - violation if game date is before eligible date
+  // We use simple string comparison since both are in YYYY-MM-DD format
+  return gameDate < nextEligiblePitchDate
+}
+
+/**
  * Calculate if a game has violations given its related data
  * This function is reusable for both save-time calculation and on-demand checks
  *
  * @param {Array} positions - positions_played records for the game
  * @param {Array} pitchingLogs - pitching_logs records for the game
  * @param {Object} playerAges - Map of player_id -> age
+ * @param {string} [gameDate] - The date of the current game (YYYY-MM-DD format), required for Rule 6
+ * @param {Object} [playerEligibilityDates] - Map of player_id -> next_eligible_pitch_date from previous games
  * @returns {boolean} - true if any violations exist, false otherwise
  */
-export function calculateGameHasViolations(positions, pitchingLogs, playerAges) {
+export function calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate = null, playerEligibilityDates = {}) {
   // Group by player
   const playerData = {}
 
@@ -146,6 +184,9 @@ export function calculateGameHasViolations(positions, pitchingLogs, playerAges) 
 
     // Check Rule 5: Pitch count exceeds age limit
     if (exceedsMaxPitchesForAge(playerAges[playerId], effectivePitches)) return true
+
+    // Check Rule 6: Pitched before eligible date
+    if (gameDate && pitchedBeforeEligibleDate(gameDate, playerEligibilityDates[playerId], pitchedInnings)) return true
   }
 
   return false
