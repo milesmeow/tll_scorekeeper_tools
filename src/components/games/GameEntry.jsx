@@ -12,6 +12,7 @@ import {
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge,
+  pitchedBeforeEligibleDate,
   calculateGameHasViolations
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
@@ -531,6 +532,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       if (positionsError) throw positionsError
 
+      // Fetch player eligibility dates from games BEFORE this game
+      const allPlayerIds = gamePlayers.map(gp => gp.player_id)
+      const eligibilityMap = await fetchPlayerEligibilityDatesBeforeGame(allPlayerIds, gameToEdit.game_date, gameToEdit.id)
+
       // Organize player data by team
       const homePlayerData = []
       const awayPlayerData = []
@@ -552,7 +557,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             .map(p => p.inning_number)
             .sort((a, b) => a - b),
           penultimate_batter_count: playerPitching?.penultimate_batter_count?.toString() || '',
-          final_pitch_count: playerPitching?.final_pitch_count?.toString() || ''
+          final_pitch_count: playerPitching?.final_pitch_count?.toString() || '',
+          previousNextEligibleDate: eligibilityMap[gp.player_id] || null
         }
 
         if (gp.player.team_id === gameToEdit.home_team_id) {
@@ -576,6 +582,45 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       setModalError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * Fetch the most recent next_eligible_pitch_date for players from games BEFORE a specific date
+   * Used when editing an existing game to check Rule 6 correctly
+   */
+  const fetchPlayerEligibilityDatesBeforeGame = async (playerIds, gameDate, excludeGameId) => {
+    if (!playerIds || playerIds.length === 0) return {}
+
+    try {
+      // Get the most recent pitching log for each player from games BEFORE the specified game date
+      const { data: pitchingLogs, error } = await supabase
+        .from('pitching_logs')
+        .select(`
+          player_id,
+          next_eligible_pitch_date,
+          games!inner(game_date)
+        `)
+        .in('player_id', playerIds)
+        .neq('game_id', excludeGameId)
+        .lt('games.game_date', gameDate)
+        .not('next_eligible_pitch_date', 'is', null)
+        .order('games(game_date)', { ascending: false })
+
+      if (error) throw error
+
+      // Build a map of player_id -> most recent next_eligible_pitch_date
+      const eligibilityMap = {}
+      for (const log of pitchingLogs) {
+        if (!eligibilityMap[log.player_id]) {
+          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+        }
+      }
+
+      return eligibilityMap
+    } catch (err) {
+      console.error('Error fetching player eligibility dates:', err)
+      return {}
     }
   }
 
@@ -725,6 +770,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       if (awayError) throw awayError
 
+      // Fetch most recent next_eligible_pitch_date for all players
+      const allPlayerIds = [...homeData, ...awayData].map(p => p.id)
+      const eligibilityMap = await fetchPlayerEligibilityDates(allPlayerIds)
+
       // Initialize ALL players with default data (all assumed present)
       const initializedHomePlayers = homeData.map(player => ({
         ...player,
@@ -733,7 +782,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         innings_pitched: [],
         innings_caught: [],
         penultimate_batter_count: '',
-        final_pitch_count: ''
+        final_pitch_count: '',
+        previousNextEligibleDate: eligibilityMap[player.id] || null
       }))
 
       const initializedAwayPlayers = awayData.map(player => ({
@@ -743,13 +793,53 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         innings_pitched: [],
         innings_caught: [],
         penultimate_batter_count: '',
-        final_pitch_count: ''
+        final_pitch_count: '',
+        previousNextEligibleDate: eligibilityMap[player.id] || null
       }))
 
       setHomePlayers(initializedHomePlayers)
       setAwayPlayers(initializedAwayPlayers)
     } catch (err) {
       setModalError(err.message)
+    }
+  }
+
+  /**
+   * Fetch the most recent next_eligible_pitch_date for a list of players
+   * This is used to check Rule 6: pitching before rest period ends
+   */
+  const fetchPlayerEligibilityDates = async (playerIds) => {
+    if (!playerIds || playerIds.length === 0) return {}
+
+    try {
+      // Get the most recent pitching log for each player with their next_eligible_pitch_date
+      // We need to get games that are BEFORE the current game date
+      const { data: pitchingLogs, error } = await supabase
+        .from('pitching_logs')
+        .select(`
+          player_id,
+          next_eligible_pitch_date,
+          games!inner(game_date)
+        `)
+        .in('player_id', playerIds)
+        .not('next_eligible_pitch_date', 'is', null)
+        .order('games(game_date)', { ascending: false })
+
+      if (error) throw error
+
+      // Build a map of player_id -> most recent next_eligible_pitch_date
+      // Since we ordered by game_date desc, the first entry for each player is the most recent
+      const eligibilityMap = {}
+      for (const log of pitchingLogs) {
+        if (!eligibilityMap[log.player_id]) {
+          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+        }
+      }
+
+      return eligibilityMap
+    } catch (err) {
+      console.error('Error fetching player eligibility dates:', err)
+      return {}
     }
   }
 
@@ -1030,8 +1120,13 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       // Calculate violations for this game
       const playerAges = {}
+      const playerEligibilityDates = {}
       allPlayers.forEach(p => {
         playerAges[p.id] = p.age
+        // Include the previous eligibility date for Rule 6 checking
+        if (p.previousNextEligibleDate) {
+          playerEligibilityDates[p.id] = p.previousNextEligibleDate
+        }
       })
 
       const [positionsRes, pitchingRes] = await Promise.all([
@@ -1042,7 +1137,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       const hasViolation = calculateGameHasViolations(
         positionsRes.data || [],
         pitchingRes.data || [],
-        playerAges
+        playerAges,
+        formData.game_date,
+        playerEligibilityDates
       )
 
       // Update the game record with violation status
@@ -1125,6 +1222,15 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const exceedsMaxPitchesForAgeWrapper = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
     return exceedsMaxPitchesForAge(player.age, effectivePitches)
+  }
+
+  // Wrapper for Rule 6: Pitched before eligible date
+  const pitchedBeforeEligibleDateWrapper = (player) => {
+    return pitchedBeforeEligibleDate(
+      formData.game_date,
+      player.previousNextEligibleDate,
+      player.innings_pitched
+    )
   }
 
   const updatePlayerField = useCallback((playerIndex, isHome, field, value) => {
@@ -1490,6 +1596,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombinedWrapper}
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
+              pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
@@ -1504,6 +1611,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               cannotCatchAgainDueToCombined={cannotCatchAgainDueToCombinedWrapper}
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
+              pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
@@ -1702,6 +1810,7 @@ function ConfirmationTeamSection({
   cannotCatchAgainDueToCombined,
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
+  pitchedBeforeEligibleDate,
   getMaxPitchesForAge
 }) {
   return (
@@ -1726,7 +1835,8 @@ function ConfirmationTeamSection({
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(player)
               const violationCombinedRule = cannotCatchAgainDueToCombined(player)
               const violationExceedsPitchLimit = exceedsMaxPitchesForAge(player)
-              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit
+              const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(player)
+              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit || violationPitchedBeforeEligible
 
               return (
                 <div key={player.id} className={`border rounded p-3 ${hasViolation ? 'bg-red-50 border-red-300' : 'bg-gray-50'}`}>
@@ -1766,6 +1876,8 @@ function ConfirmationTeamSection({
                     violationFourInningsCatching={violationFourInningsCatching}
                     violationCombinedRule={violationCombinedRule}
                     violationExceedsPitchLimit={violationExceedsPitchLimit}
+                    violationPitchedBeforeEligible={violationPitchedBeforeEligible}
+                    nextEligiblePitchDate={player.previousNextEligibleDate}
                     pitchedInnings={pitchedInnings}
                     caughtInnings={caughtInnings}
                     effectivePitches={effectivePitches}

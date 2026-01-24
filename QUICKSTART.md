@@ -4,6 +4,43 @@
 
 ---
 
+## ✅ Setup Progress Checklist
+
+Use this to track your setup progress:
+
+### Supabase Setup
+- [ ] Created Supabase account
+- [ ] Created new project
+- [ ] Ran `database/schema.sql` in SQL Editor (creates 10 tables)
+- [ ] Copied Project URL
+- [ ] Copied anon/public key
+
+### Edge Functions (Required for User Management)
+- [ ] Deployed `create-user` edge function
+- [ ] Deployed `reset-password` edge function
+- [ ] Verified both functions appear in Supabase Dashboard → Edge Functions
+
+### Local Setup
+- [ ] Installed Node.js 18+
+- [ ] Ran `npm install`
+- [ ] Created `.env.local` file with credentials
+
+### First User
+- [ ] Created auth user in Supabase Dashboard
+- [ ] Copied user UUID
+- [ ] Created user_profiles entry with UUID
+- [ ] Set role to `super_admin`
+
+### Verification
+- [ ] Ran `npm run dev`
+- [ ] App opened at http://localhost:5173
+- [ ] Logged in successfully
+- [ ] Can see Dashboard
+- [ ] Can create new users via UI (tests edge functions)
+- [ ] Ran `npm run test` (all tests pass)
+
+---
+
 ## Prerequisites
 
 - Node.js 18+ installed
@@ -460,9 +497,9 @@ You're ready to use the app! Try:
 
 1. Check error message in browser console (F12)
 2. Check Supabase Dashboard → Logs
-3. Review `README.md` for detailed docs
+3. Review `README.md` for detailed documentation
 4. Review `ARCHITECTURE.md` for system design
-5. Review `PROJECT_SUMMARY.md` for context
+5. Review `CLAUDE.md` for development patterns
 
 ---
 
@@ -471,17 +508,17 @@ You're ready to use the app! Try:
 Once everything is running:
 
 1. **Create your league data**
-   - Seasons, teams, players
+   - Add seasons, teams, and players
+   - Use CSV bulk import for faster roster entry
 2. **Assign coaches**
-   - Create coach accounts
-   - Assign to teams
+   - Create coach user accounts
+   - Assign them to their teams
 3. **Start entering games**
-
-   - Record game data
-   - Track pitch counts
-
-4. **Ready for Phase 4?**
-   - Rules validation coming next!
+   - Record game data with the two-step form
+   - Track pitch counts and innings pitched/caught
+4. **Monitor compliance**
+   - View rule violations in game details
+   - Check rest day requirements
 
 ---
 

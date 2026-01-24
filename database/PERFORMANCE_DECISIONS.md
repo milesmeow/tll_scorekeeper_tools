@@ -277,10 +277,64 @@ Application query patterns examined:
 
 ---
 
+## Monitoring: RLS Policy Performance (Added 2026-01-18)
+
+### Why We Monitor
+
+We chose to keep multiple permissive RLS policies for maintainability (see "Decision: Keep Multiple Permissive Policies" above). This monitoring ensures we catch any performance degradation before it impacts users.
+
+### How to Monitor
+
+1. **Supabase Dashboard**: Database → Query Performance
+2. **Custom View**: `SELECT * FROM rls_query_performance;`
+3. **Review Schedule**: Quarterly (or at season end)
+
+### Performance Thresholds
+
+| Metric | Current | Monitor | Warning | Action Required |
+|--------|---------|---------|---------|-----------------|
+| Avg query time | ~45ms | >75ms | >100ms | >200ms |
+| Max query time | ~150ms | >250ms | >500ms | >1000ms |
+| Games per season | ~500 | >2,000 | >5,000 | >10,000 |
+| Concurrent users | ~50 | >100 | >200 | >500 |
+
+**Actions by threshold:**
+- **Monitor**: Note in review, continue watching
+- **Warning**: Investigate specific queries, consider targeted optimization
+- **Action Required**: Consolidate policies per original analysis
+
+### Monitoring Query
+
+```sql
+-- Run this quarterly or when investigating performance
+SELECT * FROM rls_query_performance;
+
+-- To reset stats after making changes (super_admin only)
+SELECT reset_query_stats();
+```
+
+### Implementation
+
+- **Migration**: `database/migrations/enable_query_monitoring.sql`
+- **Review Checklist**: `database/PERFORMANCE_REVIEW_CHECKLIST.md`
+
+### Review Log
+
+Record quarterly reviews here:
+
+```
+| Date | Reviewer | Slowest Avg | Data Scale | Decision |
+|------|----------|-------------|------------|----------|
+| (template) | Name | Xms | X games | All clear/Monitor/Warning/Action |
+```
+
+---
+
 ## Related Documentation
 
 - `database/check_games_indexes.sql` - Diagnostic queries used for analysis
 - `database/schema.sql:113-140` - Games table definition and indexes
+- `database/PERFORMANCE_REVIEW_CHECKLIST.md` - Quarterly review guide
 - `CLAUDE.md` - Architecture patterns and query patterns
 
 ---

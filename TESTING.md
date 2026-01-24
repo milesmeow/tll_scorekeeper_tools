@@ -183,7 +183,7 @@ $ npm run test
 
  DEV  v4.0.16
 
- ✓ src/__tests__/lib/violationRules.test.js (30 tests) 9ms
+ ✓ src/__tests__/lib/violationRules.test.js (37 tests) 11ms
 
  Test Files  1 passed (1)
       Tests  30 passed (30)
@@ -412,9 +412,9 @@ This allows tests to run in CI/CD without credentials.
 
 ### Implemented Tests
 
-#### violationRules.js (30 tests) ✅
+#### violationRules.js (37 tests) ✅
 
-**Coverage**: All 7 exported functions tested with edge cases
+**Coverage**: All 8 exported functions tested with edge cases
 
 | Function | Test Cases | Coverage |
 |----------|-----------|----------|
@@ -425,6 +425,7 @@ This allows tests to run in CI/CD without credentials.
 | `cannotPitchDueToFourInningsCatching` (Rule 3) | 4 | 100% |
 | `cannotCatchAgainDueToCombined` (Rule 4) | 7 | 100% |
 | `exceedsMaxPitchesForAge` (Rule 5) | 5 | 100% |
+| `pitchedBeforeEligibleDate` (Rule 6) | 7 | 100% |
 
 **Example test:**
 ```javascript

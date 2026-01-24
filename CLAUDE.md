@@ -98,13 +98,14 @@ Three user roles with different permission levels:
 
 ### Validation Rules Engine
 
-**Centralized validation** in `src/lib/violationRules.js` - a single source of truth for all 5 Pitch Smart rules:
+**Centralized validation** in `src/lib/violationRules.js` - a single source of truth for all 6 Pitch Smart rules:
 
 **Rule 1**: Pitchers must pitch consecutive innings (no gaps)
 **Rule 2**: 41+ pitches → cannot catch after pitching
 **Rule 3**: 4 innings catching → cannot pitch after catching 4th inning
 **Rule 4**: Caught 1-3 innings + 21+ pitches → cannot return to catch
 **Rule 5**: Pitch count exceeds age-based maximum
+**Rule 6**: Pitched before required rest period ended (cross-game validation)
 
 **Architecture Decision**: These functions were originally duplicated across `GameEntry.jsx` and `GameDetailModal.jsx` (~240 lines of duplication). They were refactored into shared utilities to ensure:
 - Single source of truth
@@ -280,7 +281,7 @@ src/components/
 ```
 src/lib/
 ├── supabase.js           # Supabase client initialization
-├── violationRules.js     # 5 validation rules (centralized)
+├── violationRules.js     # 6 validation rules (centralized)
 ├── pitchSmartRules.js    # Pitch Smart guidelines data
 ├── pitchCountUtils.js    # Date parsing, pitch count formatting
 ├── exportUtils.js        # JSON/CSV/HTML export generators
@@ -327,7 +328,7 @@ Example: `PlayerManagement.jsx` uses `PlayerModal.jsx` and `PlayerDeleteConfirma
 
 ### Current Coverage
 
-✅ **violationRules.js** - 30 tests, 95%+ coverage (all 5 rules tested)
+✅ **violationRules.js** - 37 tests, 95%+ coverage (all 6 rules tested)
 🚧 **Other utilities** - Planned in testing roadmap
 
 ### Writing New Tests
@@ -461,6 +462,6 @@ const { profile } = useContext(ProfileContext)
 
 - **README.md** - Comprehensive project overview, feature list, setup guide
 - **TESTING.md** - Detailed testing documentation (Vitest, best practices)
-- **RULES.md** - Complete baseball rules documentation (5 validation rules)
+- **RULES.md** - Complete baseball rules documentation (6 validation rules)
 - **database/schema.sql** - Full database schema with RLS policies
 - **database/PERFORMANCE_DECISIONS.md** - Database performance optimization decisions (indexes, trade-offs)

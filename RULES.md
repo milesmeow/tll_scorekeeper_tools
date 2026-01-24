@@ -1,7 +1,7 @@
 # Baseball Game Rules & Validation
 
-**Last Updated**: December 2024
-**Status**: Some rules implemented, others planned for Phase 4
+**Last Updated**: January 2026
+**Status**: All 6 rules implemented with validation warnings
 
 ---
 
@@ -224,10 +224,88 @@ return hasCaughtBeforePitching && hasReturnedToCatch;
 
 ---
 
+---
+
+### 5. Age-Based Pitch Count Limits
+
+**Status**: ✅ **Implemented** (validation warnings shown)
+
+**Rule**: Players cannot exceed their age-specific maximum pitch count per game.
+
+| Age Range | Max Pitches Per Game |
+| --------- | -------------------- |
+| 7-8       | 50                   |
+| 9-10      | 75                   |
+| 11-12     | 85                   |
+
+**Example**:
+
+- 10-year-old throws 76 pitches: ❌ **VIOLATION** (max 75)
+- 12-year-old throws 85 pitches: ✅ **OK** (exactly at limit)
+- 8-year-old throws 51 pitches: ❌ **VIOLATION** (max 50)
+
+**Implementation Details**:
+
+- Location: `src/lib/violationRules.js` - `exceedsMaxPitchesForAge()`
+- Uses penultimate batter count + 1 for pitch threshold
+- Display warning: "⚠️ Violation: Threw [X] pitches, exceeding the maximum of [Y] for age [Z]."
+- Validation is non-blocking - data can still be saved
+
+---
+
+### 6. Pitched Before Required Rest Period
+
+**Status**: ✅ **Implemented** (validation warnings shown)
+
+**Rule**: A player cannot pitch until their `next_eligible_pitch_date` has arrived. This is a cross-game rule that checks the player's most recent pitching appearance.
+
+**Key Point**: Unlike Rules 1-5 which only look at current game data, Rule 6 requires historical data from previous games.
+
+**Rationale**: Ensures players get required rest between pitching appearances to protect arm health.
+
+**Example Scenario 1 - VIOLATION**:
+
+- Player pitched 51 pitches on May 10 (requires 3 rest days)
+- Next eligible date: May 14
+- Player pitches in a game on May 12
+- ❌ **VIOLATION**: Pitched 2 days before eligible date
+
+**Example Scenario 2 - NO VIOLATION**:
+
+- Player pitched 51 pitches on May 10 (requires 3 rest days)
+- Next eligible date: May 14
+- Player pitches in a game on May 14
+- ✅ **OK**: Pitching exactly on eligible date is allowed
+
+**Example Scenario 3 - NO VIOLATION (first time pitching)**:
+
+- Player has never pitched before
+- Player pitches in any game
+- ✅ **OK**: No previous eligibility date to check
+
+**Implementation Details**:
+
+- Location: `src/lib/violationRules.js` - `pitchedBeforeEligibleDate()`
+- Fetches most recent `next_eligible_pitch_date` from `pitching_logs` table
+- Uses simple YYYY-MM-DD string comparison (lexicographic ordering works for ISO dates)
+- Display warning: "⚠️ Violation: Player pitched before their required rest period ended. Not eligible to pitch until [date]."
+- Validation is non-blocking - data can still be saved
+
+**Technical Logic**:
+
+```javascript
+// Only violates if:
+// 1. Player is pitching in this game (pitchedInnings.length > 0)
+// 2. Player has a previous pitching record (nextEligiblePitchDate exists)
+// 3. Current game date is before eligible date
+return gameDate < nextEligiblePitchDate;
+```
+
+---
+
 ## Pitch Smart Guidelines (Age-Based)
 
-**Status**: ✅ **In Database** (reference data in `pitch_count_rules` table)
-**Enforcement**: ⏳ **Planned** (Phase 4)
+**Status**: ✅ **Implemented** (reference data in `pitch_count_rules` table)
 
 These guidelines define maximum pitch counts and required rest days based on player age and pitches thrown.
 
@@ -257,38 +335,39 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ---
 
-## Implementation Strategy
+## Implementation Status
 
-### Phase 3 (Current) - Basic Validation
+### Completed - All 6 Rules Implemented
 
-- ✅ Consecutive pitching innings (warning display)
-- ✅ Data entry for pitches, innings pitched/caught
-- ✅ Manual tracking by scorekeeper
+- ✅ Rule 1: Consecutive pitching innings (warning display)
+- ✅ Rule 2: 41+ pitches → cannot catch after pitching
+- ✅ Rule 3: 4 innings catching → cannot pitch after
+- ✅ Rule 4: Caught 1-3 innings + 21+ pitches → cannot return to catch
+- ✅ Rule 5: Age-based pitch count limits
+- ✅ Rule 6: Pitched before required rest period (cross-game validation)
 
-### Phase 4 (Planned) - Rules Engine
+### Current Features
 
 1. **Real-time Validation**
-
-   - Check rules as user enters data
-   - Show warnings/errors in player sections
-   - Prevent invalid combinations (or allow with warnings)
+   - All 6 rules checked as user enters data
+   - Warnings shown in player sections
+   - Non-blocking validation (saves allowed with warnings)
 
 2. **Violation Tracking**
-
-   - Flag games with rule violations
-   - Generate compliance reports
-   - Alert administrators to violations
+   - `has_violation` flag on games table
+   - Red badge on games list for games with violations
+   - Detailed violation messages in game details
 
 3. **Rest Day Calculations**
+   - `next_eligible_pitch_date` calculated and stored
+   - Previous games checked when entering new game data
+   - Eligibility status shown in team roster views
 
-   - Calculate required rest based on pitch count + age
-   - Check previous games before allowing player to pitch
-   - Show eligibility status when entering new game
+### Planned Enhancements
 
-4. **Progressive Implementation**
-   - Implement rules one at a time
-   - Test thoroughly with real game scenarios
-   - Get feedback from scorekeepers and admins
+- Compliance dashboard with violation statistics
+- Automated reports for league administrators
+- Email notifications for rule violations
 
 ---
 
@@ -338,21 +417,21 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Rule Priority & Dependencies
 
-### High Priority (Safety-Critical)
+### High Priority (Safety-Critical) - ✅ ALL IMPLEMENTED
 
-1. ✅ Consecutive innings (pitchers)
-2. ⏳ 41+ pitches → no catching
-3. ⏳ 4 innings catching → no pitching
-4. ⏳ 1-3 innings catching + 21+ pitches → no more catching
+1. ✅ Consecutive innings (pitchers) - Rule 1
+2. ✅ 41+ pitches → no catching - Rule 2
+3. ✅ 4 innings catching → no pitching - Rule 3
+4. ✅ 1-3 innings catching + 21+ pitches → no more catching - Rule 4
 
-### Medium Priority (Compliance)
+### Medium Priority (Compliance) - ✅ ALL IMPLEMENTED
 
-- ⏳ Daily max pitch counts (age-based)
-- ⏳ Rest day calculations
+- ✅ Daily max pitch counts (age-based) - Rule 5
+- ✅ Rest day calculations - Rule 6
 
-### Low Priority (Reporting)
+### Low Priority (Reporting) - Planned
 
-- ⏳ Violation reports
+- ⏳ Compliance dashboard
 - ⏳ Player workload tracking
 - ⏳ Season compliance statistics
 
@@ -360,7 +439,9 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Testing Scenarios
 
-### Test Case 1: Consecutive Pitching
+All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (37 tests, 95%+ coverage).
+
+### Test Case 1: Consecutive Pitching (Rule 1)
 
 ```
 Input: Check innings 1, 2, 4 for pitcher
@@ -368,35 +449,54 @@ Expected: Warning displayed
 Actual: ✅ Warning shown
 ```
 
-### Test Case 2: High Pitch Count → Catching
+### Test Case 2: High Pitch Count → Catching (Rule 2)
 
 ```
 Input:
 - Player pitches 50 pitches in innings 1-3
 - Try to check catching for inning 4
-Expected: Blocked or warning
-Actual: ⏳ Not yet implemented
+Expected: Warning displayed
+Actual: ✅ Warning shown
 ```
 
-### Test Case 3: Four Innings Catching → Pitching
+### Test Case 3: Four Innings Catching → Pitching (Rule 3)
 
 ```
 Input:
 - Player catches innings 1, 2, 3, 4
 - Try to check pitching for inning 5
-Expected: Blocked or warning
-Actual: ⏳ Not yet implemented
+Expected: Warning displayed
+Actual: ✅ Warning shown
 ```
 
-### Test Case 4: Combined Rule
+### Test Case 4: Combined Rule (Rule 4)
 
 ```
 Input:
 - Player catches innings 1, 2 (2 innings)
-- Player pitches inning 3 (25 pitches)
-- Try to check catching for inning 4
-Expected: Blocked or warning
-Actual: ⏳ Not yet implemented
+- Player pitches innings 3, 4 (25 pitches)
+- Try to check catching for inning 5
+Expected: Warning displayed
+Actual: ✅ Warning shown
+```
+
+### Test Case 5: Age-Based Pitch Limit (Rule 5)
+
+```
+Input:
+- 10-year-old player throws 76 pitches
+Expected: Warning displayed (max is 75)
+Actual: ✅ Warning shown
+```
+
+### Test Case 6: Pitched Before Eligible (Rule 6)
+
+```
+Input:
+- Player's next_eligible_pitch_date is May 14
+- Try to enter pitching for game on May 12
+Expected: Warning displayed
+Actual: ✅ Warning shown
 ```
 
 ---
@@ -429,6 +529,6 @@ Actual: ⏳ Not yet implemented
 
 ---
 
-**Document Version**: 1.0
-**Last Review**: December 2024
-**Next Review**: After Phase 4 implementation
+**Document Version**: 2.0
+**Last Review**: January 2026
+**Next Review**: After compliance dashboard implementation
