@@ -239,8 +239,9 @@ UPDATE public.app_config SET maintenance_mode = false WHERE id = 1;
 
 ### Database Constraints
 1. **Jersey Numbers**: Unique per team (database enforces via `unique_jersey_per_team`)
-2. **Active Season**: Only one season can be active at a time (unique partial index)
-3. **Deletion Cascade Prevention**:
+2. **Team Names**: Unique per division within a season (database enforces via `teams_season_id_name_division_key`) - allows "Red Sox" in Training AND Major divisions
+3. **Active Season**: Only one season can be active at a time (unique partial index)
+4. **Deletion Cascade Prevention**:
    - Cannot delete season if it has teams/games
    - Cannot delete team if it has players/games
    - Cannot delete player if they have game records

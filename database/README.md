@@ -8,6 +8,35 @@ The schema was initially created but ran into RLS (Row Level Security) issues wh
 
 The `create-user` edge function allows super admins to create user accounts from the app, using the service role key to access `auth.users` table securely.
 
+## Constraint Changes
+
+### `teams_season_id_name_division_key` (Jan 2026)
+**Status**: Changed from `UNIQUE(season_id, name)` to `UNIQUE(season_id, name, division)`
+
+**Problem**: The original constraint `teams_season_id_name_key` prevented creating teams with the same name in different divisions within the same season. For example, you couldn't have "Red Sox" in both Training and Major divisions.
+
+**Solution**: Modified the unique constraint to include the `division` column, so team names only need to be unique within their specific division.
+
+**Migration file**: `database/migrations/fix_teams_unique_constraint.sql`
+
+**SQL to apply to existing databases**:
+```sql
+-- Drop the existing constraint
+ALTER TABLE public.teams
+DROP CONSTRAINT teams_season_id_name_key;
+
+-- Add the new constraint that includes division
+ALTER TABLE public.teams
+ADD CONSTRAINT teams_season_id_name_division_key UNIQUE(season_id, name, division);
+```
+
+**Behavior after change**:
+- ✅ "Red Sox" in Training + "Red Sox" in Major (same season, different divisions) - **allowed**
+- ✅ "Red Sox" in Training + "Yankees" in Training (same division, different names) - **allowed**
+- ❌ "Red Sox" in Training + "Red Sox" in Training (same division, same name) - **still blocked**
+
+---
+
 ## Index Optimization Decisions
 
 This section documents decisions about database indexes based on Supabase performance recommendations.
