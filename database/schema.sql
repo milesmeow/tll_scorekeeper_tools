@@ -55,7 +55,7 @@ CREATE TABLE public.teams (
   division TEXT NOT NULL CHECK (division IN ('Training', 'Minor', 'Major')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(season_id, name)
+  UNIQUE(season_id, name, division)  -- Team names unique per division within a season
 );
 
 CREATE INDEX idx_teams_season ON public.teams(season_id);

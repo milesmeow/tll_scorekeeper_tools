@@ -339,6 +339,61 @@ function ItemModal({ item, onClose, onSuccess, onError }) {
 - Fewer files to manage
 - Clear component ownership
 
+### Role-Based Season Filtering Pattern
+
+Multiple components (GameEntry, TeamManagement, CoachManagement) use this consistent pattern for season filtering based on user role:
+
+```javascript
+// State setup
+const [seasons, setSeasons] = useState([])
+const [selectedSeason, setSelectedSeason] = useState(null)
+
+// Fetch seasons with role-based filtering
+const fetchSeasons = async () => {
+  let query = supabase.from('seasons').select('*')
+
+  // Coaches only see active season
+  if (!isAdmin) {
+    query = query.eq('is_active', true)
+  }
+
+  query = query
+    .order('is_active', { ascending: false })
+    .order('start_date', { ascending: false })
+
+  const { data } = await query
+
+  // Auto-select active season as default
+  const activeSeason = data.find(s => s.is_active)
+  if (activeSeason) {
+    setSelectedSeason(activeSeason.id)
+  } else if (data.length > 0) {
+    setSelectedSeason(data[0].id)
+  }
+}
+```
+
+**UI Pattern:**
+```jsx
+<select
+  value={selectedSeason || ''}
+  onChange={(e) => setSelectedSeason(e.target.value)}
+  disabled={!isAdmin}  // Coaches can't change season
+>
+  {seasons.map((season) => (
+    <option key={season.id} value={season.id}>
+      {season.name} {season.is_active ? '(Active)' : ''}
+    </option>
+  ))}
+</select>
+```
+
+**Key Points:**
+- Admins see all seasons in dropdown
+- Coaches see only active season (dropdown disabled)
+- Active season auto-selected as default for all users
+- Data queries filter by `selectedSeason` to scope results
+
 ---
 
 ## Data Flow Examples
@@ -1048,12 +1103,15 @@ baseball-app/
 
 ---
 
-**Architecture Version**: 2.1 (Updated January 2026)
+**Architecture Version**: 2.2 (Updated January 2026)
 **Major Updates**:
 
 - Added comprehensive Testing Architecture section
 - Documented Vitest integration and rationale
 - Updated file structure to include `__tests__/` directory
 - Added testing best practices and coverage goals
+- Added Role-Based Season Filtering Pattern documentation
+  - Consistent pattern used across GameEntry, TeamManagement, CoachManagement
+  - Documents role-based query filtering and UI disabled states
 
 **Next Review**: After additional test coverage expansion

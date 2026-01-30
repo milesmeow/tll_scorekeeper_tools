@@ -5,11 +5,49 @@ export default function CoachManagement({ isAdmin }) {
   const [coaches, setCoaches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [seasons, setSeasons] = useState([])
+  const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('Major')
 
   useEffect(() => {
-    fetchCoaches()
+    fetchSeasons()
   }, [])
+
+  useEffect(() => {
+    if (selectedSeason) {
+      fetchCoaches()
+    }
+  }, [selectedSeason])
+
+  const fetchSeasons = async () => {
+    try {
+      let query = supabase.from('seasons').select('*')
+
+      // Coaches only see active season
+      if (!isAdmin) {
+        query = query.eq('is_active', true)
+      }
+
+      query = query
+        .order('is_active', { ascending: false })
+        .order('start_date', { ascending: false })
+
+      const { data, error } = await query
+      if (error) throw error
+
+      setSeasons(data)
+
+      // Auto-select active season
+      const activeSeason = data.find(s => s.is_active)
+      if (activeSeason) {
+        setSelectedSeason(activeSeason.id)
+      } else if (data.length > 0) {
+        setSelectedSeason(data[0].id)
+      }
+    } catch (err) {
+      setError(err.message)
+    }
+  }
 
   const fetchCoaches = async () => {
     try {
@@ -22,20 +60,22 @@ export default function CoachManagement({ isAdmin }) {
 
       if (usersError) throw usersError
 
-      // Get their team assignments
+      // Get their team assignments for the selected season
       const { data: assignments, error: assignmentsError } = await supabase
         .from('team_coaches')
         .select(`
           *,
-          teams (
+          teams!inner (
             name,
             division,
+            season_id,
             seasons (
               name,
               is_active
             )
           )
         `)
+        .eq('teams.season_id', selectedSeason)
 
       if (assignmentsError) throw assignmentsError
 
@@ -57,9 +97,9 @@ export default function CoachManagement({ isAdmin }) {
     return <div className="text-center py-8">Loading coaches...</div>
   }
 
-  // Filter coaches by division
+  // Filter coaches by division (only show coaches with assignments in selected season)
   const filteredCoaches = selectedDivision === 'All'
-    ? coaches
+    ? coaches.filter(coach => coach.assignments.length > 0)
     : coaches.filter(coach =>
         coach.assignments.some(assignment => assignment.teams.division === selectedDivision)
       )
@@ -75,19 +115,36 @@ export default function CoachManagement({ isAdmin }) {
         )}
       </div>
 
-      {/* Division Selector */}
-      <div className="mb-6">
-        <label className="label">Filter by Division</label>
-        <select
-          className="input max-w-md"
-          value={selectedDivision}
-          onChange={(e) => setSelectedDivision(e.target.value)}
-        >
-          <option value="All">All Divisions</option>
-          <option value="Training">Training</option>
-          <option value="Minor">Minor</option>
-          <option value="Major">Major</option>
-        </select>
+      {/* Season and Division Selectors */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Season</label>
+          <select
+            className="input"
+            value={selectedSeason || ''}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            disabled={!isAdmin}
+          >
+            {seasons.map((season) => (
+              <option key={season.id} value={season.id}>
+                {season.name} {season.is_active ? '(Active)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Filter by Division</label>
+          <select
+            className="input"
+            value={selectedDivision}
+            onChange={(e) => setSelectedDivision(e.target.value)}
+          >
+            <option value="All">All Divisions</option>
+            <option value="Training">Training</option>
+            <option value="Minor">Minor</option>
+            <option value="Major">Major</option>
+          </select>
+        </div>
       </div>
 
       {error && (
