@@ -18,7 +18,10 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - **Season Management** - Create, edit, delete seasons; set active season
 - **Team Management** - Organize by division (Training, Minor, Major)
 - **Player Management** - Individual add, bulk CSV import, edit/delete
-- **Coach Management** - View coaches and their team assignments
+- **Coach Management** - View coaches and their team assignments by season
+  - Season dropdown filter (defaults to active season)
+  - Admins can view all seasons; coaches see only active season
+  - Division filter shows only coaches with assignments in selected season
 - **Coach Assignments** - Assign coaches to teams (always read-only access)
 
 #### Phase 3: Game Entry (Complete)
@@ -748,3 +751,9 @@ Private/Proprietary
   - Comprehensive test suite for `violationRules.js` (37 tests, 95%+ coverage)
   - Global Supabase mocks and test utilities
   - Fast test execution (100-500ms watch mode) with visual UI dashboard
+- ✅ **Coach Management Season Filter** (Jan 2026):
+  - Added season dropdown to Coach Management page
+  - Defaults to active season for all users
+  - Admins/super_admins can switch between all seasons
+  - Coaches see only active season (dropdown disabled)
+  - "All Divisions" filter shows only coaches with assignments in selected season
