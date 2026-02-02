@@ -234,7 +234,7 @@ return hasCaughtBeforePitching && hasReturnedToCatch;
 
 | Age Range | Max Pitches Per Game |
 | --------- | -------------------- |
-| 7-8       | 50                   |
+| 6-8       | 50                   |
 | 9-10      | 75                   |
 | 11-12     | 85                   |
 
@@ -313,13 +313,13 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 | Age Group | Max Pitches per Day |
 | --------- | ------------------- |
-| 7-8       | 50                  |
+| 6-8       | 50                  |
 | 9-10      | 75                  |
 | 11-12     | 85                  |
 
 ### Required Rest Days by Pitch Count
 
-**Ages 7-8**:
+**Ages 6-8**:
 
 - 1-20 pitches: 0 days rest
 - 21-35 pitches: 1 day rest

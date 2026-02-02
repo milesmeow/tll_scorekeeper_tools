@@ -256,7 +256,7 @@ Added a 5th validation rule to enforce MLB/USA Baseball Pitch Smart maximum pitc
 
 | Age Range | Max Pitches Per Game |
 | --------- | -------------------- |
-| 7-8       | 50                   |
+| 6-8       | 50                   |
 | 9-10      | 75                   |
 | 11-12     | 85                   |
 
@@ -686,7 +686,7 @@ npm install tailwindcss@3.4.1 -D
 
 | Age   | Max Pitches | Rest Days by Pitch Count                           |
 | ----- | ----------- | -------------------------------------------------- |
-| 7-8   | 50          | 1-20: 0d, 21-35: 1d, 36-50: 2d                     |
+| 6-8   | 50          | 1-20: 0d, 21-35: 1d, 36-50: 2d                     |
 | 9-10  | 75          | 1-20: 0d, 21-35: 1d, 36-50: 2d, 51-65: 3d, 66+: 4d |
 | 11-12 | 85          | 1-20: 0d, 21-35: 1d, 36-50: 2d, 51-65: 3d, 66+: 4d |
 
