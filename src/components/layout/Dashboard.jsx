@@ -23,8 +23,14 @@ export default function Dashboard({ user, profile }) {
   const isCoach = profile.role === 'coach'
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    navigate('/')
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error('Error signing out:', error)
+      // Force clear local state if sign out fails
+      // This ensures user can always sign out even if API call fails
+      window.location.href = '/'
+    }
+    // On success, onAuthStateChange in App.jsx handles the redirect
   }
 
   return (
