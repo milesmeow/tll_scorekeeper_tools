@@ -93,7 +93,7 @@ CREATE TABLE public.players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES public.teams(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
-  age INTEGER NOT NULL CHECK (age >= 7 AND age <= 12),
+  age INTEGER NOT NULL CHECK (age >= 6 AND age <= 12),
   jersey_number TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
