@@ -7,9 +7,9 @@ import {
 
 describe('pitchSmartRules', () => {
   describe('PITCH_SMART_RULES data structure', () => {
-    it('should have rules for ages 7-12', () => {
+    it('should have rules for ages 6-12', () => {
       expect(PITCH_SMART_RULES).toHaveLength(3)
-      expect(PITCH_SMART_RULES[0].ageMin).toBe(7)
+      expect(PITCH_SMART_RULES[0].ageMin).toBe(6)
       expect(PITCH_SMART_RULES[0].ageMax).toBe(8)
       expect(PITCH_SMART_RULES[1].ageMin).toBe(9)
       expect(PITCH_SMART_RULES[1].ageMax).toBe(10)
@@ -18,14 +18,14 @@ describe('pitchSmartRules', () => {
     })
 
     it('should have correct max pitches per game', () => {
-      expect(PITCH_SMART_RULES[0].maxPitchesPerGame).toBe(50)  // 7-8
+      expect(PITCH_SMART_RULES[0].maxPitchesPerGame).toBe(50)  // 6-8
       expect(PITCH_SMART_RULES[1].maxPitchesPerGame).toBe(75)  // 9-10
       expect(PITCH_SMART_RULES[2].maxPitchesPerGame).toBe(85)  // 11-12
     })
   })
 
   describe('getRequiredRestDays', () => {
-    describe('ages 7-8', () => {
+    describe('ages 6-8', () => {
       it('should return 0 rest days for 1-20 pitches', () => {
         expect(getRequiredRestDays(7, 1)).toBe(0)
         expect(getRequiredRestDays(8, 10)).toBe(0)
@@ -113,9 +113,9 @@ describe('pitchSmartRules', () => {
 
     describe('edge cases', () => {
       it('should return null for ages outside defined ranges', () => {
-        expect(getRequiredRestDays(6, 20)).toBe(null)
+        expect(getRequiredRestDays(5, 20)).toBe(null)
         expect(getRequiredRestDays(13, 20)).toBe(null)
-        expect(getRequiredRestDays(5, 30)).toBe(null)
+        expect(getRequiredRestDays(4, 30)).toBe(null)
         expect(getRequiredRestDays(15, 40)).toBe(null)
       })
 
@@ -168,7 +168,7 @@ describe('pitchSmartRules', () => {
     })
 
     describe('different age groups', () => {
-      it('should work for ages 7-8', () => {
+      it('should work for ages 6-8', () => {
         const gameDate = '2025-05-10'
         // 30 pitches = 1 rest day for ages 7-8
         const nextDate = calculateNextEligibleDate(gameDate, 7, 30)
@@ -200,7 +200,7 @@ describe('pitchSmartRules', () => {
 
     describe('edge cases', () => {
       it('should return null for ages outside defined ranges', () => {
-        expect(calculateNextEligibleDate('2025-05-10', 6, 20)).toBe(null)
+        expect(calculateNextEligibleDate('2025-05-10', 5, 20)).toBe(null)
         expect(calculateNextEligibleDate('2025-05-10', 13, 20)).toBe(null)
       })
 

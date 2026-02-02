@@ -9,7 +9,7 @@ import { parseLocalDate } from './pitchCountUtils'
 
 export const PITCH_SMART_RULES = [
   {
-    ageMin: 7,
+    ageMin: 6,
     ageMax: 8,
     maxPitchesPerGame: 50,
     restDayRanges: [
