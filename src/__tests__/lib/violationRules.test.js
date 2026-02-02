@@ -35,7 +35,7 @@ describe('violationRules', () => {
     })
 
     it('should return null for ages outside defined ranges', () => {
-      expect(getMaxPitchesForAge(6)).toBe(null)
+      expect(getMaxPitchesForAge(5)).toBe(null)
       expect(getMaxPitchesForAge(13)).toBe(null)
     })
   })
@@ -135,11 +135,11 @@ describe('violationRules', () => {
    * may not return to the catcher position
    */
   describe('Rule 4: cannotCatchAgainDueToCombined', () => {
-    it('should return false if caught less than 1 inning', () => {
+    it('should return false if caught less than 1 inning before pitching', () => {
       expect(cannotCatchAgainDueToCombined([2, 3], [], 25)).toBe(false)
     })
 
-    it('should return false if caught more than 3 innings', () => {
+    it('should return false if caught more than 3 innings before pitching', () => {
       expect(cannotCatchAgainDueToCombined([5, 6], [1, 2, 3, 4, 7], 25)).toBe(false)
     })
 
@@ -160,7 +160,7 @@ describe('violationRules', () => {
       expect(cannotCatchAgainDueToCombined([2, 3], [1], 25)).toBe(false)
     })
 
-    it('should return true if caught 1-3 innings, pitched 21+, then returned to catch', () => {
+    it('should return true if caught 1-3 innings before pitching, pitched 21+, then returned to catch', () => {
       expect(cannotCatchAgainDueToCombined([2, 3], [1, 4], 21)).toBe(true)
       expect(cannotCatchAgainDueToCombined([3, 4], [1, 2, 5], 30)).toBe(true)
     })
@@ -180,7 +180,7 @@ describe('violationRules', () => {
     })
 
     it('should return false if age has no defined limit', () => {
-      expect(exceedsMaxPitchesForAge(6, 100)).toBe(false)
+      expect(exceedsMaxPitchesForAge(5, 100)).toBe(false)
       expect(exceedsMaxPitchesForAge(13, 100)).toBe(false)
     })
 
@@ -254,6 +254,182 @@ describe('violationRules', () => {
       expect(pitchedBeforeEligibleDate('2025-05-31', '2025-06-01', [1, 2, 3])).toBe(true)
       // First day of June, eligible June 1 (not a violation)
       expect(pitchedBeforeEligibleDate('2025-06-01', '2025-06-01', [1, 2, 3])).toBe(false)
+    })
+  })
+
+  /**
+   * Extra Innings Support (7+, 8+, 9+, etc.)
+   * These tests verify that all validation rules work correctly
+   * when games extend beyond the standard 6 innings
+   */
+  describe('Extra Innings Support (7+, 8+, 9+)', () => {
+    describe('Rule 1: hasInningsGap with extra innings', () => {
+      it('should return false for consecutive innings through inning 8', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7, 8])).toBe(false)
+      })
+
+      it('should return false for consecutive innings through inning 10', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).toBe(false)
+      })
+
+      it('should return false for consecutive innings through inning 12', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toBe(false)
+      })
+
+      it('should detect gap in 8-inning game', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 6, 7, 8])).toBe(true) // Missing inning 5
+      })
+
+      it('should detect gap in 10-inning game', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7, 9, 10])).toBe(true) // Missing inning 8
+      })
+
+      it('should detect multiple gaps in 9-inning game', () => {
+        expect(hasInningsGap([1, 2, 4, 6, 8, 9])).toBe(true) // Missing 3, 5, 7
+      })
+
+      it('should handle pitcher starting in inning 7', () => {
+        expect(hasInningsGap([7, 8])).toBe(false)
+      })
+
+      it('should handle pitcher starting in inning 8 and going to 12', () => {
+        expect(hasInningsGap([8, 9, 10, 11, 12])).toBe(false)
+      })
+    })
+
+    describe('Rule 2: cannotCatchDueToHighPitchCount with extra innings', () => {
+      it('should return true if catching in innings 8-9 after pitching 7 innings with 41+ pitches', () => {
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3, 4, 5, 6, 7], [8, 9], 45)).toBe(true)
+      })
+
+      it('should return true if catching in inning 10 after pitching with 41+ pitches', () => {
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3, 4, 5, 6, 7, 8], [10], 50)).toBe(true)
+      })
+
+      it('should return false if catching before pitching even in extra innings', () => {
+        expect(cannotCatchDueToHighPitchCount([7, 8, 9], [1, 2, 3], 45)).toBe(false)
+      })
+
+      it('should return false if pitch count below 41 even in 10 inning game', () => {
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3, 4, 5, 6, 7, 8], [9, 10], 40)).toBe(false)
+      })
+    })
+
+    describe('Rule 3: cannotPitchDueToFourInningsCatching with extra innings', () => {
+      it('should return true if pitching in innings 8-9 after catching 4 innings', () => {
+        expect(cannotPitchDueToFourInningsCatching([8, 9], [1, 2, 3, 4])).toBe(true)
+      })
+
+      it('should return true if pitching in inning 10 after catching 4 innings', () => {
+        expect(cannotPitchDueToFourInningsCatching([10], [1, 2, 3, 4])).toBe(true)
+      })
+
+      it('should return true if catching 6 innings then pitching inning 8', () => {
+        expect(cannotPitchDueToFourInningsCatching([8], [1, 2, 3, 4, 5, 6])).toBe(true)
+      })
+
+      it('should return false if pitching before 4th catching inning in 10-inning game', () => {
+        expect(cannotPitchDueToFourInningsCatching([1, 2, 3], [4, 5, 6, 7, 8, 9, 10])).toBe(false)
+      })
+
+      it('should handle catching exactly 4 innings in 8-inning game', () => {
+        expect(cannotPitchDueToFourInningsCatching([5, 6, 7, 8], [1, 2, 3, 4])).toBe(true)
+      })
+    })
+
+    describe('Rule 4: cannotCatchAgainDueToCombined with extra innings', () => {
+      it('should return true if caught 2 innings before pitching, pitched 21+, then caught again in inning 8', () => {
+        expect(cannotCatchAgainDueToCombined([3, 4, 5, 6, 7], [1, 2, 8], 25)).toBe(true)
+      })
+
+      it('should return true if caught 3 innings before pitching, pitched 21+, then caught inning 10', () => {
+        expect(cannotCatchAgainDueToCombined([4, 5, 6, 7, 8, 9], [1, 2, 3, 10], 30)).toBe(true)
+      })
+
+      it('should return false if caught 3 innings before pitching but did not return to catch', () => {
+        expect(cannotCatchAgainDueToCombined([4, 5, 6, 7, 8, 9, 10], [1, 2, 3], 30)).toBe(false)
+      })
+
+      it('should return false if only caught after pitching in extra innings', () => {
+        expect(cannotCatchAgainDueToCombined([1, 2, 3, 4, 5], [6, 7, 8, 9], 30)).toBe(false)
+      })
+
+      it('should return false if caught 1-3 innings before pitching but pitch count below 21', () => {
+        expect(cannotCatchAgainDueToCombined([3, 4, 5, 6, 7], [1, 2, 8, 9], 20)).toBe(false)
+      })
+
+      it('should return false if caught 4+ innings before pitching (Rule 3 applies instead)', () => {
+        expect(cannotCatchAgainDueToCombined([5, 6, 7, 8, 9], [1, 2, 3, 4, 10], 30)).toBe(false)
+      })
+    })
+
+    describe('Complex scenarios with 10+ innings', () => {
+      it('should validate pitcher who pitches all 12 innings', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])).toBe(false)
+      })
+
+      it('should detect violation if pitcher has gap in middle of 12-inning game', () => {
+        expect(hasInningsGap([1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12])).toBe(true) // Missing 6
+      })
+
+      it('should handle catcher who catches innings 7-10 after pitching 1-3', () => {
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3], [7, 8, 9, 10], 30)).toBe(false)
+      })
+
+      it('should validate Rule 2 in 12-inning marathon game', () => {
+        // Pitcher throws 45 pitches in innings 1-6, then catches 7-12 (violation)
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12], 45)).toBe(true)
+      })
+
+      it('should validate Rule 3 in 10-inning game with 6 innings caught', () => {
+        // Catches innings 1-6, pitches 7-10 (violation)
+        expect(cannotPitchDueToFourInningsCatching([7, 8, 9, 10], [1, 2, 3, 4, 5, 6])).toBe(true)
+      })
+
+      it('should validate Rule 4 with catching before and after in 11-inning game', () => {
+        // Catches 1-2 before, pitches 3-9 (25 pitches), catches 10-11 after (violation)
+        expect(cannotCatchAgainDueToCombined([3, 4, 5, 6, 7, 8, 9], [1, 2, 10, 11], 25)).toBe(true)
+      })
+    })
+
+    describe('Edge cases with maximum innings (12)', () => {
+      it('should handle starting pitcher in inning 12', () => {
+        expect(hasInningsGap([12])).toBe(false)
+      })
+
+      it('should handle pitcher finishing in inning 12', () => {
+        expect(hasInningsGap([7, 8, 9, 10, 11, 12])).toBe(false)
+      })
+
+      it('should detect catching after 50-pitch performance ending in inning 12', () => {
+        expect(cannotCatchDueToHighPitchCount([8, 9, 10, 11, 12], [12], 50)).toBe(false) // Same inning, no violation
+      })
+    })
+
+    describe('Realistic extra inning scenarios', () => {
+      it('should validate tied game going to 7th inning - pitcher continues', () => {
+        // Pitcher throws innings 1-7 consecutively
+        expect(hasInningsGap([1, 2, 3, 4, 5, 6, 7])).toBe(false)
+      })
+
+      it('should validate 8-inning game - relief pitcher enters in 7th', () => {
+        // Relief pitcher enters for innings 7-8
+        expect(hasInningsGap([7, 8])).toBe(false)
+      })
+
+      it('should catch violation in 9-inning game with pitcher re-entry attempt', () => {
+        // Pitcher throws 1-3, taken out, tries to return in 9 (gap at 4-8)
+        expect(hasInningsGap([1, 2, 3, 9])).toBe(true)
+      })
+
+      it('should validate catcher who catches full 8-inning game then pitches is violation', () => {
+        // Catches all 8 innings, then pitches 9 (violation - caught 4+)
+        expect(cannotPitchDueToFourInningsCatching([9], [1, 2, 3, 4, 5, 6, 7, 8])).toBe(true)
+      })
+
+      it('should validate pitcher with 45 pitches in 7 innings cannot catch inning 8', () => {
+        expect(cannotCatchDueToHighPitchCount([1, 2, 3, 4, 5, 6, 7], [8], 45)).toBe(true)
+      })
     })
   })
 })
