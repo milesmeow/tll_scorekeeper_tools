@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getPitchingDisplayData, parseLocalDate } from '../../lib/pitchCountUtils'
+import { parsePlayerCsv } from '../../lib/playerCsvUtils'
 import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
 
 /**
@@ -463,41 +464,7 @@ function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
     setModalError(null)
 
     try {
-      const lines = csvData.trim().split('\n')
-      const players = []
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim()
-        if (!line) continue
-
-        const parts = line.split(',').map(p => p.trim())
-
-        if (parts.length < 2) {
-          throw new Error('Line ' + (i + 1) + ': Invalid format. Expected: Name, Age, Jersey# (optional)')
-        }
-
-        const [name, age, jersey] = parts
-
-        if (!name) {
-          throw new Error('Line ' + (i + 1) + ': Name is required')
-        }
-
-        const ageNum = parseInt(age)
-        if (isNaN(ageNum) || ageNum < 6 || ageNum > 12) {
-          throw new Error('Line ' + (i + 1) + ': Age must be between 6 and 12')
-        }
-
-        players.push({
-          name,
-          age: ageNum,
-          jersey_number: jersey || null,
-          team_id: teamId
-        })
-      }
-
-      if (players.length === 0) {
-        throw new Error('No valid players found in CSV data')
-      }
+      const players = parsePlayerCsv(csvData, teamId)
 
       const { error } = await supabase
         .from('players')
