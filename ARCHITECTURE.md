@@ -440,7 +440,7 @@ User pastes CSV:
          ↓
 Parse CSV line by line
   - Split on comma
-  - Validate age (7-12)
+  - Validate age (6-12)
   - Validate format
          ↓
 Build array of player objects
@@ -526,7 +526,7 @@ setModalError(error.message); // Show inside modal (not behind it)
 ```javascript
 // Database-level validation
 - Jersey number unique per team → Constraint violation error
-- Age 7-12 → CHECK constraint
+- Age 6-12 → CHECK constraint
 - Required fields → NOT NULL constraints
 
 // Application-level validation
@@ -559,7 +559,7 @@ ALTER TABLE players
 -- Age range validation
 ALTER TABLE players
   ADD CONSTRAINT players_age_check
-  CHECK (age >= 7 AND age <= 12);
+  CHECK (age >= 6 AND age <= 12);
 
 -- Pitch count relationship
 ALTER TABLE pitching_logs
