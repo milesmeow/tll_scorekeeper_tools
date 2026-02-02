@@ -93,9 +93,9 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess, onErro
               value={formData.age}
               onChange={(e) => setFormData({ ...formData, age: e.target.value })}
               required
-              min="7"
+              min="6"
               max="12"
-              placeholder="7-12"
+              placeholder="6-12"
             />
           </div>
 

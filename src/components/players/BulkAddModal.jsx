@@ -33,8 +33,8 @@ export default function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
         }
 
         const ageNum = parseInt(age)
-        if (isNaN(ageNum) || ageNum < 7 || ageNum > 12) {
-          throw new Error(`Line ${i + 1}: Age must be between 7 and 12`)
+        if (isNaN(ageNum) || ageNum < 6 || ageNum > 12) {
+          throw new Error(`Line ${i + 1}: Age must be between 6 and 12`)
         }
 
         players.push({
@@ -99,7 +99,7 @@ John Smith, 12, 5{'\n'}Jane Doe, 11, 7{'\n'}Bob Johnson, 13
               </pre>
               <p className="mt-2 text-xs text-gray-600">
                 • One player per line<br />
-                • Age must be 7-12<br />
+                • Age must be 6-12<br />
                 • Jersey numbers must be unique on this team<br />
                 • Jersey number is optional (leave blank or omit)
               </p>
