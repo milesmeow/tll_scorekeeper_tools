@@ -480,6 +480,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const [awayPlayers, setAwayPlayers] = useState([]) // Player data for away team
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
+  const [maxInnings, setMaxInnings] = useState(6) // Dynamic innings count (6 default, can add up to 12)
 
   // Ref for scrolling to top on error
   const modalContentRef = useRef(null)
@@ -570,6 +571,18 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       setHomePlayers(homePlayerData)
       setAwayPlayers(awayPlayerData)
+
+      // Calculate max innings from existing data
+      const allPitchedInnings = [...homePlayerData, ...awayPlayerData]
+        .flatMap(p => p.innings_pitched)
+      const allCaughtInnings = [...homePlayerData, ...awayPlayerData]
+        .flatMap(p => p.innings_caught)
+      const existingMaxInning = Math.max(
+        6, // Default minimum
+        allPitchedInnings.length > 0 ? Math.max(...allPitchedInnings) : 0,
+        allCaughtInnings.length > 0 ? Math.max(...allCaughtInnings) : 0
+      )
+      setMaxInnings(existingMaxInning)
 
       // Save original game data for comparison when teams change
       setOriginalGameData({
@@ -733,6 +746,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
           setHomePlayers(newHomePlayers)
           setAwayPlayers(newAwayPlayers)
+          setMaxInnings(6) // Reset to default when teams change
         }
       } else {
         // For new game: Don't save to database yet, just fetch players
@@ -1249,6 +1263,10 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     }
   }, [])
 
+  const handleAddInning = useCallback(() => {
+    setMaxInnings(prev => Math.min(prev + 1, 12))
+  }, [])
+
   if (step === 1) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
@@ -1477,6 +1495,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               isHome={true}
               onToggleInning={toggleInning}
               onUpdateField={updatePlayerField}
+              maxInnings={maxInnings}
+              onAddInning={handleAddInning}
             />
 
             {/* Away Team Section */}
@@ -1486,6 +1506,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               isHome={false}
               onToggleInning={toggleInning}
               onUpdateField={updatePlayerField}
+              maxInnings={maxInnings}
+              onAddInning={handleAddInning}
             />
 
             <div className="flex gap-2 pt-4 pb-6 border-t sticky bottom-0 bg-white">
@@ -1648,9 +1670,12 @@ const PlayerRow = memo(function PlayerRow({
   index,
   isHome,
   onToggleInning,
-  onUpdateField
+  onUpdateField,
+  maxInnings,
+  onAddInning
 }) {
-  const innings = [1, 2, 3, 4, 5, 6, 7]
+  const innings = Array.from({ length: maxInnings }, (_, i) => i + 1)
+  const canAddInning = maxInnings < 12
 
   return (
     <div className="border rounded p-4 bg-gray-50">
@@ -1706,6 +1731,15 @@ const PlayerRow = memo(function PlayerRow({
                   </label>
                 ))}
               </div>
+              {canAddInning && (
+                <button
+                  type="button"
+                  onClick={onAddInning}
+                  className="text-sm text-blue-600 hover:text-blue-800 mt-2"
+                >
+                  + Add Inning {maxInnings + 1}
+                </button>
+              )}
             </div>
 
             {/* Innings Caught */}
@@ -1723,6 +1757,15 @@ const PlayerRow = memo(function PlayerRow({
                   </label>
                 ))}
               </div>
+              {canAddInning && (
+                <button
+                  type="button"
+                  onClick={onAddInning}
+                  className="text-sm text-green-600 hover:text-green-800 mt-2"
+                >
+                  + Add Inning {maxInnings + 1}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1771,7 +1814,9 @@ function TeamPlayerDataSection({
   players,
   isHome,
   onToggleInning,
-  onUpdateField
+  onUpdateField,
+  maxInnings,
+  onAddInning
 }) {
   return (
     <div className="border rounded-lg p-4">
@@ -1792,6 +1837,8 @@ function TeamPlayerDataSection({
               isHome={isHome}
               onToggleInning={onToggleInning}
               onUpdateField={onUpdateField}
+              maxInnings={maxInnings}
+              onAddInning={onAddInning}
             />
           ))}
         </div>
