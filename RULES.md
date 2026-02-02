@@ -1,7 +1,7 @@
 # Baseball Game Rules & Validation
 
-**Last Updated**: January 2026
-**Status**: All 6 rules implemented with validation warnings
+**Last Updated**: February 2026
+**Status**: All 6 rules implemented with validation warnings + Extra innings support (7-12 innings)
 
 ---
 
@@ -154,13 +154,15 @@ const hasPitchedAfterFourCatches = player.innings_pitched.some(
 
 **Key Point**: The violation requires THREE phases in sequence:
 
-1. **Catch** 1-3 innings (BEFORE pitching)
+1. **Catch** 1-3 innings **BEFORE pitching starts**
 2. **THEN Pitch** 21+ pitches
-3. **THEN Return to Catch** (AFTER pitching)
+3. **THEN Return to Catch** (AFTER pitching ends)
 
 All three must occur for a violation. Just catching after pitching is not enough - they must have also caught BEFORE pitching.
 
-**Rationale**: Limits cumulative throwing stress from both catching and pitching.
+**IMPORTANT**: The rule checks innings caught **BEFORE pitching**, not total catching innings. A player can catch 4+ total innings without violating Rule 4 as long as they only caught 1-3 innings before they started pitching.
+
+**Rationale**: Limits cumulative throwing stress from both catching and pitching in sequence.
 
 **Example Scenario 1 - VIOLATION**:
 
@@ -195,6 +197,21 @@ All three must occur for a violation. Just catching after pitching is not enough
 - Player pitches innings 4, 5 with 30 pitches
 - ✅ **OK**: Caught before and pitched, but didn't return to catch after
 
+**Example Scenario 6 - VIOLATION (4 total catches, but only 3 before pitching)**:
+
+- Player catches innings 1, 2, 3 (3 innings) ← Caught BEFORE
+- Player pitches innings 4, 5, 6, 7, 8, 9 with 30 pitches
+- Player catches inning 10 ← Returned to catch AFTER
+- ❌ **VIOLATION**: Only caught 3 innings BEFORE pitching (Rule 4 applies), then returned to catch
+- Note: Total of 4 catches, but only 3 were before pitching, so Rule 4 still applies
+
+**Example Scenario 7 - NO VIOLATION (4 catches before pitching, Rule 3 applies instead)**:
+
+- Player catches innings 1, 2, 3, 4 (4 innings) ← 4 catches BEFORE
+- Player pitches innings 5, 6 with 30 pitches
+- ✅ **OK for Rule 4**: Caught 4 innings before pitching (Rule 4 only applies to 1-3)
+- Note: This scenario triggers Rule 3 instead (can't pitch after catching 4)
+
 **Implementation Details**:
 
 - Location: `src/components/games/GameEntry.jsx` (lines ~847-877)
@@ -207,19 +224,24 @@ All three must occur for a violation. Just catching after pitching is not enough
 
 ```javascript
 // Only violates if ALL conditions are met:
-// 1. Caught 1-3 innings total
+// 1. Caught 1-3 innings BEFORE pitching started (not total innings)
 // 2. Pitched 21+ (using penultimate + 1)
-// 3. Has catching innings BEFORE pitching started
-// 4. Has catching innings AFTER pitching ended
+// 3. Has catching innings AFTER pitching ended (returned to catch)
 const minPitchingInning = Math.min(...pitchedInnings);
 const maxPitchingInning = Math.max(...pitchedInnings);
-const hasCaughtBeforePitching = player.innings_caught.some(
+
+// Count catching innings BEFORE pitching started
+const caughtBeforePitching = caughtInnings.filter(
   (inning) => inning < minPitchingInning
 );
-const hasReturnedToCatch = player.innings_caught.some(
+const caughtAfterPitching = caughtInnings.filter(
   (inning) => inning > maxPitchingInning
 );
-return hasCaughtBeforePitching && hasReturnedToCatch;
+
+// Rule 4 applies if caught 1-3 innings BEFORE pitching, then returned
+return caughtBeforePitching.length >= 1 &&
+       caughtBeforePitching.length <= 3 &&
+       caughtAfterPitching.length > 0;
 ```
 
 ---
@@ -439,7 +461,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Testing Scenarios
 
-All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (37 tests, 95%+ coverage).
+All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (76 tests total: 37 original + 39 extra innings tests, 95%+ coverage).
 
 ### Test Case 1: Consecutive Pitching (Rule 1)
 
@@ -501,6 +523,79 @@ Actual: ✅ Warning shown
 
 ---
 
+## Extra Innings Support (7+, 8+, 9+, etc.)
+
+**Status**: ✅ **Implemented** (January 2026)
+
+**Overview**: Games can now extend beyond the standard 6 innings when tied at the end of regulation. The application supports up to 12 innings per game with full validation rule support.
+
+### Implementation Details
+
+**Dynamic Inning Count**:
+- Games start with 6 innings by default (most common)
+- "+ Add Inning" button allows incrementally adding innings 7, 8, 9, up to 12
+- Maximum limit of 12 innings (safety limit for youth baseball)
+- In edit mode, games with 7+ innings automatically show all existing innings
+
+**Database Support**:
+- `positions_played.inning_number` is stored as INTEGER with no maximum constraint
+- No schema changes required - already supports unlimited innings
+- Fully backward compatible with existing 6-inning games
+
+**Validation Rules - All Work with Extra Innings**:
+
+All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and automatically work with any number of innings:
+
+- ✅ **Rule 1 (Consecutive Innings)**: Works with 7-12 innings
+  - Example: Pitcher throws innings 1-8 consecutively → Valid
+  - Example: Pitcher throws [1,2,3,5,8] in 8-inning game → Gap violation detected
+
+- ✅ **Rule 2 (High Pitch Count)**: Works with extra innings
+  - Example: 45 pitches in innings 1-7, catches inning 8 → Violation
+
+- ✅ **Rule 3 (4 Innings Catching)**: Works with extended games
+  - Example: Catches innings 1-6, pitches innings 7-10 → Violation (caught 4+ before pitching 7)
+
+- ✅ **Rule 4 (Combined Restriction)**: Works with any inning count
+  - Example: Catches 1-3 before pitching, pitches 4-9 (25 pitches), catches 10-11 → Violation
+
+- ✅ **Rule 5 (Age Limits)**: Pitch count limits apply regardless of innings
+- ✅ **Rule 6 (Rest Days)**: Rest calculations work for any game length
+
+**UI Features**:
+- Dynamic "+ Add Inning 7" button appears in both pitching and catching sections
+- Button updates to show next inning number (e.g., "+ Add Inning 8")
+- Button disappears when reaching 12-inning maximum
+- Confirmation display (Step 3) automatically expands to show all innings
+- Game detail view displays all innings correctly
+
+**Testing**:
+- 39 new test cases added for extra innings scenarios (7-12 innings)
+- All tests pass, confirming rules work correctly with variable innings
+- Test coverage includes realistic scenarios (tied games, relief pitchers, marathon games)
+
+**Use Cases**:
+- **7th Inning (Most Common)**: Game tied 5-5 after 6 innings, continues to 7th
+- **8-9 Innings (Rare)**: Multiple extra innings needed to break tie
+- **10-12 Innings (Very Rare)**: Marathon games in playoffs or tournaments
+
+**Technical Implementation**:
+- Location: `src/components/games/GameEntry.jsx` (PlayerRow component)
+- State management: `maxInnings` state variable (starts at 6, increments to 12)
+- Dynamic array generation: `Array.from({ length: maxInnings }, (_, i) => i + 1)`
+- Edit mode intelligence: Automatically calculates max innings from existing data
+
+**Example Workflow**:
+1. User creates new game → Shows 6 innings by default
+2. Game goes to 7th inning → User clicks "+ Add Inning 7"
+3. Inning 7 checkboxes appear for all players
+4. User selects pitchers/catchers for inning 7
+5. Validation rules check all 7 innings → Warnings displayed if violations
+6. Save game → Database stores inning 7 data
+7. View game details → Shows all 7 innings correctly
+
+---
+
 ## Future Enhancements
 
 ### Advanced Features
@@ -529,6 +624,12 @@ Actual: ✅ Warning shown
 
 ---
 
-**Document Version**: 2.0
-**Last Review**: January 2026
+**Document Version**: 2.1
+**Last Review**: February 2, 2026
+**Changes in v2.1**:
+- Clarified Rule 4: Checks innings caught BEFORE pitching (not total catching innings)
+- Added extra innings support (7-12 innings)
+- Added 39 new test cases for extra innings scenarios
+- Updated technical implementation details for Rule 4
+
 **Next Review**: After compliance dashboard implementation
