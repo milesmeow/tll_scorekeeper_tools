@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { parsePlayerCsv } from '../../lib/playerCsvUtils'
 
 export default function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
   const [csvData, setCsvData] = useState('')
@@ -12,42 +13,7 @@ export default function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
     setModalError(null)
 
     try {
-      // Parse CSV data
-      const lines = csvData.trim().split('\n')
-      const players = []
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim()
-        if (!line) continue
-
-        const parts = line.split(',').map(p => p.trim())
-
-        if (parts.length < 2) {
-          throw new Error(`Line ${i + 1}: Invalid format. Expected: Name, Age, Jersey# (optional)`)
-        }
-
-        const [name, age, jersey] = parts
-
-        if (!name) {
-          throw new Error(`Line ${i + 1}: Name is required`)
-        }
-
-        const ageNum = parseInt(age)
-        if (isNaN(ageNum) || ageNum < 7 || ageNum > 12) {
-          throw new Error(`Line ${i + 1}: Age must be between 7 and 12`)
-        }
-
-        players.push({
-          name,
-          age: ageNum,
-          jersey_number: jersey || null,
-          team_id: teamId
-        })
-      }
-
-      if (players.length === 0) {
-        throw new Error('No valid players found in CSV data')
-      }
+      const players = parsePlayerCsv(csvData, teamId)
 
       // Insert all players
       const { error } = await supabase
@@ -99,7 +65,7 @@ John Smith, 12, 5{'\n'}Jane Doe, 11, 7{'\n'}Bob Johnson, 13
               </pre>
               <p className="mt-2 text-xs text-gray-600">
                 • One player per line<br />
-                • Age must be 7-12<br />
+                • Age must be 6-12<br />
                 • Jersey numbers must be unique on this team<br />
                 • Jersey number is optional (leave blank or omit)
               </p>

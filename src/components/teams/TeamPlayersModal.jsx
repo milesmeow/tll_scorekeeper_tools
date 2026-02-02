@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getPitchingDisplayData, parseLocalDate } from '../../lib/pitchCountUtils'
+import { parsePlayerCsv } from '../../lib/playerCsvUtils'
 import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
 
 /**
@@ -409,7 +410,7 @@ function PlayerFormModal({ teamId, player, onClose, onSuccess, onError }) {
             <label className="label">Age *</label>
             <input
               type="number"
-              min="7"
+              min="6"
               max="12"
               className="input"
               value={formData.age}
@@ -463,41 +464,7 @@ function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
     setModalError(null)
 
     try {
-      const lines = csvData.trim().split('\n')
-      const players = []
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim()
-        if (!line) continue
-
-        const parts = line.split(',').map(p => p.trim())
-
-        if (parts.length < 2) {
-          throw new Error('Line ' + (i + 1) + ': Invalid format. Expected: Name, Age, Jersey# (optional)')
-        }
-
-        const [name, age, jersey] = parts
-
-        if (!name) {
-          throw new Error('Line ' + (i + 1) + ': Name is required')
-        }
-
-        const ageNum = parseInt(age)
-        if (isNaN(ageNum) || ageNum < 7 || ageNum > 12) {
-          throw new Error('Line ' + (i + 1) + ': Age must be between 7 and 12')
-        }
-
-        players.push({
-          name,
-          age: ageNum,
-          jersey_number: jersey || null,
-          team_id: teamId
-        })
-      }
-
-      if (players.length === 0) {
-        throw new Error('No valid players found in CSV data')
-      }
+      const players = parsePlayerCsv(csvData, teamId)
 
       const { error } = await supabase
         .from('players')
@@ -547,7 +514,7 @@ Jane Doe, 11, 7
 Bob Johnson, 13</pre>
               <p className="mt-2 text-xs text-gray-600">
                 • One player per line<br />
-                • Age must be 7-12<br />
+                • Age must be 6-12<br />
                 • Jersey numbers must be unique on this team<br />
                 • Jersey number is optional (leave blank for no jersey)
               </p>
