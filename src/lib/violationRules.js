@@ -68,18 +68,28 @@ export function cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInning
 
 /**
  * Rule 4: Catch 1-3 innings + 21+ pitches -> cannot return to catch
- * A player who caught 1-3 innings, moved to pitcher, and delivered 21+ pitches
+ * A player who caught 1-3 innings BEFORE pitching, moved to pitcher, and delivered 21+ pitches
  * may not return to the catcher position
  */
 export function cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches) {
-  if (caughtInnings.length < 1 || caughtInnings.length > 3 || effectivePitches < 21 || pitchedInnings.length === 0) {
+  if (effectivePitches < 21 || pitchedInnings.length === 0 || caughtInnings.length === 0) {
     return false
   }
+
   const minPitchingInning = Math.min(...pitchedInnings)
   const maxPitchingInning = Math.max(...pitchedInnings)
-  const hasCaughtBeforePitching = caughtInnings.some(inning => inning < minPitchingInning)
-  const hasReturnedToCatch = caughtInnings.some(inning => inning > maxPitchingInning)
-  return hasCaughtBeforePitching && hasReturnedToCatch
+
+  // Count catching innings BEFORE pitching started
+  const caughtBeforePitching = caughtInnings.filter(inning => inning < minPitchingInning)
+  const caughtAfterPitching = caughtInnings.filter(inning => inning > maxPitchingInning)
+
+  // Rule 4 applies if:
+  // - Caught 1-3 innings before pitching
+  // - Pitched 21+ pitches
+  // - Returned to catch after pitching
+  return caughtBeforePitching.length >= 1 &&
+         caughtBeforePitching.length <= 3 &&
+         caughtAfterPitching.length > 0
 }
 
 /**
