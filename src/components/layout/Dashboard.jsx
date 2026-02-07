@@ -86,7 +86,7 @@ export default function Dashboard({ user, profile }) {
 
           {/* Sidebar */}
           <aside className={`
-            fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out
+            fixed top-0 left-0 z-50 h-full w-52 bg-white shadow-lg transform transition-transform duration-200 ease-in-out
             md:relative md:top-auto md:left-auto md:z-auto md:h-auto md:shadow-none md:transform-none md:transition-none
             md:block md:flex-shrink-0
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
