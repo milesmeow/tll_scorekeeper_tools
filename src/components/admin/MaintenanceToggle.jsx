@@ -115,7 +115,7 @@ export default function MaintenanceToggle() {
 
       {/* Maintenance Mode Toggle */}
       <div className="card">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
             <h3 className="text-lg font-semibold mb-1">
               Maintenance Mode Status
@@ -126,7 +126,7 @@ export default function MaintenanceToggle() {
                 : 'Application is currently accessible to all users.'}
             </p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
               maintenanceMode
                 ? 'bg-red-100 text-red-800'
@@ -137,7 +137,7 @@ export default function MaintenanceToggle() {
             <button
               onClick={handleToggleMaintenance}
               disabled={updating}
-              className={`btn ${
+              className={`btn whitespace-nowrap ${
                 maintenanceMode ? 'btn-success' : 'btn-error'
               }`}
             >

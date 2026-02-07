@@ -132,9 +132,9 @@ export default function GameDetailModal({ game, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
       <div className="bg-white rounded-lg p-6 max-w-5xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h3 className="text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
+        <div className="flex justify-between items-start gap-4 mb-6">
+          <div className="min-w-0">
+            <h3 className="text-xl sm:text-2xl font-bold">{game.away_team.name} at {game.home_team.name}</h3>
             <p className="text-gray-600 mt-1">
               {formatDate(game.game_date, {
                 weekday: 'long',
@@ -276,7 +276,7 @@ function TeamDetailSection({
                 <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
                         <h6 className="font-semibold">{playerData.player.name}</h6>
                         <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
                         {playerData.player.jersey_number && (

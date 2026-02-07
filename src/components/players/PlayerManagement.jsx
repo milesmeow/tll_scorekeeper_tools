@@ -177,7 +177,7 @@ export default function PlayerManagement({ profile, isAdmin }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <h2 className="text-2xl font-bold">🧢 Player Management</h2>
         {isAdmin && (
           <div className="flex gap-2">
@@ -198,7 +198,7 @@ export default function PlayerManagement({ profile, isAdmin }) {
       </div>
 
       {/* Season, Division & Team Selectors */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div>
           <label className="label">Select Season</label>
           <select
