@@ -194,7 +194,7 @@ export default function GameEntry({ profile, isAdmin }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <h2 className="text-2xl font-bold">⚾ Game Entry</h2>
         {isAdmin && (
           <button
@@ -287,9 +287,9 @@ export default function GameEntry({ profile, isAdmin }) {
                 key={game.id}
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm text-gray-600">
                         {formatDate(game.game_date)}
                       </p>
@@ -322,7 +322,7 @@ export default function GameEntry({ profile, isAdmin }) {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     <button
                       onClick={() => setGameToView(game)}
                       className="text-blue-600 hover:text-blue-800 text-sm"
@@ -1324,7 +1324,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Scorekeeper Name *</label>
                 <input
@@ -1360,7 +1360,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
             <div className="border-t pt-4">
               <h4 className="font-semibold mb-4">Teams & Scores</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div>
                     <label className="label">Home Team *</label>
@@ -1567,7 +1567,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Game Summary */}
             <div className="card bg-blue-50 border border-blue-200">
               <h4 className="font-bold text-lg mb-3">Game Information</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
                 <div>
                   <span className="font-semibold">Date:</span> {formatDate(formData.game_date)}
                 </div>
@@ -1585,7 +1585,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               </div>
 
               {/* Score Table */}
-              <div className="border border-gray-300 rounded overflow-hidden max-w-fit">
+              <div className="border border-gray-300 rounded overflow-hidden sm:max-w-fit">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-100">
@@ -1681,7 +1681,7 @@ const PlayerRow = memo(function PlayerRow({
     <div className="border rounded p-4 bg-gray-50">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h5 className="font-semibold">{player.name}</h5>
             <span className="text-sm text-gray-600">Age: {player.age}</span>
             {player.jersey_number && (
@@ -1690,7 +1690,7 @@ const PlayerRow = memo(function PlayerRow({
           </div>
 
           {/* Attendance - Mark if ABSENT */}
-          <div className="flex items-center gap-4 mt-2">
+          <div className="flex flex-wrap items-center gap-4 mt-2">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1715,7 +1715,7 @@ const PlayerRow = memo(function PlayerRow({
       {player.was_present && (
         <div className="space-y-3 border-t pt-3">
           {/* Innings Pitched and Caught - Side by Side */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Innings Pitched */}
             <div className="bg-blue-50 p-3 rounded border border-blue-200">
               <label className="text-sm font-medium text-gray-700 block mb-2">Innings Pitched:</label>
@@ -1772,7 +1772,7 @@ const PlayerRow = memo(function PlayerRow({
           {/* Pitch Counts (only if pitched) */}
           {player.innings_pitched.length > 0 && (
             <div className="bg-blue-50 p-3 rounded border border-blue-200">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">
                     Pitch Count (before last batter)
