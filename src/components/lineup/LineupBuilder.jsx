@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import {
@@ -80,13 +80,16 @@ export default function LineupBuilder({ profile }) {
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [selectedDivision, setSelectedDivision] = useState('All')
   const [teams, setTeams] = useState([])
-  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const [selectedTeamId, setSelectedTeamId] = useState(
+    () => localStorage.getItem('tll_lineup_selectedTeam') || ''
+  )
   const [players, setPlayers] = useState([])
   const [battingOrder, setBattingOrder] = useState([])
   const [positions, setPositions] = useState({})
   const [selectedPlayerToAdd, setSelectedPlayerToAdd] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const lineupLoadedRef = useRef(false)
 
   const isCoach = profile?.role === 'coach'
   const coachData = useCoachAssignments(profile)
@@ -110,11 +113,14 @@ export default function LineupBuilder({ profile }) {
     }
   }, [selectedSeason, coachData.loading, selectedDivision])
 
-  // Fetch players when team changes
+  // Fetch players when team changes; persist team selection
   useEffect(() => {
+    lineupLoadedRef.current = false
     if (selectedTeamId) {
+      localStorage.setItem('tll_lineup_selectedTeam', selectedTeamId)
       fetchPlayers()
     } else {
+      localStorage.removeItem('tll_lineup_selectedTeam')
       setPlayers([])
       setBattingOrder([])
       setPositions({})
@@ -215,6 +221,7 @@ export default function LineupBuilder({ profile }) {
       if (!saved) {
         setBattingOrder([])
         setPositions({})
+        lineupLoadedRef.current = true
         return
       }
 
@@ -243,15 +250,17 @@ export default function LineupBuilder({ profile }) {
         }
       }
       setPositions(validPositions)
+      lineupLoadedRef.current = true
     } catch {
       setBattingOrder([])
       setPositions({})
+      lineupLoadedRef.current = true
     }
   }, [])
 
-  // Auto-save to localStorage
+  // Auto-save to localStorage (only after initial load completes)
   useEffect(() => {
-    if (!selectedTeamId) return
+    if (!selectedTeamId || !lineupLoadedRef.current) return
 
     const data = { battingOrder, positions }
     const hasData =
@@ -563,7 +572,15 @@ export default function LineupBuilder({ profile }) {
                             }
                           >
                             <option value="">—</option>
-                            {players.map((player) => (
+                            {players
+                              .filter((player) => {
+                                // Hide players already assigned to another position this inning
+                                const currentAssignment = positions[inning]?.[pos]
+                                if (player.id === currentAssignment) return true
+                                const inningAssignments = positions[inning] || {}
+                                return !Object.values(inningAssignments).includes(player.id)
+                              })
+                              .map((player) => (
                               <option key={player.id} value={player.id}>
                                 #{player.jersey_number} {player.name}
                               </option>
