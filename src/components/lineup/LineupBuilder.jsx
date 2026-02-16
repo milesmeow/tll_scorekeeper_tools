@@ -166,7 +166,13 @@ export default function LineupBuilder({ profile }) {
 
       if (fetchError) throw fetchError
 
-      let filteredTeams = coachData.filterTeamsByCoachDivisions(data)
+      let filteredTeams = data
+
+      if (isCoach) {
+        // Coaches only see their specifically assigned teams (not entire division)
+        const assignedTeamIds = new Set(coachData.teams)
+        filteredTeams = filteredTeams.filter((t) => assignedTeamIds.has(t.id))
+      }
 
       if (selectedDivision !== 'All') {
         filteredTeams = filteredTeams.filter(

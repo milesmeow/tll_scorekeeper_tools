@@ -11,6 +11,7 @@ import GameEntry from '../games/GameEntry'
 import Reports from '../reports/Reports'
 import RulesManagement from '../rules/RulesManagement'
 import ToolsManagement from '../tools/ToolsManagement'
+import LineupBuilder from '../lineup/LineupBuilder'
 import RoleBasedRedirect from '../routing/RoleBasedRedirect'
 import Footer from './Footer'
 
@@ -196,6 +197,17 @@ export default function Dashboard({ user, profile }) {
               </button>
 
               <button
+                onClick={() => { navigate('/lineup'); setSidebarOpen(false) }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  location.pathname === '/lineup'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                📝 Lineup
+              </button>
+
+              <button
                 onClick={() => { navigate('/rules'); setSidebarOpen(false) }}
                 className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                   location.pathname === '/rules'
@@ -233,6 +245,7 @@ export default function Dashboard({ user, profile }) {
               <Route path="/players" element={isAdmin ? <PlayerManagement profile={profile} isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
               <Route path="/coaches" element={<CoachManagement isAdmin={isAdmin} />} />
               <Route path="/reports" element={<Reports profile={profile} />} />
+              <Route path="/lineup" element={<LineupBuilder profile={profile} />} />
               <Route path="/rules" element={<RulesManagement />} />
               <Route path="/tools" element={isAdmin ? <ToolsManagement isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
