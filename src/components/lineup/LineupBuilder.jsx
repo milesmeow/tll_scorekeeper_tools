@@ -719,6 +719,15 @@ export default function LineupBuilder({ profile }) {
               </tbody>
             </table>
           </div>
+
+          {/* Playing Time Rules Reminder */}
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+            <p className="font-semibold mb-1">Playing Time Reminders:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>No player will sit out 2 consecutive innings.</li>
+              <li>All players must play at least 1 inning of defense in the infield each game.</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>

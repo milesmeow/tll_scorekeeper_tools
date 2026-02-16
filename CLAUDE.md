@@ -112,6 +112,11 @@ Three user roles with different permission levels:
 **Rule 5**: Pitch count exceeds age-based maximum
 **Rule 6**: Pitched before required rest period ended (cross-game validation)
 
+**Playing Time Rules** (displayed as reminders on Lineup Summary, not programmatically enforced):
+
+**Rule 7**: No player will sit out 2 consecutive innings
+**Rule 8**: All players must play at least 1 inning of defense in the infield each game
+
 **Architecture Decision**: These functions were originally duplicated across `GameEntry.jsx` and `GameDetailModal.jsx` (~240 lines of duplication). They were refactored into shared utilities to ensure:
 
 - Single source of truth
@@ -284,6 +289,7 @@ src/components/
 ├── common/        # Shared components (modals, confirmations)
 ├── games/         # Game entry and viewing
 ├── layout/        # Dashboard, navigation, footer
+├── lineup/        # Lineup builder + printable summary
 ├── players/       # Player management, bulk import
 ├── reports/       # Game lists, absence reports
 ├── routing/       # Route protection and redirects
