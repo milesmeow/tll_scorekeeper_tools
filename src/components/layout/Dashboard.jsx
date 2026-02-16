@@ -26,12 +26,15 @@ export default function Dashboard({ user, profile }) {
   const isCoach = profile.role === 'coach'
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Error signing out:', error)
-      // Server signOut failed — clear local session so user isn't stuck logged in
-      await supabase.auth.signOut({ scope: 'local' })
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Error signing out:', err)
     }
+    // Nuclear option: clear all Supabase auth storage so user is never stuck
+    // Handles cases where session is already invalid and signOut() itself fails
+    const storageKey = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0]}-auth-token`
+    localStorage.removeItem(storageKey)
     window.location.href = '/'
   }
 
