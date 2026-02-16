@@ -466,3 +466,23 @@ const { profile } = useContext(ProfileContext)
 - **RULES.md** - Complete baseball rules documentation (6 validation rules)
 - **database/schema.sql** - Full database schema with RLS policies
 - **database/PERFORMANCE_DECISIONS.md** - Database performance optimization decisions (indexes, trade-offs)
+
+## Code Changes
+
+When making changes across the codebase (e.g., updating age ranges, validation rules, constants), always search ALL files including modals, tests, documentation, database constraints, and translations. Never assume the initial search found everything — do a final verification grep before reporting completion.
+
+## Testing
+
+When tests fail, first determine whether the bug is in the implementation code or the test code before attempting fixes. Ask yourself: 'Does the test reflect the correct business logic?' If yes, fix the implementation. If no, fix the test. Never blindly adjust tests to match broken code.
+
+## Project Stack & Deployment
+
+This project uses Next.js deployed on Vercel with Turso (SQLite), Prisma, NextAuth/AuthJS, Resend for emails, and Supabase for some features. When debugging deployment issues, check: 1) Edge function size limits 2) Environment variable formatting (trailing whitespace/carriage returns) 3) Prisma postinstall hooks 4) AUTH_SECRET requirements differ between dev and prod.
+
+## Workflow Conventions
+
+Always update project documentation (ARCHITECTURE.md, relevant markdown docs, CHANGELOG) after completing feature implementations or bug fixes. Do not wait to be asked — include doc updates as part of the task.
+
+## Languages
+
+Primary languages: JavaScript/JSX (React components), TypeScript. Use JavaScript for the Next.js web app unless the file is already TypeScript.
