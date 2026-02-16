@@ -65,6 +65,20 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 - 🚧 **Compliance Dashboard** - Overview of rule adherence across teams (planned)
 - **See RULES.md for complete rule documentation**
 
+#### Lineup & Positions Builder (Complete)
+
+- ✅ **Lineup Builder** - Drag-and-drop batting order with field position assignments by inning
+  - Season / Division / Team selectors with coach filtering
+  - Drag-and-drop reordering via @dnd-kit
+  - 9 field positions (P, C, 1B, 2B, SS, 3B, LF, CF, RF) across 6 innings
+  - Auto-saves to localStorage per team
+  - Validation warnings for players in positions but not in batting order
+- ✅ **Printable Lineup Summary** - Clean, print-ready lineup card
+  - Toggle from builder to summary view via "View Summary" button
+  - Table format: batting order #, jersey, player name, position per inning
+  - "Print Lineup" button with optimized single-page print layout
+  - Playing time rule reminders (no consecutive sitting, minimum infield requirement)
+
 #### Phase 5: Advanced Reporting & Data Management (Planned)
 
 - Import season data from backup JSON files
@@ -438,6 +452,7 @@ The app uses React Router for client-side navigation, providing several benefits
 ├─ /players    → Players (admin+ only)
 ├─ /coaches    → Coaches (all roles)
 ├─ /reports    → Reports (all roles)
+├─ /lineup     → Lineup & Positions Builder (all roles)
 ├─ /rules      → Rules (all roles)
 └─ /tools      → Tools (admin+ only)
 ```
@@ -581,6 +596,8 @@ baseball-app/
 │   │   │   └── CoachManagement.jsx   # View coaches and assignments
 │   │   ├── games/
 │   │   │   └── GameEntry.jsx         # Two-step game entry form
+│   │   ├── lineup/
+│   │   │   └── LineupBuilder.jsx     # Lineup builder + printable summary
 │   │   ├── tools/
 │   │   │   └── ToolsManagement.jsx   # Admin tools for data export
 │   │   └── reports/
@@ -732,7 +749,7 @@ Private/Proprietary
 
 ---
 
-**Current Version**: Phases 1, 2, 3, 3.5 Complete + Phase 4 In Progress (as of Jan 2026)
+**Current Version**: Phases 1, 2, 3, 3.5 Complete + Phase 4 In Progress (as of Feb 2026)
 
 - ✅ Added Tools section with JSON, CSV, and HTML export functionality (Phase 3.5)
 - ✅ Implemented 5-rule validation system with real-time violation detection (Phase 4)
@@ -757,3 +774,8 @@ Private/Proprietary
   - Admins/super_admins can switch between all seasons
   - Coaches see only active season (dropdown disabled)
   - "All Divisions" filter shows only coaches with assignments in selected season
+- ✅ **Lineup & Positions Builder** (Feb 2026):
+  - Drag-and-drop batting order with field position assignments by inning
+  - Printable lineup summary with single-page print layout
+  - Playing time rule reminders (Rules 7 & 8) on summary view
+  - Auto-saves to localStorage per team

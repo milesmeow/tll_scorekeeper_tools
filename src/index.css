@@ -57,3 +57,55 @@
     @apply bg-blue-50 text-blue-800 border border-blue-200;
   }
 }
+
+/* Print styles for lineup summary */
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the lineup summary and its children */
+  .lineup-print-summary,
+  .lineup-print-summary * {
+    visibility: visible;
+  }
+
+  .lineup-print-summary {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0.5in;
+  }
+
+  /* Hide buttons when printing */
+  .lineup-print-summary .print-hide {
+    display: none !important;
+  }
+
+  /* Clean table styling for print */
+  .lineup-print-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11pt;
+  }
+
+  .lineup-print-summary th,
+  .lineup-print-summary td {
+    border: 1px solid #333 !important;
+    padding: 4px 8px;
+    text-align: center;
+  }
+
+  .lineup-print-summary th {
+    font-weight: bold;
+    background: #eee !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .lineup-print-summary tr:nth-child(even) {
+    background: transparent !important;
+  }
+}
