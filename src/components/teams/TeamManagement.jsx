@@ -33,6 +33,13 @@ export default function TeamManagement({ profile, isCoach }) {
     }
   }, [selectedSeason, coachData.loading])
 
+  // Set default division for coaches when their assignments finish loading
+  useEffect(() => {
+    if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
+      setSelectedDivision(coachData.divisions[0])
+    }
+  }, [isCoach, coachData.loading, coachData.divisions])
+
   const fetchSeasons = async () => {
     try {
       let query = supabase
@@ -60,10 +67,6 @@ export default function TeamManagement({ profile, isCoach }) {
         setSelectedSeason(data[0].id)
       }
 
-      // Set default division for coaches based on their first assigned division
-      if (isCoach && !coachData.loading && coachData.divisions.length > 0) {
-        setSelectedDivision(coachData.divisions[0])
-      }
     } catch (err) {
       setError(err.message)
     } finally {
