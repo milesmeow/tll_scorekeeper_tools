@@ -87,6 +87,7 @@ export default function LineupBuilder({ profile }) {
   const [battingOrder, setBattingOrder] = useState([])
   const [positions, setPositions] = useState({})
   const [selectedPlayerToAdd, setSelectedPlayerToAdd] = useState('')
+  const [showSummary, setShowSummary] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const lineupLoadedRef = useRef(false)
@@ -330,7 +331,24 @@ export default function LineupBuilder({ profile }) {
 
   const getPlayerById = (id) => players.find((p) => p.id === id)
 
-  const selectedTeamName = teams.find((t) => t.id === selectedTeamId)?.name
+  const selectedTeam = teams.find((t) => t.id === selectedTeamId)
+  const selectedTeamName = selectedTeam?.name
+
+  // Build player → inning → position lookup (inverted from positions state)
+  const getPlayerPositionsByInning = () => {
+    const lookup = {}
+    for (const inning of INNINGS) {
+      if (positions[inning]) {
+        for (const [pos, playerId] of Object.entries(positions[inning])) {
+          if (playerId) {
+            if (!lookup[playerId]) lookup[playerId] = {}
+            lookup[playerId][inning] = pos
+          }
+        }
+      }
+    }
+    return lookup
+  }
 
   // Check if any player is in positions grid but not in batting order
   const getPositionWarnings = () => {
@@ -458,7 +476,7 @@ export default function LineupBuilder({ profile }) {
         </div>
       )}
 
-      {selectedTeamId && players.length > 0 && (
+      {selectedTeamId && players.length > 0 && !showSummary && (
         <>
           {/* Batting Order Section */}
           <div className="card p-4">
@@ -582,7 +600,7 @@ export default function LineupBuilder({ profile }) {
                               })
                               .map((player) => (
                               <option key={player.id} value={player.id}>
-                                #{player.jersey_number} {player.name}
+                                {player.name}
                               </option>
                             ))}
                           </select>
@@ -595,8 +613,15 @@ export default function LineupBuilder({ profile }) {
             </div>
           </div>
 
-          {/* Clear Button */}
-          <div className="flex justify-end">
+          {/* Action Buttons */}
+          <div className="flex justify-between">
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowSummary(true)}
+              disabled={battingOrder.length === 0}
+            >
+              View Summary
+            </button>
             <button
               className="btn bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
               onClick={handleClear}
@@ -611,6 +636,90 @@ export default function LineupBuilder({ profile }) {
             </button>
           </div>
         </>
+      )}
+
+      {/* Printable Lineup Summary */}
+      {selectedTeamId && showSummary && (
+        <div className="lineup-print-summary">
+          {/* Action buttons - hidden when printing */}
+          <div className="flex justify-between mb-6 print-hide">
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowSummary(false)}
+            >
+              &larr; Back to Builder
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => window.print()}
+            >
+              Print Lineup
+            </button>
+          </div>
+
+          {/* Header */}
+          <div className="text-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {selectedTeamName}
+              {selectedTeam?.division && (
+                <span className="text-gray-500 font-normal"> ({selectedTeam.division})</span>
+              )}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {new Date().toLocaleDateString(undefined, {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+          </div>
+
+          {/* Lineup Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-3 py-2 text-center w-10">#</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center w-16">Jersey</th>
+                  <th className="border border-gray-300 px-3 py-2 text-left">Player</th>
+                  {INNINGS.map((inning) => (
+                    <th key={inning} className="border border-gray-300 px-3 py-2 text-center">
+                      Inn {inning}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const playerPositions = getPlayerPositionsByInning()
+                  return battingOrder.map((playerId, index) => {
+                    const player = getPlayerById(playerId)
+                    if (!player) return null
+                    return (
+                      <tr key={playerId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="border border-gray-300 px-3 py-2 text-center font-medium">
+                          {index + 1}
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 text-center text-gray-600">
+                          {player.jersey_number}
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 font-medium">
+                          {player.name}
+                        </td>
+                        {INNINGS.map((inning) => (
+                          <td key={inning} className="border border-gray-300 px-3 py-2 text-center font-mono">
+                            {playerPositions[playerId]?.[inning] || '—'}
+                          </td>
+                        ))}
+                      </tr>
+                    )
+                  })
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   )
