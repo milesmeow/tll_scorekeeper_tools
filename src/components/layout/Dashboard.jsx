@@ -29,11 +29,10 @@ export default function Dashboard({ user, profile }) {
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error('Error signing out:', error)
-      // Force clear local state if sign out fails
-      // This ensures user can always sign out even if API call fails
-      window.location.href = '/'
+      // Server signOut failed — clear local session so user isn't stuck logged in
+      await supabase.auth.signOut({ scope: 'local' })
     }
-    // On success, onAuthStateChange in App.jsx handles the redirect
+    window.location.href = '/'
   }
 
   return (
