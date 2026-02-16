@@ -22,6 +22,7 @@
 │  │  │       ├─ PlayerManagement                │   │  │
 │  │  │       ├─ CoachManagement                 │   │  │
 │  │  │       ├─ GameEntry                       │   │  │
+│  │  │       ├─ LineupBuilder                   │   │  │
 │  │  │       └─ UserManagement                  │   │  │
 │  │  └──────────────────────────────────────────┘   │  │
 │  │                     ↕                            │  │
@@ -497,7 +498,8 @@ Dashboard (always visible)
        ├─ Players
        ├─ Coaches
        ├─ Games
-       └─ Reports (coming soon)
+       ├─ Lineup Tool
+       └─ Reports
 ```
 
 **Why state-based routing?**
@@ -1042,6 +1044,7 @@ baseball-app/
 │   │   ├── teams/              # Team CRUD + coach assign
 │   │   ├── players/            # Player CRUD + CSV import
 │   │   ├── coaches/            # Coach list view
+│   │   ├── lineup/             # Lineup builder + printable summary
 │   │   └── games/              # Game entry (2-step form)
 │   │
 │   ├── lib/
@@ -1103,12 +1106,13 @@ baseball-app/
 
 ---
 
-**Architecture Version**: 2.2 (Updated January 2026)
+**Architecture Version**: 2.3 (Updated February 2026)
 **Major Updates**:
 
+- Added LineupBuilder component to component tree and file structure
 - Added comprehensive Testing Architecture section
 - Documented Vitest integration and rationale
-- Updated file structure to include `__tests__/` directory
+- Updated file structure to include `__tests__/` and `lineup/` directories
 - Added testing best practices and coverage goals
 - Added Role-Based Season Filtering Pattern documentation
   - Consistent pattern used across GameEntry, TeamManagement, CoachManagement

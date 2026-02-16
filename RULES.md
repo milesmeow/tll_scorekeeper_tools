@@ -1,7 +1,7 @@
 # Baseball Game Rules & Validation
 
 **Last Updated**: February 2026
-**Status**: All 6 rules implemented with validation warnings + Extra innings support (7-12 innings)
+**Status**: All 6 Pitch Smart rules implemented with validation warnings + Extra innings support (7-12 innings) + 2 playing time rules (reminders)
 
 ---
 
@@ -325,6 +325,42 @@ return gameDate < nextEligiblePitchDate;
 
 ---
 
+## Playing Time Rules
+
+These rules ensure fair playing time and balanced defensive experience for all players.
+
+### 7. No Consecutive Sitting
+
+**Status**: Displayed as reminder on Lineup Summary
+
+**Rule**: No player will sit out 2 consecutive innings.
+
+**Example**:
+- Player sits out inning 3, plays inning 4, sits out inning 5: ✅ **OK**
+- Player sits out inning 3 AND inning 4: ❌ **VIOLATION**
+
+**Implementation**: Displayed as a visual reminder on the Lineup Summary print view. Not currently enforced programmatically — coaches are responsible for checking this when planning their lineup.
+
+---
+
+### 8. Minimum Infield Requirement
+
+**Status**: Displayed as reminder on Lineup Summary
+
+**Rule**: All players must play at least 1 inning of defense in the infield each game.
+
+**Infield Positions**: P, C, 1B, 2B, SS, 3B
+
+**Example**:
+- Player plays LF all 6 innings: ❌ **VIOLATION** (no infield innings)
+- Player plays CF innings 1-5, SS inning 6: ✅ **OK** (1 infield inning)
+
+**Implementation**: Displayed as a visual reminder on the Lineup Summary print view. Not currently enforced programmatically — coaches are responsible for verifying this when assigning field positions.
+
+---
+
+---
+
 ## Pitch Smart Guidelines (Age-Based)
 
 **Status**: ✅ **Implemented** (reference data in `pitch_count_rules` table)
@@ -359,7 +395,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Implementation Status
 
-### Completed - All 6 Rules Implemented
+### Completed - All 8 Rules Documented
 
 - ✅ Rule 1: Consecutive pitching innings (warning display)
 - ✅ Rule 2: 41+ pitches → cannot catch after pitching
@@ -367,6 +403,8 @@ These guidelines define maximum pitch counts and required rest days based on pla
 - ✅ Rule 4: Caught 1-3 innings + 21+ pitches → cannot return to catch
 - ✅ Rule 5: Age-based pitch count limits
 - ✅ Rule 6: Pitched before required rest period (cross-game validation)
+- ✅ Rule 7: No consecutive sitting (reminder on Lineup Summary)
+- ✅ Rule 8: Minimum infield requirement (reminder on Lineup Summary)
 
 ### Current Features
 
@@ -624,8 +662,13 @@ All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and 
 
 ---
 
-**Document Version**: 2.1
-**Last Review**: February 2, 2026
+**Document Version**: 2.2
+**Last Review**: February 16, 2026
+**Changes in v2.2**:
+- Added Rule 7: No consecutive sitting (playing time rule)
+- Added Rule 8: Minimum infield requirement (playing time rule)
+- Rules 7 & 8 displayed as reminders on Lineup Summary print view
+
 **Changes in v2.1**:
 - Clarified Rule 4: Checks innings caught BEFORE pitching (not total catching innings)
 - Added extra innings support (7-12 innings)

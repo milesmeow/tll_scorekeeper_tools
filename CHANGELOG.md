@@ -5,6 +5,21 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-02-16
+
+### Added
+
+- Printable Lineup Summary view in the Lineup & Positions Builder (`/lineup`)
+  - "View Summary" button toggles from interactive builder to clean, print-ready lineup card
+  - Table shows batting order #, jersey number, player name, and field position per inning (1-6)
+  - "Print Lineup" button triggers browser print dialog with optimized single-page layout
+  - "Back to Builder" button returns to editing mode with all data intact
+- Playing time rule reminders displayed on Lineup Summary:
+  - Rule 7: No player will sit out 2 consecutive innings
+  - Rule 8: All players must play at least 1 inning of defense in the infield each game
+- Print CSS (`@media print`) rules in `src/index.css` for lineup card formatting
+- Documented Rules 7 & 8 in RULES.md (playing time rules)
+
 ## [1.20.2] - 2026-01-19
 
 ### Changed
