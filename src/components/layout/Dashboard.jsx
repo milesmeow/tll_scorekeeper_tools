@@ -156,6 +156,17 @@ export default function Dashboard({ user, profile }) {
                 🏆 Teams
               </button>
 
+                            <button
+                onClick={() => { navigate('/lineup'); setSidebarOpen(false) }}
+                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                  location.pathname === '/lineup'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                📝 Lineup Tool
+              </button>
+
               {isAdmin &&
                 (<><button
                   onClick={() => { navigate('/seasons'); setSidebarOpen(false) }}
@@ -194,17 +205,6 @@ export default function Dashboard({ user, profile }) {
                 }`}
               >
                 📊 Reports
-              </button>
-
-              <button
-                onClick={() => { navigate('/lineup'); setSidebarOpen(false) }}
-                className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                  location.pathname === '/lineup'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                📝 Lineup
               </button>
 
               <button
