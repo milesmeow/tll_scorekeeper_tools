@@ -7,7 +7,8 @@ import {
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge,
-  pitchedBeforeEligibleDate
+  pitchedBeforeEligibleDate,
+  calculateGameHasViolations
 } from '../../lib/violationRules'
 
 describe('violationRules', () => {
@@ -200,6 +201,37 @@ describe('violationRules', () => {
       expect(exceedsMaxPitchesForAge(10, 80)).toBe(true)
       expect(exceedsMaxPitchesForAge(11, 86)).toBe(true)
       expect(exceedsMaxPitchesForAge(12, 90)).toBe(true)
+    })
+
+    describe('Training division override', () => {
+      it('should cap at 50 pitches for Training division regardless of age', () => {
+        // 9-year-old: age limit is 75, but Training caps at 50
+        expect(exceedsMaxPitchesForAge(9, 50, 'Training')).toBe(false)
+        expect(exceedsMaxPitchesForAge(9, 51, 'Training')).toBe(true)
+        // 10-year-old: same
+        expect(exceedsMaxPitchesForAge(10, 50, 'Training')).toBe(false)
+        expect(exceedsMaxPitchesForAge(10, 51, 'Training')).toBe(true)
+        // 11-year-old: age limit is 85, but Training caps at 50
+        expect(exceedsMaxPitchesForAge(11, 50, 'Training')).toBe(false)
+        expect(exceedsMaxPitchesForAge(11, 51, 'Training')).toBe(true)
+      })
+
+      it('should use age-based limit for non-Training divisions', () => {
+        expect(exceedsMaxPitchesForAge(9, 60, 'Minor')).toBe(false)  // under 75 limit
+        expect(exceedsMaxPitchesForAge(9, 60, 'Major')).toBe(false)
+        expect(exceedsMaxPitchesForAge(9, 60, null)).toBe(false)
+        expect(exceedsMaxPitchesForAge(9, 76, null)).toBe(true)
+      })
+
+      it('should enforce Training override in calculateGameHasViolations', () => {
+        // 9-year-old pitching 51 pitches (penultimate=50, effective=51)
+        // In Training → violation; in Major → no violation (age limit is 75)
+        const positions = [{ player_id: 'p1', position: 'pitcher', inning_number: 1 }]
+        const pitchingLogs = [{ player_id: 'p1', penultimate_batter_count: 50 }]
+        const playerAges = { p1: 9 }
+        expect(calculateGameHasViolations(positions, pitchingLogs, playerAges, null, {}, 'Training')).toBe(true)
+        expect(calculateGameHasViolations(positions, pitchingLogs, playerAges, null, {}, 'Major')).toBe(false)
+      })
     })
   })
 
