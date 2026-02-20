@@ -252,24 +252,27 @@ return caughtBeforePitching.length >= 1 &&
 
 **Status**: ✅ **Implemented** (validation warnings shown)
 
-**Rule**: Players cannot exceed their age-specific maximum pitch count per game.
+**Rule**: Players cannot exceed their age-specific maximum pitch count per game. Players on **Training division** teams have a flat maximum of **50 pitches regardless of age**.
 
-| Age Range | Max Pitches Per Game |
-| --------- | -------------------- |
-| 6-8       | 50                   |
-| 9-10      | 75                   |
-| 11-12     | 85                   |
+| Age Range | Max Pitches Per Game | Training Division Override |
+| --------- | -------------------- | -------------------------- |
+| 6-8       | 50                   | 50 (no change)             |
+| 9-10      | 75                   | 50                         |
+| 11-12     | 85                   | 50                         |
 
 **Example**:
 
-- 10-year-old throws 76 pitches: ❌ **VIOLATION** (max 75)
+- 10-year-old (Major/Minor) throws 76 pitches: ❌ **VIOLATION** (max 75)
+- 10-year-old (Training) throws 51 pitches: ❌ **VIOLATION** (max 50 in Training)
+- 10-year-old (Training) throws 50 pitches: ✅ **OK** (at Training limit)
 - 12-year-old throws 85 pitches: ✅ **OK** (exactly at limit)
 - 8-year-old throws 51 pitches: ❌ **VIOLATION** (max 50)
 
 **Implementation Details**:
 
-- Location: `src/lib/violationRules.js` - `exceedsMaxPitchesForAge()`
+- Location: `src/lib/violationRules.js` - `exceedsMaxPitchesForAge(age, effectivePitches, division)`
 - Uses penultimate batter count + 1 for pitch threshold
+- Division is passed from `GameEntry.jsx` (`selectedDivision` state) and `GameDetailModal.jsx` (`game.home_team.division`)
 - Display warning: "⚠️ Violation: Threw [X] pitches, exceeding the maximum of [Y] for age [Z]."
 - Validation is non-blocking - data can still be saved
 
@@ -499,7 +502,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Testing Scenarios
 
-All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (76 tests total: 37 original + 39 extra innings tests, 95%+ coverage).
+All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (80 tests total: 37 original + 39 extra innings tests + 3 Training division override tests + 1 integration test, 95%+ coverage).
 
 ### Test Case 1: Consecutive Pitching (Rule 1)
 
@@ -662,8 +665,13 @@ All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and 
 
 ---
 
-**Document Version**: 2.2
-**Last Review**: February 16, 2026
+**Document Version**: 2.3
+**Last Review**: February 20, 2026
+**Changes in v2.3**:
+- Updated Rule 5: Training division teams have a flat 50-pitch maximum regardless of player age
+- Division is now passed to `exceedsMaxPitchesForAge()` and `calculateGameHasViolations()`
+- Added 4 new tests covering Training division override behavior (226 total tests passing)
+
 **Changes in v2.2**:
 - Added Rule 7: No consecutive sitting (playing time rule)
 - Added Rule 8: Minimum infield requirement (playing time rule)

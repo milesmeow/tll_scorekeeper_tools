@@ -269,7 +269,7 @@ function TeamDetailSection({
               const violationHighPitchCount = cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
               const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
-              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches)
+              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches, game.home_team.division)
               const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(gameDate, playerData.previousNextEligibleDate, pitchedInnings)
 
               return (

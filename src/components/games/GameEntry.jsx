@@ -1153,7 +1153,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         pitchingRes.data || [],
         playerAges,
         formData.game_date,
-        playerEligibilityDates
+        playerEligibilityDates,
+        selectedDivision
       )
 
       // Update the game record with violation status
@@ -1235,7 +1236,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   // Wrapper for Rule 5: Pitch count exceeds age limit
   const exceedsMaxPitchesForAgeWrapper = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
-    return exceedsMaxPitchesForAge(player.age, effectivePitches)
+    return exceedsMaxPitchesForAge(player.age, effectivePitches, selectedDivision)
   }
 
   // Wrapper for Rule 6: Pitched before eligible date

@@ -98,10 +98,11 @@ export function cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, eff
  * - Ages 7-8: Max 50 pitches
  * - Ages 9-10: Max 75 pitches
  * - Ages 11-12: Max 85 pitches
+ * - Training division: Max 50 pitches regardless of age
  */
-export function exceedsMaxPitchesForAge(age, effectivePitches) {
+export function exceedsMaxPitchesForAge(age, effectivePitches, division = null) {
   if (!age) return false
-  const maxPitches = getMaxPitchesForAge(age)
+  const maxPitches = division === 'Training' ? 50 : getMaxPitchesForAge(age)
   if (!maxPitches) return false
   return effectivePitches > maxPitches
 }
@@ -151,9 +152,10 @@ export function pitchedBeforeEligibleDate(gameDate, nextEligiblePitchDate, pitch
  * @param {Object} playerAges - Map of player_id -> age
  * @param {string} [gameDate] - The date of the current game (YYYY-MM-DD format), required for Rule 6
  * @param {Object} [playerEligibilityDates] - Map of player_id -> next_eligible_pitch_date from previous games
+ * @param {string|null} [division] - The division of the game ('Training', 'Minor', 'Major'). Training overrides Rule 5 to use a flat 50-pitch max.
  * @returns {boolean} - true if any violations exist, false otherwise
  */
-export function calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate = null, playerEligibilityDates = {}) {
+export function calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate = null, playerEligibilityDates = {}, division = null) {
   // Group by player
   const playerData = {}
 
@@ -193,7 +195,7 @@ export function calculateGameHasViolations(positions, pitchingLogs, playerAges, 
     if (cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)) return true
 
     // Check Rule 5: Pitch count exceeds age limit
-    if (exceedsMaxPitchesForAge(playerAges[playerId], effectivePitches)) return true
+    if (exceedsMaxPitchesForAge(playerAges[playerId], effectivePitches, division)) return true
 
     // Check Rule 6: Pitched before eligible date
     if (gameDate && pitchedBeforeEligibleDate(gameDate, playerEligibilityDates[playerId], pitchedInnings)) return true

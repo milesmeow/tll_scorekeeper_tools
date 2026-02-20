@@ -109,7 +109,7 @@ Three user roles with different permission levels:
 **Rule 2**: 41+ pitches → cannot catch after pitching
 **Rule 3**: 4 innings catching → cannot pitch after catching 4th inning
 **Rule 4**: Caught 1-3 innings + 21+ pitches → cannot return to catch
-**Rule 5**: Pitch count exceeds age-based maximum
+**Rule 5**: Pitch count exceeds age-based maximum (Training division teams: flat 50-pitch max regardless of age)
 **Rule 6**: Pitched before required rest period ended (cross-game validation)
 
 **Playing Time Rules** (displayed as reminders on Lineup Summary, not programmatically enforced):
@@ -124,7 +124,7 @@ Three user roles with different permission levels:
 - Easier maintenance
 - Clear JSDoc documentation
 
-**When adding new rules**: Add to `violationRules.js` and write tests in `src/__tests__/lib/violationRules.test.js`.
+**When adding new rules**: Add to `violationRules.js` and write tests in `src/__tests__/lib/violationRules.test.js`. If a rule is division-aware, pass `division` through `calculateGameHasViolations()` (already supported as the 6th parameter) and the wrapper in `GameEntry.jsx`.
 
 ### Date Handling - Critical Pattern
 
