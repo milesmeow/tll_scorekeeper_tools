@@ -182,6 +182,7 @@ export default function GameDetailModal({ game, onClose }) {
               players={gameData.homePlayers}
               isHome={true}
               gameDate={game.game_date}
+              division={game.home_team.division}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -198,6 +199,7 @@ export default function GameDetailModal({ game, onClose }) {
               players={gameData.awayPlayers}
               isHome={false}
               gameDate={game.game_date}
+              division={game.away_team.division}
               hasInningsGap={hasInningsGap}
               cannotCatchDueToHighPitchCount={cannotCatchDueToHighPitchCount}
               cannotPitchDueToFourInningsCatching={cannotPitchDueToFourInningsCatching}
@@ -228,6 +230,7 @@ function TeamDetailSection({
   players,
   isHome,
   gameDate,
+  division,
   hasInningsGap,
   cannotCatchDueToHighPitchCount,
   cannotPitchDueToFourInningsCatching,
@@ -269,7 +272,7 @@ function TeamDetailSection({
               const violationHighPitchCount = cannotCatchDueToHighPitchCount(pitchedInnings, caughtInnings, effectivePitches)
               const violationFourInningsCatching = cannotPitchDueToFourInningsCatching(pitchedInnings, caughtInnings)
               const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
-              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches, game.home_team.division)
+              const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches, division)
               const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(gameDate, playerData.previousNextEligibleDate, pitchedInnings)
 
               return (
@@ -378,7 +381,7 @@ function TeamDetailSection({
                         caughtInnings={caughtInnings}
                         effectivePitches={effectivePitches}
                         playerAge={playerData.player.age}
-                        division={game.home_team.division}
+                        division={division}
                         getMaxPitchesForAge={getMaxPitchesForAge}
                         variant="detail"
                       />
