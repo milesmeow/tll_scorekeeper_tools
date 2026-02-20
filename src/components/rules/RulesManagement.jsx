@@ -39,6 +39,12 @@ export default function RulesManagement() {
             </tbody>
           </table>
         </div>
+
+        <div className="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+          <p className="text-sm text-blue-900">
+            <strong>📌 Note:</strong> Training division has a maximum of 50 pitches regardless of age.
+          </p>
+        </div>
       </div>
 
       {/* Required Rest Table */}
