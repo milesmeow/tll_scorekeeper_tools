@@ -1621,6 +1621,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
+              division={selectedDivision}
             />
 
             {/* Away Team Players */}
@@ -1636,6 +1637,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
+              division={selectedDivision}
             />
           </div>
 
@@ -1859,7 +1861,8 @@ function ConfirmationTeamSection({
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
-  getMaxPitchesForAge
+  getMaxPitchesForAge,
+  division = null
 }) {
   return (
     <div className="card border border-gray-300">
@@ -1930,6 +1933,7 @@ function ConfirmationTeamSection({
                     caughtInnings={caughtInnings}
                     effectivePitches={effectivePitches}
                     playerAge={player.age}
+                    division={division}
                     getMaxPitchesForAge={getMaxPitchesForAge}
                     variant="confirmation"
                   />

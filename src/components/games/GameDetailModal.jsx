@@ -378,6 +378,7 @@ function TeamDetailSection({
                         caughtInnings={caughtInnings}
                         effectivePitches={effectivePitches}
                         playerAge={playerData.player.age}
+                        division={game.home_team.division}
                         getMaxPitchesForAge={getMaxPitchesForAge}
                         variant="detail"
                       />
