@@ -52,7 +52,15 @@ export default function Login({ onLoginSuccess, initialError }) {
         onLoginSuccess({ user: authData.user, profile, requirePasswordChange: false })
       }
     } catch (err) {
-      setError(err.message)
+      const isNetworkError =
+        err.message === 'Failed to fetch' ||
+        (err instanceof TypeError && err.message.includes('fetch'))
+
+      if (isNetworkError) {
+        setError('Unable to connect to the server. Please check your internet connection and try again, or contact an administrator if the problem persists.')
+      } else {
+        setError(err.message)
+      }
       setLoading(false)
     }
   }
