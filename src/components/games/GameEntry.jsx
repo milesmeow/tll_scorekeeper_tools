@@ -1153,7 +1153,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         pitchingRes.data || [],
         playerAges,
         formData.game_date,
-        playerEligibilityDates
+        playerEligibilityDates,
+        selectedDivision
       )
 
       // Update the game record with violation status
@@ -1235,7 +1236,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   // Wrapper for Rule 5: Pitch count exceeds age limit
   const exceedsMaxPitchesForAgeWrapper = (player) => {
     const effectivePitches = getEffectivePitchCount(player)
-    return exceedsMaxPitchesForAge(player.age, effectivePitches)
+    return exceedsMaxPitchesForAge(player.age, effectivePitches, selectedDivision)
   }
 
   // Wrapper for Rule 6: Pitched before eligible date
@@ -1620,6 +1621,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
+              division={selectedDivision}
             />
 
             {/* Away Team Players */}
@@ -1635,6 +1637,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
+              division={selectedDivision}
             />
           </div>
 
@@ -1858,7 +1861,8 @@ function ConfirmationTeamSection({
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
-  getMaxPitchesForAge
+  getMaxPitchesForAge,
+  division = null
 }) {
   return (
     <div className="card border border-gray-300">
@@ -1929,6 +1933,7 @@ function ConfirmationTeamSection({
                     caughtInnings={caughtInnings}
                     effectivePitches={effectivePitches}
                     playerAge={player.age}
+                    division={division}
                     getMaxPitchesForAge={getMaxPitchesForAge}
                     variant="confirmation"
                   />

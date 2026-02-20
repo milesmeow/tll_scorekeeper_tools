@@ -19,6 +19,7 @@ export default function PlayerViolationWarnings({
   caughtInnings = [],
   effectivePitches = 0,
   playerAge,
+  division = null,
   getMaxPitchesForAge,
   variant = 'detail'
 }) {
@@ -75,7 +76,9 @@ export default function PlayerViolationWarnings({
       {violationExceedsPitchLimit && (
         <div className={containerClasses}>
           <p className={textClasses}>
-            ⚠️ Violation: Threw {effectivePitches} pitches, exceeding the maximum of {getMaxPitchesForAge(playerAge)} for age {playerAge}.
+            {division === 'Training'
+              ? `⚠️ Violation: Threw ${effectivePitches} pitches, exceeding the maximum of 50 for Training division.`
+              : `⚠️ Violation: Threw ${effectivePitches} pitches, exceeding the maximum of ${getMaxPitchesForAge(playerAge)} for age ${playerAge}.`}
           </p>
         </div>
       )}
