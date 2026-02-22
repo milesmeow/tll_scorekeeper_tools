@@ -92,6 +92,7 @@ export default function PlayerModal({ player, teamId, onClose, onSuccess, onErro
               className="input"
               value={formData.age}
               onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+              onWheel={(e) => e.target.blur()}
               required
               min="6"
               max="12"
