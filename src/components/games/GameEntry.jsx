@@ -1390,6 +1390,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
                       className="input"
                       value={formData.home_score}
                       onChange={(e) => setFormData({ ...formData, home_score: e.target.value })}
+                      onWheel={(e) => e.target.blur()}
                       required
                       min="0"
                       placeholder="0"
@@ -1425,6 +1426,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
                       className="input"
                       value={formData.away_score}
                       onChange={(e) => setFormData({ ...formData, away_score: e.target.value })}
+                      onWheel={(e) => e.target.blur()}
                       required
                       min="0"
                       placeholder="0"
@@ -1787,6 +1789,7 @@ const PlayerRow = memo(function PlayerRow({
                     min="0"
                     value={player.penultimate_batter_count}
                     onChange={(e) => onUpdateField(index, isHome, 'penultimate_batter_count', e.target.value)}
+                    onWheel={(e) => e.target.blur()}
                   />
                 </div>
                 <div>
@@ -1801,6 +1804,7 @@ const PlayerRow = memo(function PlayerRow({
                     required
                     value={player.final_pitch_count}
                     onChange={(e) => onUpdateField(index, isHome, 'final_pitch_count', e.target.value)}
+                    onWheel={(e) => e.target.blur()}
                   />
                 </div>
               </div>
