@@ -415,6 +415,7 @@ function PlayerFormModal({ teamId, player, onClose, onSuccess, onError }) {
               className="input"
               value={formData.age}
               onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+              onWheel={(e) => e.target.blur()}
               required
             />
           </div>
