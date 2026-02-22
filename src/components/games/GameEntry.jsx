@@ -481,6 +481,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
   const [maxInnings, setMaxInnings] = useState(6) // Dynamic innings count (6 default, can add up to 12)
+  const [acknowledgeIncompleteData, setAcknowledgeIncompleteData] = useState(false)
+  const [incompleteDataWarnings, setIncompleteDataWarnings] = useState([])
 
   // Ref for scrolling to top on error
   const modalContentRef = useRef(null)
@@ -931,29 +933,6 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           }
         }
 
-        // Check that pitched innings and caught innings match exactly
-        const pitchedArray = Array.from(pitchedInnings).sort((a, b) => a - b)
-        const caughtArray = Array.from(caughtInnings).sort((a, b) => a - b)
-
-        if (pitchedArray.length !== caughtArray.length ||
-            !pitchedArray.every((inning, index) => inning === caughtArray[index])) {
-
-          // Find which innings are mismatched
-          const pitchedOnly = pitchedArray.filter(i => !caughtInnings.has(i))
-          const caughtOnly = caughtArray.filter(i => !pitchedInnings.has(i))
-
-          let errorMsg = `${teamName}: Pitched innings and caught innings must match. `
-
-          if (pitchedOnly.length > 0) {
-            errorMsg += `Inning${pitchedOnly.length > 1 ? 's' : ''} ${pitchedOnly.join(', ')} ${pitchedOnly.length > 1 ? 'have' : 'has'} a pitcher but no catcher. `
-          }
-
-          if (caughtOnly.length > 0) {
-            errorMsg += `Inning${caughtOnly.length > 1 ? 's' : ''} ${caughtOnly.join(', ')} ${caughtOnly.length > 1 ? 'have' : 'has'} a catcher but no pitcher.`
-          }
-
-          throw new Error(errorMsg.trim())
-        }
       }
 
       // Validate home team
@@ -962,7 +941,50 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       // Validate away team
       validateTeamCoverage(awayPlayers, awayTeam?.name || 'Away Team')
 
+      // Check that pitched innings and caught innings match (soft warning with acknowledgment)
+      if (!acknowledgeIncompleteData) {
+        const warnings = []
+
+        for (const [players, teamName] of [
+          [homePlayers, homeTeam?.name || 'Home Team'],
+          [awayPlayers, awayTeam?.name || 'Away Team']
+        ]) {
+          const pitchedInnings = new Set()
+          const caughtInnings = new Set()
+          players.forEach(player => {
+            player.innings_pitched.forEach(i => pitchedInnings.add(i))
+            player.innings_caught.forEach(i => caughtInnings.add(i))
+          })
+
+          const pitchedArray = Array.from(pitchedInnings).sort((a, b) => a - b)
+          const caughtArray = Array.from(caughtInnings).sort((a, b) => a - b)
+
+          if (pitchedArray.length !== caughtArray.length ||
+              !pitchedArray.every((inning, index) => inning === caughtArray[index])) {
+            const pitchedOnly = pitchedArray.filter(i => !caughtInnings.has(i))
+            const caughtOnly = caughtArray.filter(i => !pitchedInnings.has(i))
+            let msg = `${teamName}: Pitched innings and caught innings must match. `
+            if (pitchedOnly.length > 0) {
+              msg += `Inning${pitchedOnly.length > 1 ? 's' : ''} ${pitchedOnly.join(', ')} ${pitchedOnly.length > 1 ? 'have' : 'has'} a pitcher but no catcher. `
+            }
+            if (caughtOnly.length > 0) {
+              msg += `Inning${caughtOnly.length > 1 ? 's' : ''} ${caughtOnly.join(', ')} ${caughtOnly.length > 1 ? 'have' : 'has'} a catcher but no pitcher.`
+            }
+            warnings.push(msg.trim())
+          }
+        }
+
+        if (warnings.length > 0) {
+          setIncompleteDataWarnings(warnings)
+          if (modalContentRef.current) {
+            modalContentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          return
+        }
+      }
+
       // All validation passed, go to confirmation step
+      setIncompleteDataWarnings([])
       setStep(3)
     } catch (err) {
       setModalError(err.message)
@@ -1490,6 +1512,28 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             </div>
           )}
 
+          {incompleteDataWarnings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-4">
+              <p className="font-semibold text-amber-800 mb-2">
+                Warning: Incomplete Pitching/Catching Data
+              </p>
+              {incompleteDataWarnings.map((warning, i) => (
+                <p key={i} className="text-amber-700 text-sm mb-1">{warning}</p>
+              ))}
+              <label className="flex items-start gap-2 mt-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acknowledgeIncompleteData}
+                  onChange={(e) => setAcknowledgeIncompleteData(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-amber-800 text-sm">
+                  I acknowledge that this game has incomplete pitching/catching data and want to proceed anyway.
+                </span>
+              </label>
+            </div>
+          )}
+
           <form onSubmit={handlePlayerDataSubmit} className="space-y-8">
             {/* Home Team Section */}
             <TeamPlayerDataSection
@@ -1518,6 +1562,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
                 type="button"
                 onClick={() => {
                   setModalError(null)
+                  setIncompleteDataWarnings([])
+                  setAcknowledgeIncompleteData(false)
                   setStep(1)
                 }}
                 className="btn btn-secondary"
