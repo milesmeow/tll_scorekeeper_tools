@@ -241,7 +241,8 @@ function TeamDetailSection({
   getMaxPitchesForAge
 }) {
   // Only show players who pitched, caught, or were absent
-  const pitchersAndCatchers = players.filter(p => p.was_present && p.positions.length > 0)
+  // Absent players always appear in the Absent section (for notes); those who also have positions data additionally appear in Pitchers & Catchers with an Absent badge
+  const pitchersAndCatchers = players.filter(p => p.positions.length > 0)
   const absentPlayers = players.filter(p => !p.was_present)
 
   return (
@@ -284,6 +285,11 @@ function TeamDetailSection({
                         <span className="text-sm text-gray-600">Age: {playerData.player.age}</span>
                         {playerData.player.jersey_number && (
                           <span className="text-sm text-gray-600">#{playerData.player.jersey_number}</span>
+                        )}
+                        {!playerData.was_present && (
+                          <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded font-semibold">
+                            Absent
+                          </span>
                         )}
                       </div>
 

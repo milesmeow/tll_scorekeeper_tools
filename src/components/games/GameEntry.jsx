@@ -1544,14 +1544,15 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     const awayTeam = teams.find(t => t.id === formData.away_team_id)
 
     // Filter players to show only those who pitched/caught or were absent
+    // Absent players with innings data appear in pitchers/catchers (with Absent badge); fully absent players appear in absent section
     const homePitchersAndCatchers = homePlayers.filter(p =>
-      p.was_present && (p.innings_pitched.length > 0 || p.innings_caught.length > 0)
+      p.innings_pitched.length > 0 || p.innings_caught.length > 0
     )
     const awayPitchersAndCatchers = awayPlayers.filter(p =>
-      p.was_present && (p.innings_pitched.length > 0 || p.innings_caught.length > 0)
+      p.innings_pitched.length > 0 || p.innings_caught.length > 0
     )
-    const homeAbsent = homePlayers.filter(p => !p.was_present)
-    const awayAbsent = awayPlayers.filter(p => !p.was_present)
+    const homeAbsent = homePlayers.filter(p => !p.was_present && p.innings_pitched.length === 0 && p.innings_caught.length === 0)
+    const awayAbsent = awayPlayers.filter(p => !p.was_present && p.innings_pitched.length === 0 && p.innings_caught.length === 0)
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
@@ -1717,8 +1718,7 @@ const PlayerRow = memo(function PlayerRow({
         </div>
       </div>
 
-      {player.was_present && (
-        <div className="space-y-3 border-t pt-3">
+      <div className="space-y-3 border-t pt-3">
           {/* Innings Pitched and Caught - Side by Side */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Innings Pitched */}
@@ -1811,7 +1811,6 @@ const PlayerRow = memo(function PlayerRow({
             </div>
           )}
         </div>
-      )}
     </div>
   )
 })
@@ -1900,6 +1899,11 @@ function ConfirmationTeamSection({
                     <span className="text-sm text-gray-600">Age: {player.age}</span>
                     {player.jersey_number && (
                       <span className="text-sm text-gray-600">#{player.jersey_number}</span>
+                    )}
+                    {!player.was_present && (
+                      <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded font-semibold">
+                        Absent
+                      </span>
                     )}
                     {hasViolation && (
                       <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-semibold">
