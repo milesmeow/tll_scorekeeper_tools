@@ -561,7 +561,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             .sort((a, b) => a - b),
           penultimate_batter_count: playerPitching?.penultimate_batter_count?.toString() || '',
           final_pitch_count: playerPitching?.final_pitch_count?.toString() || '',
-          previousNextEligibleDate: eligibilityMap[gp.player_id] || null
+          previousNextEligibleDate: eligibilityMap[gp.player_id]?.nextEligiblePitchDate || null,
+          previousLastPitchDate: eligibilityMap[gp.player_id]?.lastPitchDate || null,
+          previousLastPitchCount: eligibilityMap[gp.player_id]?.lastPitchCount ?? null
         }
 
         if (gp.player.team_id === gameToEdit.home_team_id) {
@@ -614,6 +616,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         .select(`
           player_id,
           next_eligible_pitch_date,
+          penultimate_batter_count,
           games!inner(game_date)
         `)
         .in('player_id', playerIds)
@@ -624,11 +627,15 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       if (error) throw error
 
-      // Build a map of player_id -> most recent next_eligible_pitch_date
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
-          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+          eligibilityMap[log.player_id] = {
+            nextEligiblePitchDate: log.next_eligible_pitch_date,
+            lastPitchDate: log.games.game_date,
+            lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
+          }
         }
       }
 
@@ -799,7 +806,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         innings_caught: [],
         penultimate_batter_count: '',
         final_pitch_count: '',
-        previousNextEligibleDate: eligibilityMap[player.id] || null
+        previousNextEligibleDate: eligibilityMap[player.id]?.nextEligiblePitchDate || null,
+        previousLastPitchDate: eligibilityMap[player.id]?.lastPitchDate || null,
+        previousLastPitchCount: eligibilityMap[player.id]?.lastPitchCount ?? null
       }))
 
       const initializedAwayPlayers = awayData.map(player => ({
@@ -810,7 +819,9 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         innings_caught: [],
         penultimate_batter_count: '',
         final_pitch_count: '',
-        previousNextEligibleDate: eligibilityMap[player.id] || null
+        previousNextEligibleDate: eligibilityMap[player.id]?.nextEligiblePitchDate || null,
+        previousLastPitchDate: eligibilityMap[player.id]?.lastPitchDate || null,
+        previousLastPitchCount: eligibilityMap[player.id]?.lastPitchCount ?? null
       }))
 
       setHomePlayers(initializedHomePlayers)
@@ -835,6 +846,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         .select(`
           player_id,
           next_eligible_pitch_date,
+          penultimate_batter_count,
           games!inner(game_date)
         `)
         .in('player_id', playerIds)
@@ -843,12 +855,16 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
       if (error) throw error
 
-      // Build a map of player_id -> most recent next_eligible_pitch_date
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
       // Since we ordered by game_date desc, the first entry for each player is the most recent
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
-          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+          eligibilityMap[log.player_id] = {
+            nextEligiblePitchDate: log.next_eligible_pitch_date,
+            lastPitchDate: log.games.game_date,
+            lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
+          }
         }
       }
 
@@ -1983,6 +1999,8 @@ function ConfirmationTeamSection({
                     violationExceedsPitchLimit={violationExceedsPitchLimit}
                     violationPitchedBeforeEligible={violationPitchedBeforeEligible}
                     nextEligiblePitchDate={player.previousNextEligibleDate}
+                    previousLastPitchDate={player.previousLastPitchDate}
+                    previousLastPitchCount={player.previousLastPitchCount}
                     pitchedInnings={pitchedInnings}
                     caughtInnings={caughtInnings}
                     effectivePitches={effectivePitches}
