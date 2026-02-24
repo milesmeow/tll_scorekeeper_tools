@@ -88,8 +88,8 @@ export default function PlayerViolationWarnings({
         <div className={containerClasses}>
           <p className={textClasses}>
             {isDetail
-              ? `⚠️ Violation: Player pitched before their required rest period ended. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
-              : `⚠️ Violation: Pitched before rest period ended. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}.`}
+              ? `⚠️ Violation: Player pitched before their required rest period ended. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}. Check previous game for pitching details for this player.`
+              : `⚠️ Violation: Pitched before rest period ended. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}. Check previous game for pitching details for this player.`}
           </p>
         </div>
       )}
