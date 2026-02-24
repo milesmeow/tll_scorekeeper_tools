@@ -15,6 +15,8 @@ export default function PlayerViolationWarnings({
   violationExceedsPitchLimit,
   violationPitchedBeforeEligible,
   nextEligiblePitchDate,
+  previousLastPitchDate = null,
+  previousLastPitchCount = null,
   pitchedInnings = [],
   caughtInnings = [],
   effectivePitches = 0,
@@ -88,8 +90,8 @@ export default function PlayerViolationWarnings({
         <div className={containerClasses}>
           <p className={textClasses}>
             {isDetail
-              ? `⚠️ Violation: Player pitched before their required rest period ended. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
-              : `⚠️ Violation: Pitched before rest period ended. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}.`}
+              ? `⚠️ Violation: Player pitched before their required rest period ended. Last pitched on ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}${previousLastPitchCount != null ? ` (${previousLastPitchCount} pitches)` : ''}. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
+              : `⚠️ Violation: Pitched before rest period ended. Last pitched ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric' })}${previousLastPitchCount != null ? ` (${previousLastPitchCount} pitches)` : ''}. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}.`}
           </p>
         </div>
       )}
