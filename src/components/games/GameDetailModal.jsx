@@ -72,7 +72,9 @@ export default function GameDetailModal({ game, onClose }) {
           ...gp,
           pitching: pitchingLogs.find(pl => pl.player_id === gp.player_id),
           positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id),
-          previousNextEligibleDate: eligibilityMap[gp.player_id] || null
+          previousNextEligibleDate: eligibilityMap[gp.player_id]?.nextEligiblePitchDate || null,
+          previousLastPitchDate: eligibilityMap[gp.player_id]?.lastPitchDate || null,
+          previousLastPitchCount: eligibilityMap[gp.player_id]?.lastPitchCount ?? null
         }
 
         if (gp.player.team_id === game.home_team_id) {
@@ -105,6 +107,7 @@ export default function GameDetailModal({ game, onClose }) {
         .select(`
           player_id,
           next_eligible_pitch_date,
+          penultimate_batter_count,
           games!inner(game_date)
         `)
         .in('player_id', playerIds)
@@ -115,10 +118,15 @@ export default function GameDetailModal({ game, onClose }) {
 
       if (error) throw error
 
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
-          eligibilityMap[log.player_id] = log.next_eligible_pitch_date
+          eligibilityMap[log.player_id] = {
+            nextEligiblePitchDate: log.next_eligible_pitch_date,
+            lastPitchDate: log.games.game_date,
+            lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
+          }
         }
       }
 
@@ -383,6 +391,8 @@ function TeamDetailSection({
                         violationExceedsPitchLimit={violationExceedsPitchLimit}
                         violationPitchedBeforeEligible={violationPitchedBeforeEligible}
                         nextEligiblePitchDate={playerData.previousNextEligibleDate}
+                        previousLastPitchDate={playerData.previousLastPitchDate}
+                        previousLastPitchCount={playerData.previousLastPitchCount}
                         pitchedInnings={pitchedInnings}
                         caughtInnings={caughtInnings}
                         effectivePitches={effectivePitches}
