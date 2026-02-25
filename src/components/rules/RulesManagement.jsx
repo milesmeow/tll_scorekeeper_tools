@@ -104,6 +104,84 @@ export default function RulesManagement() {
           </p>
         </div>
       </div>
+
+      {/* Violation Rules Section */}
+      <div className="card mt-6">
+        <h3 className="text-lg font-semibold mb-1">Pitcher / Catcher Violation Rules</h3>
+        <p className="text-gray-600 text-sm mb-5">
+          Rules enforced during game entry. Violations are flagged as warnings but do not block saves.
+        </p>
+
+        <div className="divide-y divide-gray-100">
+          {[
+            {
+              num: 1,
+              title: 'Consecutive Innings Only',
+              description: 'A pitcher must pitch consecutive innings — no gaps allowed. (e.g. innings 1, 2, 3 is OK; innings 1, 3 is not)',
+              enforced: true,
+            },
+            {
+              num: 2,
+              title: '41+ Pitches — Cannot Catch',
+              description: 'If a pitcher throws 41 or more pitches, they may not catch for the rest of that game.',
+              enforced: true,
+            },
+            {
+              num: 3,
+              title: '4 Innings Catching — Cannot Pitch',
+              description: 'If a player catches 4 or more innings, they may not pitch for the rest of that game.',
+              enforced: true,
+            },
+            {
+              num: 4,
+              title: 'Catch 1–3 Innings + 21+ Pitches — Cannot Return to Catch',
+              description: 'If a player catches 1–3 innings, then pitches 21 or more pitches, they may not return to catch in that same game.',
+              enforced: true,
+            },
+            {
+              num: 5,
+              title: 'Age-Based Pitch Count Limit',
+              description: 'Pitchers may not exceed the daily maximum for their age group (see table). Training division: flat 50-pitch maximum regardless of age.',
+              enforced: true,
+            },
+            {
+              num: 6,
+              title: 'Required Rest Between Games',
+              description: 'A pitcher may not pitch before their required rest period ends, based on the pitch count from their previous game.',
+              enforced: true,
+            },
+            {
+              num: 7,
+              title: 'No Pitching 3 Days in a Row',
+              description: 'A pitcher may not pitch in 3 consecutive calendar days.',
+              enforced: false,
+            },
+          ].map(({ num, title, description, enforced }) => (
+            <div key={num} className="flex items-start gap-4 py-4">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                <span className="text-sm font-bold text-gray-700">{num}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-gray-900 text-sm">{title}</span>
+                  {enforced ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                      Checked by app
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-sm text-gray-600">{description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+          <p className="text-sm text-blue-900">
+            <strong>📌 Note:</strong> Rules 1–6 are flagged automatically during game entry. Rule 7 is a display reminder only and is not currently checked by the software.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
