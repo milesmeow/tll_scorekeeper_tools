@@ -48,6 +48,19 @@ export default function GameEntry({ profile, isAdmin }) {
     }
   }, [selectedSeason])
 
+  // Set division and refresh data when coach assignments finish loading.
+  // This is separate from fetchSeasons() because coachData is async and
+  // may not be ready when fetchSeasons() runs on mount.
+  useEffect(() => {
+    if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
+      setSelectedDivision(coachData.divisions[0])
+      if (selectedSeason) {
+        fetchTeams()
+        fetchGames()
+      }
+    }
+  }, [coachData.loading])
+
   const fetchSeasons = async () => {
     try {
       let query = supabase
@@ -75,10 +88,6 @@ export default function GameEntry({ profile, isAdmin }) {
         setSelectedSeason(data[0].id)
       }
 
-      // Set default division for coaches based on their first assigned division
-      if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
-        setSelectedDivision(coachData.divisions[0])
-      }
     } catch (err) {
       setError(err.message)
     } finally {
