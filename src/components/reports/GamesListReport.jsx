@@ -21,13 +21,13 @@ export default function GamesListReport({ profile }) {
   }, [])
 
   useEffect(() => {
-    if (selectedSeason) {
+    if (selectedSeason && !coachData.loading) {
       fetchGames()
-    } else {
+    } else if (!selectedSeason) {
       setGames([])
       setLoading(false)
     }
-  }, [selectedSeason, filterDivision])
+  }, [selectedSeason, filterDivision, coachData.loading])
 
   const fetchSeasons = async () => {
     try {
