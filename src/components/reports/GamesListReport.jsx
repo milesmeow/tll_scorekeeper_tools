@@ -58,7 +58,11 @@ export default function GamesListReport({ profile }) {
       let query = supabase
         .from('games')
         .select(`
-          *,
+          id,
+          game_date,
+          home_score,
+          away_score,
+          scorekeeper_name,
           home_team:teams!games_home_team_id_fkey(name, division),
           away_team:teams!games_away_team_id_fkey(name, division),
           scorekeeper_team:teams!games_scorekeeper_team_id_fkey(name)
