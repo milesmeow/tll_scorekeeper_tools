@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
 import { formatDate } from '../../lib/pitchCountUtils'
+import Pagination from '../common/Pagination'
 
 export default function GamesListReport({ profile }) {
   const [seasons, setSeasons] = useState([])
@@ -10,6 +11,8 @@ export default function GamesListReport({ profile }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filterDivision, setFilterDivision] = useState('All')
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 7
 
   const isCoach = profile?.role === 'coach'
 
@@ -28,6 +31,17 @@ export default function GamesListReport({ profile }) {
       setLoading(false)
     }
   }, [selectedSeason, filterDivision, coachData.loading])
+
+  // Reset to page 1 whenever the filtered game list changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [games])
+
+  const totalPages = Math.ceil(games.length / ITEMS_PER_PAGE)
+  const paginatedGames = games.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   const fetchSeasons = async () => {
     try {
@@ -188,6 +202,18 @@ export default function GamesListReport({ profile }) {
             </div>
           ) : (
             <div className="overflow-x-auto">
+              {totalPages > 1 && (
+                <div className="mb-4">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={games.length}
+                    pageSize={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -212,7 +238,7 @@ export default function GamesListReport({ profile }) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {games.map((game) => (
+                  {paginatedGames.map((game) => (
                     <tr key={game.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {formatDate(game.game_date, {
@@ -245,6 +271,18 @@ export default function GamesListReport({ profile }) {
                   ))}
                 </tbody>
               </table>
+
+              {totalPages > 1 && (
+                <div className="mt-4">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={games.length}
+                    pageSize={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

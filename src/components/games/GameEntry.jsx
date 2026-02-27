@@ -18,6 +18,7 @@ import {
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 import AbsentPlayerCard from './shared/AbsentPlayerCard'
 import InningsVisualDisplay from './shared/InningsVisualDisplay'
+import Pagination from '../common/Pagination'
 
 export default function GameEntry({ profile, isAdmin }) {
   const [seasons, setSeasons] = useState([])
@@ -33,6 +34,8 @@ export default function GameEntry({ profile, isAdmin }) {
   const [deleteConfirmText, setDeleteConfirmText] = useState('') // Text to confirm deletion
   const [gameToView, setGameToView] = useState(null) // For viewing game details
   const [gameToEdit, setGameToEdit] = useState(null) // For editing game
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 5
 
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
@@ -60,6 +63,11 @@ export default function GameEntry({ profile, isAdmin }) {
       }
     }
   }, [coachData.loading])
+
+  // Reset to page 1 whenever the filtered game list changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [games, selectedDivision])
 
   const fetchSeasons = async () => {
     try {
@@ -201,6 +209,12 @@ export default function GameEntry({ profile, isAdmin }) {
       )
     : games
 
+  const totalPages = Math.ceil(filteredGames.length / ITEMS_PER_PAGE)
+  const paginatedGames = filteredGames.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
@@ -290,8 +304,19 @@ export default function GameEntry({ profile, isAdmin }) {
         </div>
       ) : (
         <div className="card">
+          {totalPages > 1 && (
+            <div className="mb-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredGames.length}
+                pageSize={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
           <div className="space-y-4">
-            {filteredGames.map((game) => (
+            {paginatedGames.map((game) => (
               <div
                 key={game.id}
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
@@ -359,6 +384,17 @@ export default function GameEntry({ profile, isAdmin }) {
               </div>
             ))}
           </div>
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredGames.length}
+                pageSize={ITEMS_PER_PAGE}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
         </div>
       )}
 
