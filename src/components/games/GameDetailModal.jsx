@@ -26,37 +26,33 @@ export default function GameDetailModal({ game, onClose }) {
 
   const fetchGameDetails = async () => {
     try {
-      // Fetch game_players with player info
-      const { data: gamePlayers, error: playersError } = await supabase
-        .from('game_players')
-        .select(`
-          *,
-          player:players(*)
-        `)
-        .eq('game_id', game.id)
+      // Fetch game_players, pitching_logs, and positions_played in parallel (all depend only on game_id)
+      const [
+        { data: gamePlayers, error: playersError },
+        { data: pitchingLogs, error: pitchingError },
+        { data: positionsPlayed, error: positionsError }
+      ] = await Promise.all([
+        supabase
+          .from('game_players')
+          .select(`
+            player_id,
+            was_present,
+            absence_note,
+            player:players(id, name, age, jersey_number, team_id)
+          `)
+          .eq('game_id', game.id),
+        supabase
+          .from('pitching_logs')
+          .select('player_id, final_pitch_count, penultimate_batter_count')
+          .eq('game_id', game.id),
+        supabase
+          .from('positions_played')
+          .select('player_id, position, inning_number')
+          .eq('game_id', game.id)
+      ])
 
       if (playersError) throw playersError
-
-      // Fetch pitching_logs with player info
-      const { data: pitchingLogs, error: pitchingError } = await supabase
-        .from('pitching_logs')
-        .select(`
-          *,
-          player:players(*)
-        `)
-        .eq('game_id', game.id)
-
       if (pitchingError) throw pitchingError
-
-      // Fetch positions_played with player info
-      const { data: positionsPlayed, error: positionsError } = await supabase
-        .from('positions_played')
-        .select(`
-          *,
-          player:players(*)
-        `)
-        .eq('game_id', game.id)
-
       if (positionsError) throw positionsError
 
       // Fetch eligibility dates from previous games for Rule 6 checking

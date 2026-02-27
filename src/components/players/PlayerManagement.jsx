@@ -28,10 +28,18 @@ export default function PlayerManagement({ profile, isAdmin }) {
   }, [])
 
   useEffect(() => {
-    if (selectedSeason) {
+    if (selectedSeason && !coachData.loading) {
       fetchTeams()
     }
-  }, [selectedSeason])
+  }, [selectedSeason, coachData.loading])
+
+  // Set default division for coaches when coach assignments finish loading.
+  // Must be a separate effect because coachData is async and not ready during fetchSeasons().
+  useEffect(() => {
+    if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
+      setSelectedDivision(coachData.divisions[0])
+    }
+  }, [coachData.loading])
 
   useEffect(() => {
     if (selectedSeason && teams.length > 0) {
@@ -68,10 +76,6 @@ export default function PlayerManagement({ profile, isAdmin }) {
         setSelectedSeason(data[0].id)
       }
 
-      // Set default division for coaches based on their first assigned division
-      if (!isAdmin && !coachData.loading && coachData.divisions.length > 0) {
-        setSelectedDivision(coachData.divisions[0])
-      }
     } catch (err) {
       setError(err.message)
     } finally {
