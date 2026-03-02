@@ -69,7 +69,7 @@ export default function PlayerAbsencesReport() {
               division
             )
           ),
-          games (
+          games!inner (
             id,
             game_date,
             season_id,
