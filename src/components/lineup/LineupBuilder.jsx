@@ -315,13 +315,14 @@ export default function LineupBuilder({ profile }) {
     }))
   }
 
-  const handleClear = () => {
-    if (!window.confirm('Clear the entire lineup and positions? This cannot be undone.')) {
-      return
-    }
+  const handleClearLineup = () => {
+    if (!window.confirm('Clear the batting order? This cannot be undone.')) return
     setBattingOrder([])
+  }
+
+  const handleClearPositions = () => {
+    if (!window.confirm('Clear all field position assignments? This cannot be undone.')) return
     setPositions({})
-    localStorage.removeItem(`tll_lineup_${selectedTeamId}`)
   }
 
   // Players available to add to batting order (not already in it)
@@ -622,18 +623,26 @@ export default function LineupBuilder({ profile }) {
             >
               View Summary
             </button>
-            <button
-              className="btn bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
-              onClick={handleClear}
-              disabled={
-                battingOrder.length === 0 &&
-                !Object.values(positions).some((inning) =>
-                  Object.values(inning).some(Boolean)
-                )
-              }
-            >
-              Clear & Start Over
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="btn bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                onClick={handleClearLineup}
+                disabled={battingOrder.length === 0}
+              >
+                Clear Lineup
+              </button>
+              <button
+                className="btn bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
+                onClick={handleClearPositions}
+                disabled={
+                  !Object.values(positions).some((inning) =>
+                    Object.values(inning).some(Boolean)
+                  )
+                }
+              >
+                Clear Field Positions
+              </button>
+            </div>
           </div>
         </>
       )}
