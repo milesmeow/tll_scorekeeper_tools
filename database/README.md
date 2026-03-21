@@ -37,6 +37,26 @@ ADD CONSTRAINT teams_season_id_name_division_key UNIQUE(season_id, name, divisio
 
 ---
 
+## Live DB vs schema.sql Audit (2026-03-20)
+
+Full comparison of live Supabase DB against `schema.sql` using `information_schema` queries.
+
+| # | Object | In schema.sql | In live DB | Notes |
+|---|--------|:-------------:|:----------:|-------|
+| ✅ | All 10 core tables | ✓ | ✓ | Columns, types, defaults all match |
+| ✅ | All constraints (FK, PK, UNIQUE, CHECK) | ✓ | ✓ | Delete rules match |
+| ✅ | All 17 custom indexes | ✓ | ✓ | Definitions match exactly |
+| ✅ | All 27 RLS policies | ✓ | ✓ | Logic and commands match |
+| ✅ | All 5 core functions | ✓ | ✓ | `get_user_info`, `is_admin`, `is_super_admin`, `update_updated_at`, `update_maintenance_mode` |
+| ⚠️ | `public.rls_query_performance` (VIEW) | ❌ | ✓ | Added to schema.sql — created by `enable_query_monitoring.sql` |
+| ⚠️ | `public.reset_query_stats()` (function) | ❌ | ✓ | Added to schema.sql — created by `enable_query_monitoring.sql` |
+| ⚠️ | `app_config` UPDATE policy | `(select is_super_admin())` | `is_super_admin()` | schema.sql has the optimized form; live DB is missing the subquery wrapper |
+| ⚠️ | `public.constraint_name_var` (table) | ❌ | ✓ | Orphaned migration artifact — safe to drop: `DROP TABLE IF EXISTS public.constraint_name_var;` |
+
+**Result**: Live DB is in excellent shape. All drift was additive (objects in the live DB not yet in schema.sql). No missing columns, broken constraints, or missing policies.
+
+---
+
 ## Index Optimization Decisions
 
 This section documents decisions about database indexes based on Supabase performance recommendations.
