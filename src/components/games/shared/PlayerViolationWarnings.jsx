@@ -14,8 +14,10 @@ export default function PlayerViolationWarnings({
   violationCombinedRule,
   violationExceedsPitchLimit,
   violationPitchedBeforeEligible,
+  violationThreeConsecutiveDays = false,
   nextEligiblePitchDate,
   previousLastPitchDate = null,
+  previousSecondLastPitchDate = null,
   previousLastPitchCount = null,
   pitchedInnings = [],
   caughtInnings = [],
@@ -92,6 +94,17 @@ export default function PlayerViolationWarnings({
             {isDetail
               ? `⚠️ Violation: Player pitched before their required rest period ended. Last pitched on ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}${previousLastPitchCount != null ? ` (${previousLastPitchCount} pitches)` : ''}. Not eligible to pitch until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
               : `⚠️ Violation: Pitched before rest period ended. Last pitched ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric' })}${previousLastPitchCount != null ? ` (${previousLastPitchCount} pitches)` : ''}. Not eligible until ${formatDate(nextEligiblePitchDate, { month: 'short', day: 'numeric' })}.`}
+          </p>
+        </div>
+      )}
+
+      {/* Rule 7: 3 Consecutive Pitching Days */}
+      {violationThreeConsecutiveDays && (
+        <div className={containerClasses}>
+          <p className={textClasses}>
+            {isDetail
+              ? `⚠️ Violation: Player cannot pitch 3 days in a row. Already pitched on ${formatDate(previousSecondLastPitchDate, { month: 'short', day: 'numeric', year: 'numeric' })} and ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric', year: 'numeric' })}.`
+              : `⚠️ Violation: Cannot pitch 3 days in a row (pitched ${formatDate(previousSecondLastPitchDate, { month: 'short', day: 'numeric' })} and ${formatDate(previousLastPitchDate, { month: 'short', day: 'numeric' })}).`}
           </p>
         </div>
       )}

@@ -108,6 +108,38 @@ export function exceedsMaxPitchesForAge(age, effectivePitches, division = null) 
 }
 
 /**
+ * Rule 7: Cannot pitch on 3 consecutive calendar days
+ * A player who pitched on each of the 2 days immediately before the current game
+ * cannot pitch again today.
+ *
+ * @param {string} gameDate - The date of the current game (YYYY-MM-DD format)
+ * @param {string|null} lastPitchDate - The most recent previous date the player pitched (YYYY-MM-DD format)
+ * @param {string|null} secondLastPitchDate - The second most recent previous date the player pitched (YYYY-MM-DD format)
+ * @param {number[]} pitchedInnings - Array of innings the player pitched in the current game
+ * @returns {boolean} - true if violation exists (would be 3rd consecutive pitching day), false otherwise
+ *
+ * @example
+ * // Player pitched May 1 and May 2, now pitching May 3 → violation
+ * pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', '2025-05-01', [1, 2]) // returns true
+ * // Player pitched May 1 and May 3, now pitching May 4 → no violation (gap on May 2)
+ * pitchedThreeConsecutiveDays('2025-05-04', '2025-05-03', '2025-05-01', [1]) // returns false
+ */
+export function pitchedThreeConsecutiveDays(gameDate, lastPitchDate, secondLastPitchDate, pitchedInnings) {
+  if (!pitchedInnings || pitchedInnings.length === 0) return false
+  if (!lastPitchDate || !secondLastPitchDate || !gameDate) return false
+
+  // Compute the calendar day before a given YYYY-MM-DD date string
+  const dayBefore = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() - 1)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Violation if: secondLastPitchDate → lastPitchDate → gameDate are all consecutive days
+  return dayBefore(gameDate) === lastPitchDate && dayBefore(lastPitchDate) === secondLastPitchDate
+}
+
+/**
  * Rule 6: Pitched before required rest days elapsed
  * A player cannot pitch until their next_eligible_pitch_date has arrived.
  *
@@ -153,9 +185,10 @@ export function pitchedBeforeEligibleDate(gameDate, nextEligiblePitchDate, pitch
  * @param {string} [gameDate] - The date of the current game (YYYY-MM-DD format), required for Rule 6
  * @param {Object} [playerEligibilityDates] - Map of player_id -> next_eligible_pitch_date from previous games
  * @param {string|null} [division] - The division of the game ('Training', 'Minor', 'Major'). Training overrides Rule 5 to use a flat 50-pitch max.
+ * @param {Object} [playerConsecutivePitchDates] - Map of player_id -> { lastPitchDate, secondLastPitchDate } for Rule 7
  * @returns {boolean} - true if any violations exist, false otherwise
  */
-export function calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate = null, playerEligibilityDates = {}, division = null) {
+export function calculateGameHasViolations(positions, pitchingLogs, playerAges, gameDate = null, playerEligibilityDates = {}, division = null, playerConsecutivePitchDates = {}) {
   // Group by player
   const playerData = {}
 
@@ -199,6 +232,10 @@ export function calculateGameHasViolations(positions, pitchingLogs, playerAges, 
 
     // Check Rule 6: Pitched before eligible date
     if (gameDate && pitchedBeforeEligibleDate(gameDate, playerEligibilityDates[playerId], pitchedInnings)) return true
+
+    // Check Rule 7: 3 consecutive pitching days
+    const consecutiveDates = playerConsecutivePitchDates[playerId] || {}
+    if (gameDate && pitchedThreeConsecutiveDays(gameDate, consecutiveDates.lastPitchDate, consecutiveDates.secondLastPitchDate, pitchedInnings)) return true
   }
 
   return false
