@@ -146,3 +146,5 @@ vite.config.ts.timestamp-*
 jt_*
 
 _ignored/
+
+ISSUES.md

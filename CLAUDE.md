@@ -514,14 +514,16 @@ const { profile } = useContext(ProfileContext);
 ## Code Changes
 
 When making changes across the codebase (e.g., updating age ranges, validation rules, constants), always search ALL files including modals, tests, documentation, database constraints, and translations. Never assume the initial search found everything — do a final verification grep before reporting completion.
+When updating a value (age range, constant, label, etc.) across the codebase, always search ALL files for both the old value and related validation logic. List every file found and confirm with the user before making changes.
 
 ## Testing
 
 When tests fail, first determine whether the bug is in the implementation code or the test code before attempting fixes. Ask yourself: 'Does the test reflect the correct business logic?' If yes, fix the implementation. If no, fix the test. Never blindly adjust tests to match broken code.
+When writing or fixing tests, first verify the actual business logic implementation before assuming the tests are wrong. If tests fail, determine whether the bug is in the test or the implementation before making changes.
 
 ## Project Stack & Deployment
 
-This project uses Next.js deployed on Vercel with Turso (SQLite), Prisma, NextAuth/AuthJS, Resend for emails, and Supabase for some features. When debugging deployment issues, check: 1) Edge function size limits 2) Environment variable formatting (trailing whitespace/carriage returns) 3) Prisma postinstall hooks 4) AUTH_SECRET requirements differ between dev and prod.
+This project uses Next.js deployed on Vercel with Turso (SQLite), Prisma, NextAuth/AuthJS, Resend for emails, and Supabase for some features. When debugging deployment issues, check: 1) Edge function size limits 2) Environment variable formatting (trailing whitespace/carriage returns) 3) Prisma postinstall hooks 4) AUTH_SECRET requirements differ between dev and prod.Primary stack: JavaScript/React (frontend), Supabase (backend/database), Vercel (deployment). When debugging, check for framework-specific gotchas (e.g., Supabase LEFT JOIN vs !inner, Python version compatibility).
 
 ## Workflow Conventions
 
