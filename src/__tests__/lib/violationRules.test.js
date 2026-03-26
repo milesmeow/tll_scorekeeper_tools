@@ -8,6 +8,7 @@ import {
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
+  pitchedThreeConsecutiveDays,
   calculateGameHasViolations
 } from '../../lib/violationRules'
 
@@ -286,6 +287,72 @@ describe('violationRules', () => {
       expect(pitchedBeforeEligibleDate('2025-05-31', '2025-06-01', [1, 2, 3])).toBe(true)
       // First day of June, eligible June 1 (not a violation)
       expect(pitchedBeforeEligibleDate('2025-06-01', '2025-06-01', [1, 2, 3])).toBe(false)
+    })
+  })
+
+  /**
+   * Rule 7: Cannot pitch 3 consecutive calendar days
+   */
+  describe('Rule 7: pitchedThreeConsecutiveDays', () => {
+    it('should return false if player did not pitch in this game', () => {
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', '2025-05-01', [])).toBe(false)
+    })
+
+    it('should return false if lastPitchDate is missing', () => {
+      expect(pitchedThreeConsecutiveDays('2025-05-03', null, '2025-05-01', [1, 2])).toBe(false)
+      expect(pitchedThreeConsecutiveDays('2025-05-03', undefined, '2025-05-01', [1, 2])).toBe(false)
+    })
+
+    it('should return false if secondLastPitchDate is missing', () => {
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', null, [1, 2])).toBe(false)
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', undefined, [1, 2])).toBe(false)
+    })
+
+    it('should return false if gameDate is missing', () => {
+      expect(pitchedThreeConsecutiveDays(null, '2025-05-02', '2025-05-01', [1])).toBe(false)
+      expect(pitchedThreeConsecutiveDays(undefined, '2025-05-02', '2025-05-01', [1])).toBe(false)
+    })
+
+    it('should return true for 3 consecutive days (violation)', () => {
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', '2025-05-01', [1, 2])).toBe(true)
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', '2025-05-01', [3])).toBe(true)
+    })
+
+    it('should return false when there is a gap between second-last and last pitch dates', () => {
+      // Pitched May 1 and May 3, now May 4 → not consecutive (gap on May 2)
+      expect(pitchedThreeConsecutiveDays('2025-05-04', '2025-05-03', '2025-05-01', [1])).toBe(false)
+    })
+
+    it('should return false when there is a gap between last pitch date and current game', () => {
+      // Pitched May 1 and May 2, now May 4 → not consecutive (gap on May 3)
+      expect(pitchedThreeConsecutiveDays('2025-05-04', '2025-05-02', '2025-05-01', [1])).toBe(false)
+    })
+
+    it('should handle month boundary (April 30 → May 1 → May 2)', () => {
+      expect(pitchedThreeConsecutiveDays('2025-05-02', '2025-05-01', '2025-04-30', [1])).toBe(true)
+    })
+
+    it('should handle year boundary (Dec 30 → Dec 31 → Jan 1)', () => {
+      expect(pitchedThreeConsecutiveDays('2026-01-01', '2025-12-31', '2025-12-30', [1])).toBe(true)
+    })
+
+    it('should return false when only 1 prior pitching date exists', () => {
+      // Only pitched yesterday, no second prior date
+      expect(pitchedThreeConsecutiveDays('2025-05-03', '2025-05-02', null, [1])).toBe(false)
+    })
+
+    it('should enforce Rule 7 in calculateGameHasViolations', () => {
+      const positions = [{ player_id: 'p1', position: 'pitcher', inning_number: 1 }]
+      const pitchingLogs = [{ player_id: 'p1', penultimate_batter_count: 20 }]
+      const playerAges = { p1: 10 }
+      const playerConsecutivePitchDates = {
+        p1: { lastPitchDate: '2025-05-02', secondLastPitchDate: '2025-05-01' }
+      }
+      // 3 consecutive days → violation
+      expect(calculateGameHasViolations(positions, pitchingLogs, playerAges, '2025-05-03', {}, null, playerConsecutivePitchDates)).toBe(true)
+      // Gap in dates → no violation
+      const noViolationDates = { p1: { lastPitchDate: '2025-05-01', secondLastPitchDate: '2025-04-29' } }
+      expect(calculateGameHasViolations(positions, pitchingLogs, playerAges, '2025-05-03', {}, null, noViolationDates)).toBe(false)
     })
   })
 

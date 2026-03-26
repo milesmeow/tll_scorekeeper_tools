@@ -10,7 +10,8 @@ import {
   cannotPitchDueToFourInningsCatching,
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge,
-  pitchedBeforeEligibleDate
+  pitchedBeforeEligibleDate,
+  pitchedThreeConsecutiveDays
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 import AbsentPlayerCard from './shared/AbsentPlayerCard'
@@ -70,6 +71,7 @@ export default function GameDetailModal({ game, onClose }) {
           positions: positionsPlayed.filter(pp => pp.player_id === gp.player_id),
           previousNextEligibleDate: eligibilityMap[gp.player_id]?.nextEligiblePitchDate || null,
           previousLastPitchDate: eligibilityMap[gp.player_id]?.lastPitchDate || null,
+          previousSecondLastPitchDate: eligibilityMap[gp.player_id]?.secondLastPitchDate || null,
           previousLastPitchCount: eligibilityMap[gp.player_id]?.lastPitchCount ?? null
         }
 
@@ -109,20 +111,23 @@ export default function GameDetailModal({ game, onClose }) {
         .in('player_id', playerIds)
         .neq('game_id', excludeGameId)
         .lt('games.game_date', gameDate)
-        .not('next_eligible_pitch_date', 'is', null)
         .order('games(game_date)', { ascending: false })
 
       if (error) throw error
 
-      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, secondLastPitchDate, lastPitchCount }
+      // Since results are ordered newest first, the 1st entry per player is most recent, 2nd is second most recent.
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
           eligibilityMap[log.player_id] = {
             nextEligiblePitchDate: log.next_eligible_pitch_date,
             lastPitchDate: log.games.game_date,
+            secondLastPitchDate: null,
             lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
           }
+        } else if (!eligibilityMap[log.player_id].secondLastPitchDate) {
+          eligibilityMap[log.player_id].secondLastPitchDate = log.games.game_date
         }
       }
 
@@ -194,6 +199,7 @@ export default function GameDetailModal({ game, onClose }) {
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDate}
+              pitchedThreeConsecutiveDays={pitchedThreeConsecutiveDays}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
 
@@ -211,6 +217,7 @@ export default function GameDetailModal({ game, onClose }) {
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAge}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDate}
+              pitchedThreeConsecutiveDays={pitchedThreeConsecutiveDays}
               getMaxPitchesForAge={getMaxPitchesForAge}
             />
           </div>
@@ -242,6 +249,7 @@ function TeamDetailSection({
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
+  pitchedThreeConsecutiveDays,
   getMaxPitchesForAge
 }) {
   // Only show players who pitched, caught, or were absent
@@ -279,6 +287,7 @@ function TeamDetailSection({
               const violationCombinedRule = cannotCatchAgainDueToCombined(pitchedInnings, caughtInnings, effectivePitches)
               const violationExceedsPitchLimit = exceedsMaxPitchesForAge(playerData.player.age, effectivePitches, division)
               const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(gameDate, playerData.previousNextEligibleDate, pitchedInnings)
+              const violationThreeConsecutiveDays = pitchedThreeConsecutiveDays(gameDate, playerData.previousLastPitchDate, playerData.previousSecondLastPitchDate, pitchedInnings)
 
               return (
                 <div key={playerData.player_id} className="bg-gray-50 border rounded p-3">
@@ -386,8 +395,10 @@ function TeamDetailSection({
                         violationCombinedRule={violationCombinedRule}
                         violationExceedsPitchLimit={violationExceedsPitchLimit}
                         violationPitchedBeforeEligible={violationPitchedBeforeEligible}
+                        violationThreeConsecutiveDays={violationThreeConsecutiveDays}
                         nextEligiblePitchDate={playerData.previousNextEligibleDate}
                         previousLastPitchDate={playerData.previousLastPitchDate}
+                        previousSecondLastPitchDate={playerData.previousSecondLastPitchDate}
                         previousLastPitchCount={playerData.previousLastPitchCount}
                         pitchedInnings={pitchedInnings}
                         caughtInnings={caughtInnings}
