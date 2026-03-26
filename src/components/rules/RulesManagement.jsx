@@ -108,9 +108,6 @@ export default function RulesManagement() {
       {/* Violation Rules Section */}
       <div className="card mt-6">
         <h3 className="text-lg font-semibold mb-1">Pitcher / Catcher Violation Rules</h3>
-        <p className="text-gray-600 text-sm mb-5">
-          Rules enforced during game entry. Violations are flagged as warnings but do not block saves.
-        </p>
 
         <div className="divide-y divide-gray-100">
           {[
@@ -154,7 +151,7 @@ export default function RulesManagement() {
               num: 7,
               title: 'No Pitching 3 Days in a Row',
               description: 'A pitcher may not pitch in 3 consecutive calendar days.',
-              enforced: false,
+              enforced: true,
             },
           ].map(({ num, title, description, enforced }) => (
             <div key={num} className="flex items-start gap-4 py-4">
@@ -178,7 +175,7 @@ export default function RulesManagement() {
 
         <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
           <p className="text-sm text-blue-900">
-            <strong>📌 Note:</strong> Rules 1–6 are flagged automatically during game entry. Rule 7 is a display reminder only and is not currently checked by the software.
+            <strong>📌 Note:</strong> Rules 1–7 are flagged automatically during game entry by admins. Games with violations are visually flagged on the Games page.
           </p>
         </div>
       </div>

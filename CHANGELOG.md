@@ -5,6 +5,24 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-03-26
+
+### Added
+
+- Rule 7: No pitching 3 consecutive calendar days (cross-game validation)
+  - `pitchedThreeConsecutiveDays()` in `src/lib/violationRules.js`
+  - Checks the two most recent pitching dates per player from `pitching_logs`
+  - Warning shown in game entry confirmation step and game detail modal
+  - `calculateGameHasViolations()` updated with new `playerConsecutivePitchDates` parameter
+  - 11 new tests; total test count 77 → 88
+- `previousSecondLastPitchDate` threaded through eligibility maps in `GameEntry.jsx` and `GameDetailModal.jsx`
+
+### Changed
+
+- Eligibility fetch queries now return all pitching logs (removed `next_eligible_pitch_date IS NOT NULL` filter) so Rule 7 can detect pitching dates regardless of rest requirement
+- Playing time rules renumbered: No Consecutive Sitting → Rule 8, Minimum Infield → Rule 9
+- Updated `RULES.md` to v2.4 with full Rule 7 documentation and renumbered playing time rules
+
 ## [1.21.0] - 2026-02-16
 
 ### Added
@@ -19,6 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rule 8: All players must play at least 1 inning of defense in the infield each game
 - Print CSS (`@media print`) rules in `src/index.css` for lineup card formatting
 - Documented Rules 7 & 8 in RULES.md (playing time rules)
+
+## [1.20.3] - 2026-02-02
+
+### Added
+- Dynamic extra innings support in Game Entry (up to 12 innings)
+  - Starts at 6 innings by default; "+ Add Inning" button increments one at a time
+  - Edit mode auto-detects and loads existing max innings
+  - Hard cap at 12 innings for youth baseball safety
+- 39 new test cases for extra innings scenarios (Rules 1–4, complex/edge cases, realistic scenarios); total test count 37 → 76
+
+### Fixed
+- Rule 4 logic corrected to count innings caught *before* pitching started, not total catching innings
+  - Prevents false negatives when a player catches 4+ total innings but only 1–3 were before pitching
 
 ## [1.20.2] - 2026-01-19
 

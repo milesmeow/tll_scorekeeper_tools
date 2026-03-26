@@ -1,7 +1,7 @@
 # Baseball Game Rules & Validation
 
-**Last Updated**: February 2026
-**Status**: All 6 Pitch Smart rules implemented with validation warnings + Extra innings support (7-12 innings) + 2 playing time rules (reminders)
+**Last Updated**: March 2026
+**Status**: All 7 Pitch Smart rules implemented with validation warnings + Extra innings support (7-12 innings) + 2 playing time rules (reminders)
 
 ---
 
@@ -328,11 +328,60 @@ return gameDate < nextEligiblePitchDate;
 
 ---
 
+### 7. No Pitching 3 Consecutive Calendar Days
+
+**Status**: ✅ **Implemented** (validation warnings shown)
+
+**Rule**: A player cannot pitch on 3 consecutive calendar days. If a player pitched on both Day N-2 and Day N-1, they cannot pitch on Day N.
+
+**Key Point**: Like Rule 6, this is a cross-game rule — it requires historical data from previous games to detect.
+
+**Rationale**: Prevents cumulative arm stress from pitching three days back-to-back regardless of pitch counts.
+
+**Example Scenario 1 - VIOLATION**:
+
+- Player pitched on May 1 and May 2
+- Player pitches in a game on May 3
+- ❌ **VIOLATION**: Third consecutive pitching day
+
+**Example Scenario 2 - NO VIOLATION (gap in dates)**:
+
+- Player pitched on May 1 and May 3 (no game/pitch on May 2)
+- Player pitches in a game on May 4
+- ✅ **OK**: Not 3 consecutive days (gap on May 2)
+
+**Example Scenario 3 - NO VIOLATION (only one prior date)**:
+
+- Player pitched on May 2 (no record of pitching on May 1)
+- Player pitches in a game on May 3
+- ✅ **OK**: Only one prior pitching date, cannot determine 3-day streak
+
+**Implementation Details**:
+
+- Location: `src/lib/violationRules.js` - `pitchedThreeConsecutiveDays()`
+- Fetches the two most recent pitching dates per player from `pitching_logs` (no pitch count threshold)
+- Uses calendar-day arithmetic to check that all three dates are back-to-back
+- Display warning: "⚠️ Violation: Player cannot pitch 3 days in a row. Already pitched on [date1] and [date2]."
+- Validation is non-blocking — data can still be saved
+
+**Technical Logic**:
+
+```javascript
+// Only violates if:
+// 1. Player is pitching in this game (pitchedInnings.length > 0)
+// 2. Both lastPitchDate and secondLastPitchDate are known
+// 3. secondLastPitchDate + 1 == lastPitchDate AND lastPitchDate + 1 == gameDate
+const dayBefore = (dateStr) => { /* subtract 1 calendar day */ };
+return dayBefore(gameDate) === lastPitchDate && dayBefore(lastPitchDate) === secondLastPitchDate;
+```
+
+---
+
 ## Playing Time Rules
 
 These rules ensure fair playing time and balanced defensive experience for all players.
 
-### 7. No Consecutive Sitting
+### 8. No Consecutive Sitting
 
 **Status**: Displayed as reminder on Lineup Summary
 
@@ -346,7 +395,7 @@ These rules ensure fair playing time and balanced defensive experience for all p
 
 ---
 
-### 8. Minimum Infield Requirement
+### 9. Minimum Infield Requirement
 
 **Status**: Displayed as reminder on Lineup Summary
 
@@ -398,7 +447,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Implementation Status
 
-### Completed - All 8 Rules Documented
+### Completed - All 9 Rules Documented
 
 - ✅ Rule 1: Consecutive pitching innings (warning display)
 - ✅ Rule 2: 41+ pitches → cannot catch after pitching
@@ -406,13 +455,14 @@ These guidelines define maximum pitch counts and required rest days based on pla
 - ✅ Rule 4: Caught 1-3 innings + 21+ pitches → cannot return to catch
 - ✅ Rule 5: Age-based pitch count limits
 - ✅ Rule 6: Pitched before required rest period (cross-game validation)
-- ✅ Rule 7: No consecutive sitting (reminder on Lineup Summary)
-- ✅ Rule 8: Minimum infield requirement (reminder on Lineup Summary)
+- ✅ Rule 7: No pitching 3 consecutive calendar days (cross-game validation)
+- ✅ Rule 8: No consecutive sitting (reminder on Lineup Summary)
+- ✅ Rule 9: Minimum infield requirement (reminder on Lineup Summary)
 
 ### Current Features
 
 1. **Real-time Validation**
-   - All 6 rules checked as user enters data
+   - All 7 rules checked as user enters data
    - Warnings shown in player sections
    - Non-blocking validation (saves allowed with warnings)
 
@@ -491,6 +541,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 - ✅ Daily max pitch counts (age-based) - Rule 5
 - ✅ Rest day calculations - Rule 6
+- ✅ 3 consecutive pitching days - Rule 7
 
 ### Low Priority (Reporting) - Planned
 
@@ -502,7 +553,7 @@ These guidelines define maximum pitch counts and required rest days based on pla
 
 ## Testing Scenarios
 
-All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (80 tests total: 37 original + 39 extra innings tests + 3 Training division override tests + 1 integration test, 95%+ coverage).
+All rules are covered by automated tests in `src/__tests__/lib/violationRules.test.js` (88 tests total: 37 original + 11 Rule 7 tests + 39 extra innings tests + 1 integration test, 95%+ coverage).
 
 ### Test Case 1: Consecutive Pitching (Rule 1)
 
@@ -562,6 +613,16 @@ Expected: Warning displayed
 Actual: ✅ Warning shown
 ```
 
+### Test Case 7: 3 Consecutive Pitching Days (Rule 7)
+
+```
+Input:
+- Player's two most recent pitching dates are May 1 and May 2
+- Try to enter pitching for game on May 3
+Expected: Warning displayed
+Actual: ✅ Warning shown
+```
+
 ---
 
 ## Extra Innings Support (7+, 8+, 9+, etc.)
@@ -585,7 +646,7 @@ Actual: ✅ Warning shown
 
 **Validation Rules - All Work with Extra Innings**:
 
-All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and automatically work with any number of innings:
+All 7 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and automatically work with any number of innings:
 
 - ✅ **Rule 1 (Consecutive Innings)**: Works with 7-12 innings
   - Example: Pitcher throws innings 1-8 consecutively → Valid
@@ -602,6 +663,7 @@ All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and 
 
 - ✅ **Rule 5 (Age Limits)**: Pitch count limits apply regardless of innings
 - ✅ **Rule 6 (Rest Days)**: Rest calculations work for any game length
+- ✅ **Rule 7 (3 Consecutive Days)**: Cross-game check is date-based, not innings-based — unaffected by game length
 
 **UI Features**:
 - Dynamic "+ Add Inning 7" button appears in both pitching and catching sections
@@ -665,17 +727,23 @@ All 6 validation rules use dynamic detection (e.g., `Math.max(...innings)`) and 
 
 ---
 
-**Document Version**: 2.3
-**Last Review**: February 20, 2026
+**Document Version**: 2.4
+**Last Review**: March 26, 2026
+**Changes in v2.4**:
+- Added Rule 7: No pitching 3 consecutive calendar days (cross-game validation)
+- Renumbered playing time rules: No consecutive sitting → Rule 8, Minimum infield → Rule 9
+- Updated test count: 88 tests total
+- Rule 7 enforced in `pitchedThreeConsecutiveDays()` in `src/lib/violationRules.js`
+
 **Changes in v2.3**:
 - Updated Rule 5: Training division teams have a flat 50-pitch maximum regardless of player age
 - Division is now passed to `exceedsMaxPitchesForAge()` and `calculateGameHasViolations()`
-- Added 4 new tests covering Training division override behavior (226 total tests passing)
+- Added 4 new tests covering Training division override behavior
 
 **Changes in v2.2**:
-- Added Rule 7: No consecutive sitting (playing time rule)
-- Added Rule 8: Minimum infield requirement (playing time rule)
-- Rules 7 & 8 displayed as reminders on Lineup Summary print view
+- Added Rule 8: No consecutive sitting (playing time rule)
+- Added Rule 9: Minimum infield requirement (playing time rule)
+- Rules 8 & 9 displayed as reminders on Lineup Summary print view
 
 **Changes in v2.1**:
 - Clarified Rule 4: Checks innings caught BEFORE pitching (not total catching innings)

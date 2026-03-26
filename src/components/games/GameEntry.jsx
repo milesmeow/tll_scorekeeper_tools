@@ -13,6 +13,7 @@ import {
   cannotCatchAgainDueToCombined,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
+  pitchedThreeConsecutiveDays,
   calculateGameHasViolations
 } from '../../lib/violationRules'
 import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
@@ -608,6 +609,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           final_pitch_count: playerPitching?.final_pitch_count?.toString() || '',
           previousNextEligibleDate: eligibilityMap[gp.player_id]?.nextEligiblePitchDate || null,
           previousLastPitchDate: eligibilityMap[gp.player_id]?.lastPitchDate || null,
+          previousSecondLastPitchDate: eligibilityMap[gp.player_id]?.secondLastPitchDate || null,
           previousLastPitchCount: eligibilityMap[gp.player_id]?.lastPitchCount ?? null
         }
 
@@ -655,7 +657,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     if (!playerIds || playerIds.length === 0) return {}
 
     try {
-      // Get the most recent pitching log for each player from games BEFORE the specified game date
+      // Get pitching logs for each player from games BEFORE the specified game date, ordered newest first.
+      // We fetch all logs (no null filter) so we can also capture the 2nd most recent date for Rule 7.
       const { data: pitchingLogs, error } = await supabase
         .from('pitching_logs')
         .select(`
@@ -667,20 +670,23 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         .in('player_id', playerIds)
         .neq('game_id', excludeGameId)
         .lt('games.game_date', gameDate)
-        .not('next_eligible_pitch_date', 'is', null)
         .order('games(game_date)', { ascending: false })
 
       if (error) throw error
 
-      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, secondLastPitchDate, lastPitchCount }
+      // Since results are ordered newest first, the 1st entry per player is most recent, 2nd is second most recent.
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
           eligibilityMap[log.player_id] = {
             nextEligiblePitchDate: log.next_eligible_pitch_date,
             lastPitchDate: log.games.game_date,
+            secondLastPitchDate: null,
             lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
           }
+        } else if (!eligibilityMap[log.player_id].secondLastPitchDate) {
+          eligibilityMap[log.player_id].secondLastPitchDate = log.games.game_date
         }
       }
 
@@ -853,6 +859,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         final_pitch_count: '',
         previousNextEligibleDate: eligibilityMap[player.id]?.nextEligiblePitchDate || null,
         previousLastPitchDate: eligibilityMap[player.id]?.lastPitchDate || null,
+        previousSecondLastPitchDate: eligibilityMap[player.id]?.secondLastPitchDate || null,
         previousLastPitchCount: eligibilityMap[player.id]?.lastPitchCount ?? null
       }))
 
@@ -866,6 +873,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         final_pitch_count: '',
         previousNextEligibleDate: eligibilityMap[player.id]?.nextEligiblePitchDate || null,
         previousLastPitchDate: eligibilityMap[player.id]?.lastPitchDate || null,
+        previousSecondLastPitchDate: eligibilityMap[player.id]?.secondLastPitchDate || null,
         previousLastPitchCount: eligibilityMap[player.id]?.lastPitchCount ?? null
       }))
 
@@ -878,14 +886,14 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
   /**
    * Fetch the most recent next_eligible_pitch_date for a list of players
-   * This is used to check Rule 6: pitching before rest period ends
+   * This is used to check Rule 6 (rest period) and Rule 7 (3 consecutive days)
    */
   const fetchPlayerEligibilityDates = async (playerIds) => {
     if (!playerIds || playerIds.length === 0) return {}
 
     try {
-      // Get the most recent pitching log for each player with their next_eligible_pitch_date
-      // We need to get games that are BEFORE the current game date
+      // Fetch all pitching logs ordered newest first (no null filter) so we can capture
+      // both the most recent and second most recent pitch dates per player for Rule 7.
       const { data: pitchingLogs, error } = await supabase
         .from('pitching_logs')
         .select(`
@@ -895,21 +903,23 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
           games!inner(game_date)
         `)
         .in('player_id', playerIds)
-        .not('next_eligible_pitch_date', 'is', null)
         .order('games(game_date)', { ascending: false })
 
       if (error) throw error
 
-      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, lastPitchCount }
-      // Since we ordered by game_date desc, the first entry for each player is the most recent
+      // Build a map of player_id -> { nextEligiblePitchDate, lastPitchDate, secondLastPitchDate, lastPitchCount }
+      // Since results are ordered newest first, the 1st entry per player is most recent, 2nd is second most recent.
       const eligibilityMap = {}
       for (const log of pitchingLogs) {
         if (!eligibilityMap[log.player_id]) {
           eligibilityMap[log.player_id] = {
             nextEligiblePitchDate: log.next_eligible_pitch_date,
             lastPitchDate: log.games.game_date,
+            secondLastPitchDate: null,
             lastPitchCount: log.penultimate_batter_count != null ? log.penultimate_batter_count + 1 : null
           }
+        } else if (!eligibilityMap[log.player_id].secondLastPitchDate) {
+          eligibilityMap[log.player_id].secondLastPitchDate = log.games.game_date
         }
       }
 
@@ -1218,11 +1228,19 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
       // Calculate violations for this game
       const playerAges = {}
       const playerEligibilityDates = {}
+      const playerConsecutivePitchDates = {}
       allPlayers.forEach(p => {
         playerAges[p.id] = p.age
         // Include the previous eligibility date for Rule 6 checking
         if (p.previousNextEligibleDate) {
           playerEligibilityDates[p.id] = p.previousNextEligibleDate
+        }
+        // Include last two pitch dates for Rule 7 (3 consecutive days)
+        if (p.previousLastPitchDate) {
+          playerConsecutivePitchDates[p.id] = {
+            lastPitchDate: p.previousLastPitchDate,
+            secondLastPitchDate: p.previousSecondLastPitchDate || null
+          }
         }
       })
 
@@ -1237,7 +1255,8 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
         playerAges,
         formData.game_date,
         playerEligibilityDates,
-        selectedDivision
+        selectedDivision,
+        playerConsecutivePitchDates
       )
 
       // Update the game record with violation status
@@ -1327,6 +1346,16 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
     return pitchedBeforeEligibleDate(
       formData.game_date,
       player.previousNextEligibleDate,
+      player.innings_pitched
+    )
+  }
+
+  // Wrapper for Rule 7: 3 consecutive pitching days
+  const pitchedThreeConsecutiveDaysWrapper = (player) => {
+    return pitchedThreeConsecutiveDays(
+      formData.game_date,
+      player.previousLastPitchDate,
+      player.previousSecondLastPitchDate,
       player.innings_pitched
     )
   }
@@ -1730,6 +1759,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
+              pitchedThreeConsecutiveDays={pitchedThreeConsecutiveDaysWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
               division={selectedDivision}
             />
@@ -1746,6 +1776,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
               getEffectivePitchCount={getEffectivePitchCount}
               exceedsMaxPitchesForAge={exceedsMaxPitchesForAgeWrapper}
               pitchedBeforeEligibleDate={pitchedBeforeEligibleDateWrapper}
+              pitchedThreeConsecutiveDays={pitchedThreeConsecutiveDaysWrapper}
               getMaxPitchesForAge={getMaxPitchesForAge}
               division={selectedDivision}
             />
@@ -1971,6 +2002,7 @@ function ConfirmationTeamSection({
   getEffectivePitchCount,
   exceedsMaxPitchesForAge,
   pitchedBeforeEligibleDate,
+  pitchedThreeConsecutiveDays,
   getMaxPitchesForAge,
   division = null
 }) {
@@ -1997,7 +2029,8 @@ function ConfirmationTeamSection({
               const violationCombinedRule = cannotCatchAgainDueToCombined(player)
               const violationExceedsPitchLimit = exceedsMaxPitchesForAge(player)
               const violationPitchedBeforeEligible = pitchedBeforeEligibleDate(player)
-              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit || violationPitchedBeforeEligible
+              const violationThreeConsecutiveDays = pitchedThreeConsecutiveDays(player)
+              const hasViolation = hasPitchingGap || violationHighPitchCount || violationFourInningsCatching || violationCombinedRule || violationExceedsPitchLimit || violationPitchedBeforeEligible || violationThreeConsecutiveDays
 
               return (
                 <div key={player.id} className={`border rounded p-3 ${hasViolation ? 'bg-red-50 border-red-300' : 'bg-gray-50'}`}>
@@ -2043,8 +2076,10 @@ function ConfirmationTeamSection({
                     violationCombinedRule={violationCombinedRule}
                     violationExceedsPitchLimit={violationExceedsPitchLimit}
                     violationPitchedBeforeEligible={violationPitchedBeforeEligible}
+                    violationThreeConsecutiveDays={violationThreeConsecutiveDays}
                     nextEligiblePitchDate={player.previousNextEligibleDate}
                     previousLastPitchDate={player.previousLastPitchDate}
+                    previousSecondLastPitchDate={player.previousSecondLastPitchDate}
                     previousLastPitchCount={player.previousLastPitchCount}
                     pitchedInnings={pitchedInnings}
                     caughtInnings={caughtInnings}
