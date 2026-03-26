@@ -20,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Print CSS (`@media print`) rules in `src/index.css` for lineup card formatting
 - Documented Rules 7 & 8 in RULES.md (playing time rules)
 
+## [1.20.3] - 2026-02-02
+
+### Added
+- Dynamic extra innings support in Game Entry (up to 12 innings)
+  - Starts at 6 innings by default; "+ Add Inning" button increments one at a time
+  - Edit mode auto-detects and loads existing max innings
+  - Hard cap at 12 innings for youth baseball safety
+- 39 new test cases for extra innings scenarios (Rules 1–4, complex/edge cases, realistic scenarios); total test count 37 → 76
+
+### Fixed
+- Rule 4 logic corrected to count innings caught *before* pitching started, not total catching innings
+  - Prevents false negatives when a player catches 4+ total innings but only 1–3 were before pitching
+
 ## [1.20.2] - 2026-01-19
 
 ### Changed
