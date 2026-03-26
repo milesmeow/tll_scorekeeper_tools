@@ -5,6 +5,24 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-03-26
+
+### Added
+
+- Rule 7: No pitching 3 consecutive calendar days (cross-game validation)
+  - `pitchedThreeConsecutiveDays()` in `src/lib/violationRules.js`
+  - Checks the two most recent pitching dates per player from `pitching_logs`
+  - Warning shown in game entry confirmation step and game detail modal
+  - `calculateGameHasViolations()` updated with new `playerConsecutivePitchDates` parameter
+  - 11 new tests; total test count 77 → 88
+- `previousSecondLastPitchDate` threaded through eligibility maps in `GameEntry.jsx` and `GameDetailModal.jsx`
+
+### Changed
+
+- Eligibility fetch queries now return all pitching logs (removed `next_eligible_pitch_date IS NOT NULL` filter) so Rule 7 can detect pitching dates regardless of rest requirement
+- Playing time rules renumbered: No Consecutive Sitting → Rule 8, Minimum Infield → Rule 9
+- Updated `RULES.md` to v2.4 with full Rule 7 documentation and renumbered playing time rules
+
 ## [1.21.0] - 2026-02-16
 
 ### Added

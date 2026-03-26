@@ -103,7 +103,7 @@ Three user roles with different permission levels:
 
 ### Validation Rules Engine
 
-**Centralized validation** in `src/lib/violationRules.js` - a single source of truth for all 6 Pitch Smart rules:
+**Centralized validation** in `src/lib/violationRules.js` - a single source of truth for all 7 Pitch Smart rules:
 
 **Rule 1**: Pitchers must pitch consecutive innings (no gaps)
 **Rule 2**: 41+ pitches → cannot catch after pitching
@@ -111,11 +111,12 @@ Three user roles with different permission levels:
 **Rule 4**: Caught 1-3 innings + 21+ pitches → cannot return to catch
 **Rule 5**: Pitch count exceeds age-based maximum (Training division teams: flat 50-pitch max regardless of age)
 **Rule 6**: Pitched before required rest period ended (cross-game validation)
+**Rule 7**: Cannot pitch on 3 consecutive calendar days (cross-game validation)
 
 **Playing Time Rules** (displayed as reminders on Lineup Summary, not programmatically enforced):
 
-**Rule 7**: No player will sit out 2 consecutive innings
-**Rule 8**: All players must play at least 1 inning of defense in the infield each game
+**Rule 8**: No player will sit out 2 consecutive innings
+**Rule 9**: All players must play at least 1 inning of defense in the infield each game
 
 **Architecture Decision**: These functions were originally duplicated across `GameEntry.jsx` and `GameDetailModal.jsx` (~240 lines of duplication). They were refactored into shared utilities to ensure:
 
@@ -124,7 +125,7 @@ Three user roles with different permission levels:
 - Easier maintenance
 - Clear JSDoc documentation
 
-**When adding new rules**: Add to `violationRules.js` and write tests in `src/__tests__/lib/violationRules.test.js`. If a rule is division-aware, pass `division` through `calculateGameHasViolations()` (already supported as the 6th parameter) and the wrapper in `GameEntry.jsx`.
+**When adding new rules**: Add to `violationRules.js` and write tests in `src/__tests__/lib/violationRules.test.js`. If a rule needs cross-game data, extend `calculateGameHasViolations()` with a new parameter (Rules 6 and 7 both demonstrate this pattern — Rule 6 uses the 5th parameter `playerEligibilityDates`, Rule 7 uses the 7th parameter `playerConsecutivePitchDates`). If a rule is division-aware, pass `division` through the 6th parameter.
 
 ### Date Handling - Critical Pattern
 
