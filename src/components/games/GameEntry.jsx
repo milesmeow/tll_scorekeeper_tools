@@ -1,7 +1,6 @@
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
-import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 import { formatDate } from '../../lib/pitchCountUtils'
@@ -42,8 +41,15 @@ export default function GameEntry({ profile, isAdmin }) {
   // Fetch coach assignments for filtering
   const coachData = useCoachAssignments(profile)
 
-  const modalOpen = showGameForm || !!gameToDelete || !!gameToView
-  useBodyScrollLock(modalOpen)
+  useEffect(() => {
+    const overlayOpen = showGameForm || !!gameToDelete || !!gameToView
+    if (overlayOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showGameForm, gameToDelete, gameToView])
 
   useEffect(() => {
     fetchSeasons()
