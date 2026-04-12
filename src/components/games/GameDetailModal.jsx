@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 import { formatDate, parseLocalDate } from '../../lib/pitchCountUtils'
 import {
@@ -17,6 +18,7 @@ import PlayerViolationWarnings from './shared/PlayerViolationWarnings'
 import AbsentPlayerCard from './shared/AbsentPlayerCard'
 
 export default function GameDetailModal({ game, onClose }) {
+  useBodyScrollLock()
   const [loading, setLoading] = useState(true)
   const [gameData, setGameData] = useState(null)
   const [error, setError] = useState(null)

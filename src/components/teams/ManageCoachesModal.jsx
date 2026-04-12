@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import AddCoachForm from './AddCoachForm'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function ManageCoachesModal({ team, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const [coaches, setCoaches] = useState([])
   const [assignments, setAssignments] = useState([])
   const [loading, setLoading] = useState(true)

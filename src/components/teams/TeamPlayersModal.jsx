@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 import { getPitchingDisplayData, parseLocalDate } from '../../lib/pitchCountUtils'
 import { parsePlayerCsv } from '../../lib/playerCsvUtils'
 import PlayerDeleteConfirmationModal from '../common/PlayerDeleteConfirmationModal'
@@ -30,6 +31,7 @@ function enrichPlayersWithPitchingData(players, pitchingLogs) {
 }
 
 export default function TeamPlayersModal({ team, isCoach, onClose }) {
+  useBodyScrollLock()
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

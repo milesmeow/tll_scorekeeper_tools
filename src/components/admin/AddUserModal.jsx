@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function AddUserModal({ onClose, onUserAdded, onError }) {
+  useBodyScrollLock()
   const [formData, setFormData] = useState({
     name: '',
     email: '',

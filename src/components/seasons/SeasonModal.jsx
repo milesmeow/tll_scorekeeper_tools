@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function SeasonModal({ season, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const [formData, setFormData] = useState({
     name: season?.name || '',
     start_date: season?.start_date || '',

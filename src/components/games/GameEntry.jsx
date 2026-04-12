@@ -1,6 +1,7 @@
 import { useState, useEffect, memo, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useCoachAssignments } from '../../lib/useCoachAssignments'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 import GameDetailModal from './GameDetailModal'
 import { calculateNextEligibleDate } from '../../lib/pitchSmartRules'
 import { formatDate } from '../../lib/pitchCountUtils'
@@ -508,6 +509,7 @@ export default function GameEntry({ profile, isAdmin }) {
 }
 
 function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const isEditMode = !!gameToEdit
   const [step, setStep] = useState(1) // 1 = Basic Info, 2 = Player Data, 3 = Confirmation
   const [gameId, setGameId] = useState(gameToEdit?.id || null)
@@ -535,6 +537,13 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
 
   // Save original game data for comparison when editing
   const [originalGameData, setOriginalGameData] = useState(null)
+
+  // Scroll modal content to top on each step change
+  useEffect(() => {
+    if (modalContentRef.current) {
+      modalContentRef.current.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [step])
 
   // Scroll to top when error occurs
   useEffect(() => {
@@ -1750,6 +1759,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Home Team Players */}
             <ConfirmationTeamSection
               teamName={homeTeam?.name}
+              isHome={true}
               pitchersAndCatchers={homePitchersAndCatchers}
               absentPlayers={homeAbsent}
               hasInningsGap={hasInningsGap}
@@ -1767,6 +1777,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Away Team Players */}
             <ConfirmationTeamSection
               teamName={awayTeam?.name}
+              isHome={false}
               pitchersAndCatchers={awayPitchersAndCatchers}
               absentPlayers={awayAbsent}
               hasInningsGap={hasInningsGap}
@@ -1962,37 +1973,52 @@ function TeamPlayerDataSection({
   maxInnings,
   onAddInning
 }) {
-  return (
-    <div className="border rounded-lg p-4">
-      <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
+  const sectionStyle = isHome
+    ? 'border-blue-300 bg-blue-50'
+    : 'border-amber-300 bg-amber-50'
+  const headerStyle = isHome
+    ? 'bg-blue-600 text-white'
+    : 'bg-amber-500 text-white'
 
-      {/* Player Data Entry Forms - All players included by default */}
-      {players.length === 0 ? (
-        <p className="text-gray-500 text-sm italic text-center py-4">
-          No players on this team's roster
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {players.map((player, index) => (
-            <PlayerRow
-              key={player.id}
-              player={player}
-              index={index}
-              isHome={isHome}
-              onToggleInning={onToggleInning}
-              onUpdateField={onUpdateField}
-              maxInnings={maxInnings}
-              onAddInning={onAddInning}
-            />
-          ))}
-        </div>
-      )}
+  return (
+    <div className={`border-2 rounded-lg ${sectionStyle}`}>
+      <div className={`px-4 py-3 rounded-t-md flex items-center gap-3 ${headerStyle}`}>
+        <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+          {isHome ? 'Home' : 'Away'}
+        </span>
+        <h4 className="text-lg font-bold">{team.name}</h4>
+      </div>
+
+      <div className="p-4">
+        {/* Player Data Entry Forms - All players included by default */}
+        {players.length === 0 ? (
+          <p className="text-gray-500 text-sm italic text-center py-4">
+            No players on this team's roster
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {players.map((player, index) => (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                index={index}
+                isHome={isHome}
+                onToggleInning={onToggleInning}
+                onUpdateField={onUpdateField}
+                maxInnings={maxInnings}
+                onAddInning={onAddInning}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 function ConfirmationTeamSection({
   teamName,
+  isHome,
   pitchersAndCatchers,
   absentPlayers,
   hasInningsGap,
@@ -2006,11 +2032,17 @@ function ConfirmationTeamSection({
   getMaxPitchesForAge,
   division = null
 }) {
+  const sectionStyle = isHome ? 'border-blue-300 bg-blue-50' : 'border-amber-300 bg-amber-50'
+  const headerStyle = isHome ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'
+
   return (
-    <div className="card border border-gray-300">
-      <h4 className="font-bold text-lg mb-4 bg-gray-100 -m-4 p-3 rounded-t-lg border-b">
-        {teamName}
-      </h4>
+    <div className={`card border-2 ${sectionStyle}`}>
+      <div className={`font-bold text-lg -m-4 mb-4 px-4 py-3 rounded-t-lg flex items-center gap-3 ${headerStyle}`}>
+        <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+          {isHome ? 'Home' : 'Away'}
+        </span>
+        <span>{teamName}</span>
+      </div>
 
       {/* Pitchers and Catchers */}
       {pitchersAndCatchers.length > 0 && (

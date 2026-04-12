@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function PlayerDeleteConfirmationModal({ playerName, onConfirm, onClose }) {
+  useBodyScrollLock()
   const [confirmText, setConfirmText] = useState('')
 
   const handleSubmit = (e) => {
