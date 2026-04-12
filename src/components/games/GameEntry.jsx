@@ -1971,31 +1971,45 @@ function TeamPlayerDataSection({
   maxInnings,
   onAddInning
 }) {
-  return (
-    <div className="border rounded-lg p-4">
-      <h4 className="text-lg font-bold mb-4">{team.name} - Player Data</h4>
+  const sectionStyle = isHome
+    ? 'border-blue-300 bg-blue-50'
+    : 'border-amber-300 bg-amber-50'
+  const headerStyle = isHome
+    ? 'bg-blue-600 text-white'
+    : 'bg-amber-500 text-white'
 
-      {/* Player Data Entry Forms - All players included by default */}
-      {players.length === 0 ? (
-        <p className="text-gray-500 text-sm italic text-center py-4">
-          No players on this team's roster
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {players.map((player, index) => (
-            <PlayerRow
-              key={player.id}
-              player={player}
-              index={index}
-              isHome={isHome}
-              onToggleInning={onToggleInning}
-              onUpdateField={onUpdateField}
-              maxInnings={maxInnings}
-              onAddInning={onAddInning}
-            />
-          ))}
-        </div>
-      )}
+  return (
+    <div className={`border-2 rounded-lg ${sectionStyle}`}>
+      <div className={`sticky top-0 z-10 px-4 py-3 rounded-t-lg flex items-center gap-3 ${headerStyle}`}>
+        <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+          {isHome ? 'Home' : 'Away'}
+        </span>
+        <h4 className="text-lg font-bold">{team.name}</h4>
+      </div>
+
+      <div className="p-4">
+        {/* Player Data Entry Forms - All players included by default */}
+        {players.length === 0 ? (
+          <p className="text-gray-500 text-sm italic text-center py-4">
+            No players on this team's roster
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {players.map((player, index) => (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                index={index}
+                isHome={isHome}
+                onToggleInning={onToggleInning}
+                onUpdateField={onUpdateField}
+                maxInnings={maxInnings}
+                onAddInning={onAddInning}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
