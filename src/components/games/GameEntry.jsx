@@ -1759,6 +1759,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Home Team Players */}
             <ConfirmationTeamSection
               teamName={homeTeam?.name}
+              isHome={true}
               pitchersAndCatchers={homePitchersAndCatchers}
               absentPlayers={homeAbsent}
               hasInningsGap={hasInningsGap}
@@ -1776,6 +1777,7 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
             {/* Away Team Players */}
             <ConfirmationTeamSection
               teamName={awayTeam?.name}
+              isHome={false}
               pitchersAndCatchers={awayPitchersAndCatchers}
               absentPlayers={awayAbsent}
               hasInningsGap={hasInningsGap}
@@ -2016,6 +2018,7 @@ function TeamPlayerDataSection({
 
 function ConfirmationTeamSection({
   teamName,
+  isHome,
   pitchersAndCatchers,
   absentPlayers,
   hasInningsGap,
@@ -2029,11 +2032,17 @@ function ConfirmationTeamSection({
   getMaxPitchesForAge,
   division = null
 }) {
+  const sectionStyle = isHome ? 'border-blue-300 bg-blue-50' : 'border-amber-300 bg-amber-50'
+  const headerStyle = isHome ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'
+
   return (
-    <div className="card border border-gray-300">
-      <h4 className="font-bold text-lg mb-4 bg-gray-100 -m-4 p-3 rounded-t-lg border-b">
-        {teamName}
-      </h4>
+    <div className={`card border-2 ${sectionStyle}`}>
+      <div className={`font-bold text-lg -m-4 mb-4 px-4 py-3 rounded-t-lg flex items-center gap-3 ${headerStyle}`}>
+        <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+          {isHome ? 'Home' : 'Away'}
+        </span>
+        <span>{teamName}</span>
+      </div>
 
       {/* Pitchers and Catchers */}
       {pitchersAndCatchers.length > 0 && (
