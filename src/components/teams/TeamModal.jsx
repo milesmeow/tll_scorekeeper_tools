@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function TeamModal({ team, seasonId, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const [formData, setFormData] = useState({
     name: team?.name || '',
     division: team?.division || 'Training'
