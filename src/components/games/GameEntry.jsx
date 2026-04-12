@@ -1980,7 +1980,7 @@ function TeamPlayerDataSection({
 
   return (
     <div className={`border-2 rounded-lg ${sectionStyle}`}>
-      <div className={`sticky top-0 z-10 px-4 py-3 rounded-t-lg flex items-center gap-3 ${headerStyle}`}>
+      <div className={`px-4 py-3 rounded-t-lg flex items-center gap-3 ${headerStyle}`}>
         <span className="text-xs font-bold uppercase tracking-wider opacity-80">
           {isHome ? 'Home' : 'Away'}
         </span>
