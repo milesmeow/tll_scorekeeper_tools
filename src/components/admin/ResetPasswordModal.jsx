@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function ResetPasswordModal({ userId, userEmail, userName, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)

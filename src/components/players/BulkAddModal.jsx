@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { parsePlayerCsv } from '../../lib/playerCsvUtils'
+import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
 
 export default function BulkAddModal({ teamId, onClose, onSuccess, onError }) {
+  useBodyScrollLock()
   const [csvData, setCsvData] = useState('')
   const [loading, setLoading] = useState(false)
   const [modalError, setModalError] = useState(null)
