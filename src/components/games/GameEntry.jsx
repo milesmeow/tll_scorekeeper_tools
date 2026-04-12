@@ -538,6 +538,13 @@ function GameFormModal({ seasonId, teams, defaultDivision, gameToEdit, onClose, 
   // Save original game data for comparison when editing
   const [originalGameData, setOriginalGameData] = useState(null)
 
+  // Scroll modal content to top on each step change
+  useEffect(() => {
+    if (modalContentRef.current) {
+      modalContentRef.current.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [step])
+
   // Scroll to top when error occurs
   useEffect(() => {
     if (modalError && modalContentRef.current) {
