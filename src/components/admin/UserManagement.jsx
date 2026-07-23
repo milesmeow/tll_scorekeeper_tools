@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import AddUserModal from './AddUserModal'
 import ResetPasswordModal from './ResetPasswordModal'
+import DeleteUserModal from './DeleteUserModal'
 
 export default function UserManagement() {
   const [users, setUsers] = useState([])
@@ -11,6 +12,8 @@ export default function UserManagement() {
   const [success, setSuccess] = useState(null)
   const [statusFilter, setStatusFilter] = useState('active')
   const [resetPasswordUser, setResetPasswordUser] = useState(null)
+  const [deleteUser, setDeleteUser] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -67,6 +70,45 @@ export default function UserManagement() {
     setResetPasswordUser(user)
   }
 
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return
+    setDeleteLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('No active session')
+      }
+
+      const response = await fetch(
+        'https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/delete-user',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ userId: deleteUser.id })
+        }
+      )
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user')
+      }
+
+      const deletedName = deleteUser.name
+      setDeleteUser(null)
+      fetchUsers()
+      setSuccess(`User ${deletedName} deleted successfully`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message)
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>
   }
@@ -111,6 +153,7 @@ export default function UserManagement() {
           <p><strong>Add a User:</strong> Click the "+ Add User" button above to create a new user account. Generate a temporary password and share it securely with the user.</p>
           <p><strong>Activate/Deactivate:</strong> Use the "Activate" or "Deactivate" button to control user access. Inactive users cannot log in.</p>
           <p><strong>Reset Password:</strong> Click "Reset Password" for active users to generate a new temporary password. The user will be required to change it on next login. <em>Note: You must activate inactive users before resetting their password.</em></p>
+          <p><strong>Delete:</strong> Click "Delete" to permanently remove a coach or admin account and all of their coach assignments. This cannot be undone. Super admin accounts cannot be deleted here — deactivate them instead.</p>
           <p><strong>Filter Users:</strong> Use the dropdown below to view Active, Inactive, or All users.</p>
         </div>
       </div>
@@ -192,6 +235,15 @@ export default function UserManagement() {
                       >
                         Reset Password
                       </button>
+                      {user.role !== 'super_admin' && (
+                        <button
+                          onClick={() => setDeleteUser(user)}
+                          className="text-sm text-red-600 hover:text-red-800"
+                          title="Permanently delete this user"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -229,6 +281,17 @@ export default function UserManagement() {
             setError(err)
             setTimeout(() => setError(null), 5000)
           }}
+        />
+      )}
+
+      {deleteUser && (
+        <DeleteUserModal
+          userName={deleteUser.name}
+          userEmail={deleteUser.email}
+          userRole={deleteUser.role}
+          loading={deleteLoading}
+          onConfirm={handleDeleteUser}
+          onClose={() => setDeleteUser(null)}
         />
       )}
     </div>
