@@ -21,12 +21,25 @@ See `PERFORMANCE_DECISIONS.md` for full context on this decision.
 
 ## Review Steps
 
-### 1. Check Query Performance View
+### 1. Check Query Performance
 
-Run in Supabase SQL Editor:
+Run in Supabase SQL Editor (the former `rls_query_performance` view was dropped for the
+Security Advisor `security_definer_view` finding — query `pg_stat_statements` directly):
 
 ```sql
-SELECT * FROM rls_query_performance;
+SELECT
+  substring(query, 1, 150) AS query_preview,
+  calls AS total_calls,
+  round(mean_exec_time::numeric, 2) AS avg_time_ms,
+  round(max_exec_time::numeric, 2) AS max_time_ms,
+  rows AS total_rows_returned
+FROM pg_stat_statements
+WHERE (query ILIKE '%games%' OR query ILIKE '%players%' OR query ILIKE '%pitching_logs%'
+   OR query ILIKE '%game_players%' OR query ILIKE '%positions_played%' OR query ILIKE '%seasons%'
+   OR query ILIKE '%teams%' OR query ILIKE '%team_coaches%' OR query ILIKE '%user_profiles%')
+  AND mean_exec_time > 5
+ORDER BY mean_exec_time DESC
+LIMIT 50;
 ```
 
 **Record results:**

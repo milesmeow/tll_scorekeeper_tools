@@ -1,6 +1,6 @@
 # Off-Season Maintenance: Security Advisor Fixes
 
-**Status**: PENDING — Do not run during active season
+**Status**: DONE — Fixes applied via [`fix_security_advisor_warnings.sql`](fix_security_advisor_warnings.sql) (2026-07-22)
 **Priority**: Low (no live data breach risk)
 **Flagged by**: Supabase Security Advisor
 **Date identified**: 2026-03-01
@@ -68,5 +68,6 @@ DROP TABLE IF EXISTS public.constraint_name_var;
 
 ## Related Files
 
-- [`database/migrations/enable_query_monitoring.sql`](enable_query_monitoring.sql) — Created the `rls_query_performance` view (no changes needed to this file after the drop)
+- [`database/migrations/fix_security_advisor_warnings.sql`](fix_security_advisor_warnings.sql) — Applies both drops (+ paired rollback)
+- [`database/migrations/enable_query_monitoring.sql`](enable_query_monitoring.sql) — Originally created the `rls_query_performance` view; now carries a DEPRECATED header noting the view was dropped (kept for provenance)
 - [`database/schema.sql`](../schema.sql) — `constraint_name_var` is NOT in this file (confirms it was ad-hoc)

@@ -530,46 +530,18 @@ COMMENT ON FUNCTION public.update_maintenance_mode IS
 -- Applied via: database/migrations/enable_query_monitoring.sql
 -- Reference:   database/PERFORMANCE_DECISIONS.md
 --
--- NOTE: The live DB also contains an orphaned table `constraint_name_var`
--- (a migration artifact). It is NOT part of the schema and can be cleaned up:
---   DROP TABLE IF EXISTS public.constraint_name_var;
+-- NOTE: The former `public.rls_query_performance` view (a dev-only monitor over
+-- pg_stat_statements) was removed to resolve the Supabase Security Advisor
+-- `security_definer_view` finding. See fix_security_advisor_warnings.sql. To
+-- monitor RLS-heavy queries, query pg_stat_statements directly. The
+-- pg_stat_statements extension and reset_query_stats() function are retained.
+--
+-- The orphaned `constraint_name_var` table was likewise dropped by that same
+-- migration (Advisor `rls_disabled_in_public` finding).
 -- =====================================================
 
 -- Enable pg_stat_statements extension for query profiling
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-
--- View for monitoring slow queries on RLS-heavy tables
-CREATE OR REPLACE VIEW public.rls_query_performance AS
-SELECT
-  substring(query, 1, 150) as query_preview,
-  calls as total_calls,
-  round(total_exec_time::numeric, 2) as total_time_ms,
-  round(mean_exec_time::numeric, 2) as avg_time_ms,
-  round(min_exec_time::numeric, 2) as min_time_ms,
-  round(max_exec_time::numeric, 2) as max_time_ms,
-  round(stddev_exec_time::numeric, 2) as stddev_ms,
-  rows as total_rows_returned
-FROM pg_stat_statements
-WHERE
-  (query ILIKE '%games%'
-   OR query ILIKE '%players%'
-   OR query ILIKE '%pitching_logs%'
-   OR query ILIKE '%game_players%'
-   OR query ILIKE '%positions_played%'
-   OR query ILIKE '%seasons%'
-   OR query ILIKE '%teams%'
-   OR query ILIKE '%team_coaches%'
-   OR query ILIKE '%user_profiles%')
-  AND mean_exec_time > 5
-ORDER BY mean_exec_time DESC
-LIMIT 50;
-
-COMMENT ON VIEW public.rls_query_performance IS
-  'Monitors query performance on tables with multiple RLS policies.
-   Use this to detect if policy overhead becomes significant.
-   See database/PERFORMANCE_DECISIONS.md for thresholds.';
-
-GRANT SELECT ON public.rls_query_performance TO authenticated;
 
 -- Function to reset pg_stat_statements (super_admin only)
 CREATE OR REPLACE FUNCTION public.reset_query_stats()
