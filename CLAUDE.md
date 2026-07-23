@@ -158,6 +158,15 @@ parseLocalDate("2025-01-15"); // Shows Jan 15 in all timezones
 
 **When creating users**: Only super_admins can call this function, enforced by edge function auth check.
 
+**Bulk creating users**: `BulkAddUsersModal.jsx` (opened from `/users`) accepts a
+`Full Name, email` CSV. Because `create-user` operates one user per request (it touches
+`auth.users`), the modal loops **sequentially**, calling `create-user` per row with an
+auto-generated temp password and `role: 'coach'`. Unlike bulk player import (a single
+atomic insert), this batch is **not** atomic — it continues on error and reports results
+per row (successes with temp passwords + failures with reasons). Parsing, password
+generation, and result-CSV formatting live in `src/lib/userCsvUtils.js` (`parseUserCsv`,
+`generateTempPassword`, `usersToResultCsv`); `AddUserModal.jsx` reuses `generateTempPassword`.
+
 **Deleting users**: The `delete-user` edge function (service role) permanently removes a
 user. It verifies the caller is an active super_admin and refuses to delete `super_admin`
 accounts. Deleting the `auth.users` row cascades to `user_profiles` and `team_coaches`.

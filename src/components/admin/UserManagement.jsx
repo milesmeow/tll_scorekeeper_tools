@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import AddUserModal from './AddUserModal'
+import BulkAddUsersModal from './BulkAddUsersModal'
 import ResetPasswordModal from './ResetPasswordModal'
 import DeleteUserModal from './DeleteUserModal'
 import ChangeRoleModal from './ChangeRoleModal'
@@ -9,6 +10,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkAddModal, setShowBulkAddModal] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [statusFilter, setStatusFilter] = useState('active')
@@ -164,12 +166,20 @@ export default function UserManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">👥 User Management</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn btn-primary"
-        >
-          + Add User
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowBulkAddModal(true)}
+            className="btn btn-secondary"
+          >
+            ⬆ Bulk Add
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn btn-primary"
+          >
+            + Add User
+          </button>
+        </div>
       </div>
 
       {/* Instructions */}
@@ -177,6 +187,7 @@ export default function UserManagement() {
         <h3 className="font-semibold text-blue-900 mb-2">📋 How to Manage Users</h3>
         <div className="text-sm text-blue-800 space-y-1">
           <p><strong>Add a User:</strong> Click the "+ Add User" button above to create a new user account. Generate a temporary password and share it securely with the user.</p>
+          <p><strong>Bulk Add Users:</strong> Click "⬆ Bulk Add" to create many coaches at once from a CSV list (Full Name, email). Each user gets a generated temporary password; copy or download the results to share them securely.</p>
           <p><strong>Activate/Deactivate:</strong> Use the "Activate" or "Deactivate" button to control user access. Inactive users cannot log in.</p>
           <p><strong>Reset Password:</strong> Click "Reset Password" for active users to generate a new temporary password. The user will be required to change it on next login. <em>Note: You must activate inactive users before resetting their password.</em></p>
           <p><strong>Change Role:</strong> Click "Change Role" to switch a user between Coach and Admin. Only coach and admin accounts can be changed — super admin accounts cannot.</p>
@@ -299,6 +310,17 @@ export default function UserManagement() {
             setTimeout(() => setSuccess(null), 3000)
           }}
           onError={(err) => setError(err)}
+        />
+      )}
+
+      {showBulkAddModal && (
+        <BulkAddUsersModal
+          onClose={() => setShowBulkAddModal(false)}
+          onComplete={(count) => {
+            fetchUsers()
+            setSuccess(`${count} user${count === 1 ? '' : 's'} added successfully!`)
+            setTimeout(() => setSuccess(null), 3000)
+          }}
         />
       )}
 
