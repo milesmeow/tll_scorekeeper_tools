@@ -5,6 +5,17 @@ All notable changes to the Baseball Team Management App will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Change a user's role between Coach and Admin from User Management (`/users`, super_admin only)
+  - New `ChangeRoleModal.jsx` confirmation dialog with a Coach/Admin `<select>`
+  - `handleChangeRole()` in `UserManagement.jsx` performs a direct `user_profiles.role` update (no edge function needed), permitted by the existing "Super admins can update profiles" RLS policy
+  - `super_admin` accounts are excluded (mirrors the Delete restriction); the select never offers Super Admin
+  - Existing `team_coaches` assignments are left untouched on role change
+  - New tests: `ChangeRoleModal.test.jsx` (5) and role-change coverage in `UserManagement.test.jsx`
+
 ## [1.22.0] - 2026-03-26
 
 ### Added
