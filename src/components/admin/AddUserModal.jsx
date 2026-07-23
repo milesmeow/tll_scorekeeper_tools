@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useBodyScrollLock } from '../../lib/useBodyScrollLock'
+import { generateTempPassword } from '../../lib/userCsvUtils'
 
 export default function AddUserModal({ onClose, onUserAdded, onError }) {
   useBodyScrollLock()
@@ -13,12 +14,7 @@ export default function AddUserModal({ onClose, onUserAdded, onError }) {
   const [loading, setLoading] = useState(false)
 
   const generatePassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    let password = ''
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    setFormData({ ...formData, tempPassword: password })
+    setFormData({ ...formData, tempPassword: generateTempPassword() })
   }
 
   const handleSubmit = async (e) => {
