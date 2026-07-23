@@ -9,6 +9,14 @@
 --           but add monitoring to catch performance degradation
 -- Reference: database/PERFORMANCE_DECISIONS.md
 -- =====================================================
+--
+-- ⚠️ DEPRECATED (2026-07-22): The `rls_query_performance` view created below
+-- was DROPPED by database/migrations/fix_security_advisor_warnings.sql to
+-- resolve the Supabase Security Advisor `security_definer_view` finding.
+-- Do NOT re-run the view portion of this migration. The pg_stat_statements
+-- extension and reset_query_stats() function remain valid. This file is kept
+-- intact for historical provenance only.
+-- =====================================================
 
 -- Enable pg_stat_statements extension
 -- This is PostgreSQL's built-in query profiler with minimal overhead

@@ -48,10 +48,10 @@ Full comparison of live Supabase DB against `schema.sql` using `information_sche
 | ✅ | All 17 custom indexes | ✓ | ✓ | Definitions match exactly |
 | ✅ | All 27 RLS policies | ✓ | ✓ | Logic and commands match |
 | ✅ | All 5 core functions | ✓ | ✓ | `get_user_info`, `is_admin`, `is_super_admin`, `update_updated_at`, `update_maintenance_mode` |
-| ⚠️ | `public.rls_query_performance` (VIEW) | ❌ | ✓ | Added to schema.sql — created by `enable_query_monitoring.sql` |
-| ⚠️ | `public.reset_query_stats()` (function) | ❌ | ✓ | Added to schema.sql — created by `enable_query_monitoring.sql` |
+| ✅ | `public.rls_query_performance` (VIEW) | — | — | Dropped (Security Advisor `security_definer_view`) via `fix_security_advisor_warnings.sql` |
+| ⚠️ | `public.reset_query_stats()` (function) | ❌ | ✓ | Added to schema.sql — created by `enable_query_monitoring.sql`; retained |
 | ⚠️ | `app_config` UPDATE policy | `(select is_super_admin())` | `is_super_admin()` | schema.sql has the optimized form; live DB is missing the subquery wrapper |
-| ⚠️ | `public.constraint_name_var` (table) | ❌ | ✓ | Orphaned migration artifact — safe to drop: `DROP TABLE IF EXISTS public.constraint_name_var;` |
+| ✅ | `public.constraint_name_var` (table) | — | — | Dropped (Security Advisor `rls_disabled_in_public`) via `fix_security_advisor_warnings.sql` |
 
 **Result**: Live DB is in excellent shape. All drift was additive (objects in the live DB not yet in schema.sql). No missing columns, broken constraints, or missing policies.
 

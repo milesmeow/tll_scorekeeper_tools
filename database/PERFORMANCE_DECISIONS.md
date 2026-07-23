@@ -286,7 +286,7 @@ We chose to keep multiple permissive RLS policies for maintainability (see "Deci
 ### How to Monitor
 
 1. **Supabase Dashboard**: Database → Query Performance
-2. **Custom View**: `SELECT * FROM rls_query_performance;`
+2. **Direct query**: query `pg_stat_statements` (see "Monitoring Query" below). The former `rls_query_performance` view was dropped for the Security Advisor `security_definer_view` finding — see `migrations/fix_security_advisor_warnings.sql`.
 3. **Review Schedule**: Quarterly (or at season end)
 
 ### Performance Thresholds
@@ -306,8 +306,21 @@ We chose to keep multiple permissive RLS policies for maintainability (see "Deci
 ### Monitoring Query
 
 ```sql
--- Run this quarterly or when investigating performance
-SELECT * FROM rls_query_performance;
+-- Run this quarterly or when investigating performance.
+-- (Replaces the removed rls_query_performance view — query pg_stat_statements directly.)
+SELECT
+  substring(query, 1, 150) AS query_preview,
+  calls AS total_calls,
+  round(mean_exec_time::numeric, 2) AS avg_time_ms,
+  round(max_exec_time::numeric, 2) AS max_time_ms,
+  rows AS total_rows_returned
+FROM pg_stat_statements
+WHERE (query ILIKE '%games%' OR query ILIKE '%players%' OR query ILIKE '%pitching_logs%'
+   OR query ILIKE '%game_players%' OR query ILIKE '%positions_played%' OR query ILIKE '%seasons%'
+   OR query ILIKE '%teams%' OR query ILIKE '%team_coaches%' OR query ILIKE '%user_profiles%')
+  AND mean_exec_time > 5
+ORDER BY mean_exec_time DESC
+LIMIT 50;
 
 -- To reset stats after making changes (super_admin only)
 SELECT reset_query_stats();
