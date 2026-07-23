@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import AddUserModal from './AddUserModal'
 import ResetPasswordModal from './ResetPasswordModal'
 import DeleteUserModal from './DeleteUserModal'
+import ChangeRoleModal from './ChangeRoleModal'
 
 export default function UserManagement() {
   const [users, setUsers] = useState([])
@@ -14,6 +15,8 @@ export default function UserManagement() {
   const [resetPasswordUser, setResetPasswordUser] = useState(null)
   const [deleteUser, setDeleteUser] = useState(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [changeRoleUser, setChangeRoleUser] = useState(null)
+  const [changeRoleLoading, setChangeRoleLoading] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -109,6 +112,29 @@ export default function UserManagement() {
     }
   }
 
+  const handleChangeRole = async (newRole) => {
+    if (!changeRoleUser) return
+    setChangeRoleLoading(true)
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ role: newRole })
+        .eq('id', changeRoleUser.id)
+
+      if (error) throw error
+
+      setChangeRoleUser(null)
+      fetchUsers()
+      setSuccess(`Role updated to ${newRole.replace('_', ' ')} successfully`)
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err.message)
+      setTimeout(() => setError(null), 5000)
+    } finally {
+      setChangeRoleLoading(false)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading users...</div>
   }
@@ -153,6 +179,7 @@ export default function UserManagement() {
           <p><strong>Add a User:</strong> Click the "+ Add User" button above to create a new user account. Generate a temporary password and share it securely with the user.</p>
           <p><strong>Activate/Deactivate:</strong> Use the "Activate" or "Deactivate" button to control user access. Inactive users cannot log in.</p>
           <p><strong>Reset Password:</strong> Click "Reset Password" for active users to generate a new temporary password. The user will be required to change it on next login. <em>Note: You must activate inactive users before resetting their password.</em></p>
+          <p><strong>Change Role:</strong> Click "Change Role" to switch a user between Coach and Admin. Only coach and admin accounts can be changed — super admin accounts cannot.</p>
           <p><strong>Delete:</strong> Click "Delete" to permanently remove a coach or admin account and all of their coach assignments. This cannot be undone. Super admin accounts cannot be deleted here — deactivate them instead.</p>
           <p><strong>Filter Users:</strong> Use the dropdown below to view Active, Inactive, or All users.</p>
         </div>
@@ -237,6 +264,15 @@ export default function UserManagement() {
                       </button>
                       {user.role !== 'super_admin' && (
                         <button
+                          onClick={() => setChangeRoleUser(user)}
+                          className="text-sm text-indigo-600 hover:text-indigo-800"
+                          title="Change this user's role"
+                        >
+                          Change Role
+                        </button>
+                      )}
+                      {user.role !== 'super_admin' && (
+                        <button
                           onClick={() => setDeleteUser(user)}
                           className="text-sm text-red-600 hover:text-red-800"
                           title="Permanently delete this user"
@@ -292,6 +328,17 @@ export default function UserManagement() {
           loading={deleteLoading}
           onConfirm={handleDeleteUser}
           onClose={() => setDeleteUser(null)}
+        />
+      )}
+
+      {changeRoleUser && (
+        <ChangeRoleModal
+          userName={changeRoleUser.name}
+          userEmail={changeRoleUser.email}
+          currentRole={changeRoleUser.role}
+          loading={changeRoleLoading}
+          onConfirm={handleChangeRole}
+          onClose={() => setChangeRoleUser(null)}
         />
       )}
     </div>

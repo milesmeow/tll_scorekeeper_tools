@@ -166,6 +166,14 @@ deactivated instead.
 
 **Edge Function URL**: `https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/delete-user`
 
+**Changing a user's role**: Switching a user between `coach` and `admin` is a plain
+`user_profiles.role` column update — **no edge function** (edge functions exist only for
+`auth.users` operations). It uses a direct client `supabase.from('user_profiles').update({ role }).eq('id', ...)`
+call, permitted by the `"Super admins can update profiles"` RLS policy, following the same
+pattern as the `is_active` toggle. `super_admin` accounts are excluded from the app UI (mirrors
+the Delete restriction), and the role `<select>` only offers `coach`/`admin`. Component:
+`src/components/admin/ChangeRoleModal.jsx`, wired into `UserManagement.jsx`.
+
 ### Pitch Count Calculation
 
 **Official Pitch Count** = Penultimate Batter Count + 1
