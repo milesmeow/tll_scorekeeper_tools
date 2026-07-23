@@ -158,6 +158,14 @@ parseLocalDate("2025-01-15"); // Shows Jan 15 in all timezones
 
 **When creating users**: Only super_admins can call this function, enforced by edge function auth check.
 
+**Deleting users**: The `delete-user` edge function (service role) permanently removes a
+user. It verifies the caller is an active super_admin and refuses to delete `super_admin`
+accounts. Deleting the `auth.users` row cascades to `user_profiles` and `team_coaches`.
+Only `coach` and `admin` accounts are deletable through the app; super admins must be
+deactivated instead.
+
+**Edge Function URL**: `https://dnvitfjnlojorcqqccec.supabase.co/functions/v1/delete-user`
+
 ### Pitch Count Calculation
 
 **Official Pitch Count** = Penultimate Batter Count + 1
