@@ -66,15 +66,18 @@ CLI) for the feature to work end-to-end.
 
 ### 2. `DeleteUserModal.jsx` (new — `src/components/admin/`)
 
-- Follows the established **type `DELETE` to confirm** pattern from
-  `PlayerDeleteConfirmationModal.jsx`.
+A **pure confirmation dialog** (matching `PlayerDeleteConfirmationModal.jsx`, the direct
+precedent) — it does not call the edge function itself; that lives in `UserManagement`.
+
+- Follows the established **type `DELETE` to confirm** pattern.
 - Uses `useBodyScrollLock()`.
+- Props: `userName`, `userEmail`, `userRole`, `loading`, `onConfirm`, `onClose`.
 - Displays the target user's **name, email, and role**.
 - Warns that the action is **permanent** and that the user's **coach assignments will
   be removed**.
-- On confirm, calls the `delete-user` edge function using the session bearer token
-  (same `fetch` pattern as `ResetPasswordModal`).
-- Reports success/error back to `UserManagement` via callbacks.
+- Confirm button is disabled until `DELETE` is typed exactly; while `loading` is true it
+  is disabled and shows a "Deleting..." label.
+- On submit (with `DELETE` typed), calls `onConfirm()`.
 
 ### 3. `UserManagement.jsx` (modified)
 
@@ -82,7 +85,10 @@ CLI) for the feature to work end-to-end.
   the existing `Deactivate` / `Reset Password` links.
 - **Render the Delete link only for `coach` and `admin` rows** — never for
   `super_admin`.
-- Wire up modal open/close state (`deleteUser`, similar to `resetPasswordUser`).
+- Wire up modal open/close state (`deleteUser`, similar to `resetPasswordUser`) plus a
+  `deleteLoading` flag.
+- Add `handleDeleteUser(user)` which calls the `delete-user` edge function using the
+  session bearer token (same `fetch` pattern as `AddUserModal` / `ResetPasswordModal`).
 - On success: close modal, `fetchUsers()`, show the success banner
   (`User deleted successfully`), auto-clear after 3s.
 - On error: show the error banner.
