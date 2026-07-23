@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bulk add users from a CSV list in User Management (`/users`, super_admin only)
+  - New "⬆ Bulk Add" button opens `BulkAddUsersModal.jsx`; paste `Full Name, email` (one per line)
+  - All users are created with the `coach` role; each gets an auto-generated 12-char temporary password
+  - New `src/lib/userCsvUtils.js` is the single source of truth: `parseUserCsv()`, `generateTempPassword()` (now also reused by `AddUserModal.jsx`), and `usersToResultCsv()`
+  - Users are created sequentially via the existing `create-user` edge function; the batch continues on error and reports results per row
+  - Results screen shows a successes table (Full Name · email · temp password) with Copy CSV / Download .csv, plus a failures list (line, email, reason)
+  - In-paste duplicate emails and invalid formats are rejected before any account is created
+  - New tests: `userCsvUtils.test.js` (17)
 - Change a user's role between Coach and Admin from User Management (`/users`, super_admin only)
   - New `ChangeRoleModal.jsx` confirmation dialog with a Coach/Admin `<select>`
   - `handleChangeRole()` in `UserManagement.jsx` performs a direct `user_profiles.role` update (no edge function needed), permitted by the existing "Super admins can update profiles" RLS policy
