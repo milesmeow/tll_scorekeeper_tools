@@ -562,6 +562,63 @@ COMMENT ON FUNCTION public.reset_query_stats IS
    Use after making RLS policy changes to get fresh measurements.';
 
 -- =====================================================
+-- 14. KEEP ALIVE (Anti-Pause Ping)
+-- =====================================================
+-- Applied via: database/migrations/add_keep_alive_table.sql
+-- Rollback:    database/migrations/rollback_keep_alive_table.sql
+--
+-- Supabase pauses free-tier projects after ~7 days without database activity.
+-- A daily scheduled request to /api/cron/keep-alive calls the function below,
+-- which writes one timestamp. See README "Supabase Keep-Alive".
+-- =====================================================
+
+-- Singleton table: CHECK (id = 1) means it can never accumulate rows.
+CREATE TABLE IF NOT EXISTS public.keep_alive (
+  id SMALLINT PRIMARY KEY DEFAULT 1,
+  last_ping TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT single_keep_alive_row CHECK (id = 1)
+);
+
+INSERT INTO public.keep_alive (id) VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS ENABLED with ZERO policies -- deliberate, not an oversight.
+-- Denies every PostgREST role outright, while record_keep_alive_ping()
+-- (SECURITY DEFINER, runs as owner) still writes and the SQL editor
+-- (postgres, RLS-exempt) still reads. Without this the table would be
+-- world-readable and world-writable via the public anon key.
+ALTER TABLE public.keep_alive ENABLE ROW LEVEL SECURITY;
+
+-- SECURITY DEFINER is what lets the cron route use the anon key rather than
+-- service-role. A publicly reachable endpoint should not hold a key that
+-- bypasses RLS on every table.
+CREATE OR REPLACE FUNCTION public.record_keep_alive_ping()
+RETURNS TIMESTAMPTZ
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_last_ping TIMESTAMPTZ;
+BEGIN
+  UPDATE public.keep_alive
+  SET last_ping = NOW()
+  WHERE id = 1
+  RETURNING last_ping INTO v_last_ping;
+
+  RETURN v_last_ping;
+END;
+$$;
+
+COMMENT ON FUNCTION public.record_keep_alive_ping IS
+  'Stamps keep_alive.last_ping with now() and returns it. Called daily by the
+   /api/cron/keep-alive route using the anon key.';
+
+-- CREATE FUNCTION grants EXECUTE to PUBLIC by default; revoke before granting.
+REVOKE ALL ON FUNCTION public.record_keep_alive_ping() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_keep_alive_ping() TO anon;
+
+-- =====================================================
 -- KNOWN LIVE DB DRIFT
 -- =====================================================
 -- The app_config UPDATE policy in the live DB uses bare is_super_admin()
