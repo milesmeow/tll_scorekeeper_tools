@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Supabase keep-alive ping, so the free-tier project is never paused for inactivity (~7 days)
+  - New `api/cron/keep-alive.js` — the first Vercel serverless function in this repo; authorizes
+    via `Authorization: Bearer $CRON_SECRET`, calls `record_keep_alive_ping()`, returns 500 on a
+    database error so scheduler failure alerting is meaningful
+  - New `src/lib/cronAuth.js`: `isAuthorizedCronRequest()` — timing-safe comparison that **fails
+    closed** when `CRON_SECRET` is unset (the naive `!==` check fails open)
+  - New `database/migrations/add_keep_alive_table.sql` (+ rollback, + `schema.sql` section 14):
+    singleton `keep_alive` table (`CHECK (id = 1)`, cannot accumulate rows) with RLS enabled and
+    **zero policies**, plus a `SECURITY DEFINER` `record_keep_alive_ping()` granted only to `anon`
+  - `vercel.json`: daily cron at 04:17 UTC, and the SPA catch-all rewrite narrowed from `/(.*)`
+    to `/((?!api/).*)` — an unscoped rewrite would serve `index.html` for the cron path, so both
+    schedulers would report 200 while the database was never touched
+  - Uses the **anon** key, not service-role: the endpoint is publicly reachable, and the definer
+    function is why no elevated key is needed
+  - Requires a new `CRON_SECRET` environment variable in Vercel (Production); see README
+    "Supabase Keep-Alive"
+  - New tests: `cronAuth.test.js` (14)
 - Bulk add users from a CSV list in User Management (`/users`, super_admin only)
   - New "⬆ Bulk Add" button opens `BulkAddUsersModal.jsx`; paste `Full Name, email` (one per line)
   - All users are created with the `coach` role; each gets an auto-generated 12-char temporary password

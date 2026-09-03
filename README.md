@@ -262,6 +262,116 @@ Run these commands in the Supabase SQL Editor.
 - **Scheduled Maintenance**: Prevent data entry during system updates
 - **Emergency Situations**: Stop access immediately if data corruption is detected
 
+## Supabase Keep-Alive
+
+### Why This Exists
+
+Supabase pauses free-tier projects after **~7 days without database activity**. During the
+off-season the app can easily go that long untouched, and a paused project means the next
+person to open it hits a dead database. A scheduled request writes one timestamp per day so
+the project never idles out.
+
+### How It Works
+
+```
+Vercel Cron (daily 04:17 UTC)  ─┐
+                                ├─→ GET /api/cron/keep-alive
+cron-job.org (daily)           ─┘        │
+                                         │ Authorization: Bearer $CRON_SECRET
+                                         ▼
+                              api/cron/keep-alive.js
+                                         │ anon key + rpc()
+                                         ▼
+                        public.record_keep_alive_ping()   [SECURITY DEFINER]
+                                         │
+                                         ▼
+                            public.keep_alive.last_ping = now()
+```
+
+### Setup
+
+1. **Apply the migration** — run `database/migrations/add_keep_alive_table.sql` in the
+   Supabase SQL editor. (Rollback: `rollback_keep_alive_table.sql`.)
+
+2. **Generate a secret and set it in Vercel:**
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+   Add it in Vercel → Settings → Environment Variables as `CRON_SECRET` (Production, marked
+   sensitive), then **redeploy** — environment changes never apply to an existing deployment.
+   The name must be exactly `CRON_SECRET`; that is what makes Vercel attach the
+   `Authorization: Bearer` header to its cron requests automatically.
+
+   Never commit the real secret. `.env*` is gitignored.
+
+3. **Vercel Cron** — already declared in `vercel.json`; confirm the job appears under
+   Project → Cron Jobs after deploying.
+
+4. **cron-job.org (recommended second pinger)** — create a daily job for
+   `https://<your-domain>/api/cron/keep-alive`, add `Authorization: Bearer <secret>` under
+   Advanced → Headers, and **enable failure notifications**. This is the half that actually
+   emails you when pings stop; Vercel Hobby cron is best-effort and quiet when it fails.
+   Running both is fine — the write is idempotent, so a duplicate ping is harmless.
+
+### Verifying It Actually Works
+
+An HTTP 200 proves only that *something* answered — a redirect, a CDN cache, or the SPA shell
+all return 200. **The timestamp is the test:**
+
+```sql
+select last_ping, now() - last_ping as age from public.keep_alive;
+```
+
+`now()` is evaluated by Postgres inside the function, so an advancing `last_ping` is the only
+thing that proves the request reached the database. Trigger the job two or three times (Vercel
+"Run", cron-job.org "Test run") and confirm it moves.
+
+Endpoint behaviour, against a deployment (`vite dev` does not serve `api/`):
+
+```bash
+curl -i https://<domain>/api/cron/keep-alive                          # 401 JSON, NOT 200 + HTML
+curl -i -H "Authorization: Bearer wrong" https://<domain>/api/cron/keep-alive   # 401
+curl -i -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/cron/keep-alive
+#   → 200 {"ok":true,"lastPing":"..."}
+
+# Negative controls — the SPA rewrite must still work, and the exemption must be narrow:
+curl -i https://<domain>/games      # 200 + index.html (client route)
+curl -i https://<domain>/api/nope   # 404, NOT the React shell
+```
+
+### Design Notes
+
+- **The `vercel.json` rewrite is load-bearing.** The SPA catch-all is scoped
+  `"/((?!api/).*)"`. A bare `"/(.*)"` would rewrite the cron path to `index.html`, returning
+  **200 + the React shell** — the schedulers would report success indefinitely while the
+  database was never touched and the project paused anyway.
+- **Anon key, never service role.** The endpoint is reachable without a session, so the token
+  check would be the only thing between the internet and a key that bypasses RLS everywhere.
+  `record_keep_alive_ping()` is `SECURITY DEFINER` so no elevated key is needed.
+- **`keep_alive` has RLS enabled with zero policies.** That denies every PostgREST role while
+  the definer function still writes. Without it the table would be world-readable and
+  world-writable via the anon key that ships in the browser bundle.
+- **The auth check fails closed.** `isAuthorizedCronRequest()` in `src/lib/cronAuth.js`
+  rejects when `CRON_SECRET` is unset, before comparing. The obvious
+  `token !== process.env.CRON_SECRET` fails *open* — `undefined !== undefined` is `false`, so a
+  dropped env var would silently authorize requests carrying no token.
+- **It writes rather than reads.** A read probably counts as activity too, but if it didn't,
+  the failure would be silent for a full 7 days — and a write leaves durable proof behind.
+- **Not GitHub Actions.** GitHub disables scheduled workflows after 60 days of repo
+  inactivity — precisely when a stable app goes quiet and the keep-alive matters most.
+- **Not `pg_cron`.** Supabase's idle timer keys on external API activity; an internal job
+  would not reset it.
+
+**Files involved**:
+
+- `api/cron/keep-alive.js` — the endpoint
+- `src/lib/cronAuth.js` — timing-safe, fail-closed bearer check (+ tests)
+- `vercel.json` — cron schedule and the scoped SPA rewrite
+- `database/migrations/add_keep_alive_table.sql` — table + RPC
+- `database/schema.sql` (section 14)
+
 ## Violation Rules Implementation (Jan 2026)
 
 ### Rule 5: Age-Based Pitch Count Limits
@@ -647,6 +757,10 @@ npm install
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJxxx...
 ```
+
+For deployment, also set `CRON_SECRET` in Vercel (not in `.env.local` — it is only read by
+the serverless keep-alive endpoint, never by the browser app). Generate one with
+`openssl rand -hex 32`. See [Supabase Keep-Alive](#supabase-keep-alive).
 
 4. **Deploy Edge Function**
 
