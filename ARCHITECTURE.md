@@ -276,6 +276,48 @@ CREATE POLICY "Coaches can view assigned teams"
 2. Application logic (UI only shows allowed actions)
 3. Helper functions check roles before granting access
 
+### Unauthenticated Endpoint: `/api/cron/keep-alive`
+
+This is the only route in the system reachable **without a Supabase session** — a Vercel Node
+function (`api/cron/keep-alive.js`) pinged daily so Supabase does not pause the free-tier
+project. Its security model is worth recording, because the obvious implementations of each
+piece fail silently.
+
+**Why the anon key rather than the service role key**
+
+The natural instinct for a server-side function is to reach for the service role key. That
+would be a mistake here: the endpoint sits at a public URL, so a single bearer-token check
+would become the only thing between the internet and a key that bypasses RLS on every table
+in the database. Instead, `public.record_keep_alive_ping()` is `SECURITY DEFINER` — it runs
+as its owner and performs the one write it needs to, so the route authenticates as plain
+`anon` and holds nothing worth stealing.
+
+**Why `keep_alive` has RLS enabled with zero policies**
+
+Not an oversight. Supabase grants `anon`/`authenticated` access to new `public` tables by
+default, and our anon key ships inside the browser bundle — so a policy-less table without
+`ENABLE ROW LEVEL SECURITY` would be world-readable and world-writable. RLS with no policies
+denies every PostgREST role outright, while the definer function still writes and the SQL
+editor (running as `postgres`, RLS-exempt) still reads. Do not add policies to this table.
+
+**Why the auth check fails closed**
+
+`isAuthorizedCronRequest()` (`src/lib/cronAuth.js`) returns `false` when `CRON_SECRET` is
+unset, *before* comparing anything. The obvious version —
+`token !== process.env.CRON_SECRET` — fails **open**: with the env var missing,
+`undefined !== undefined` is `false`, so a request carrying no token at all would be
+authorized. A dropped environment variable must lock the endpoint, not open it. The
+comparison itself is timing-safe over SHA-256 digests (fixed 32 bytes, so no length is
+leaked and `timingSafeEqual` cannot throw on mismatched buffers).
+
+**Why the `vercel.json` rewrite is part of the security model**
+
+The SPA catch-all is scoped `"/((?!api/).*)"`, not `"/(.*)"`. This is the same class of bug
+as an auth middleware swallowing an API route: an unscoped rewrite would serve `index.html`
+for the cron path, returning **200 + the React shell**. Both schedulers would report success
+indefinitely while the database was never touched and the project paused on schedule. The
+endpoint is therefore verified by an advancing `keep_alive.last_ping`, never by an HTTP 200.
+
 ---
 
 ## Component Architecture

@@ -279,6 +279,36 @@ UPDATE public.app_config SET maintenance_mode = true WHERE id = 1;
 UPDATE public.app_config SET maintenance_mode = false WHERE id = 1;
 ```
 
+### Supabase Keep-Alive (Anti-Pause Ping)
+
+**Problem**: Supabase pauses free-tier projects after ~7 days without database activity. The
+app can easily go that long untouched in the off-season.
+
+**Solution**: `api/cron/keep-alive.js` is hit daily by Vercel Cron (declared in `vercel.json`)
+and by cron-job.org. It authorizes a `Authorization: Bearer $CRON_SECRET` header, then calls
+`public.record_keep_alive_ping()`, which stamps `public.keep_alive.last_ping = now()`.
+
+**Four things here are load-bearing and fail silently if changed carelessly**:
+
+1. **The `vercel.json` rewrite must stay scoped** — `"/((?!api/).*)"`, never `"/(.*)"`. An
+   unscoped SPA catch-all rewrites the cron path to `index.html`, so the schedulers receive
+   **200 + the React shell**, report success indefinitely, and the project pauses anyway.
+2. **Anon key only, never service role.** The endpoint is publicly reachable, so the token
+   check would become the only thing guarding a key that bypasses RLS everywhere.
+   `record_keep_alive_ping()` is `SECURITY DEFINER` so no elevated key is needed.
+3. **`keep_alive` has RLS enabled with ZERO policies** — deliberate. That denies every
+   PostgREST role while the definer function still writes. Do not add policies to it.
+4. **The auth check fails closed.** `isAuthorizedCronRequest()` rejects when `CRON_SECRET` is
+   unset, before comparing. The naive `token !== process.env.CRON_SECRET` fails *open*.
+
+**Never verify this with an HTTP 200** — redirects, caches, and the SPA shell all return 200.
+Verify the timestamp moved: `select last_ping, now() - last_ping as age from public.keep_alive;`
+
+**Env var**: `CRON_SECRET` (Vercel, Production). Not in `.env.local` — the browser never uses it.
+
+**Files**: `api/cron/keep-alive.js`, `src/lib/cronAuth.js`, `vercel.json`,
+`database/migrations/add_keep_alive_table.sql`, `database/schema.sql` (section 14).
+
 ## Key Constraints & Business Rules
 
 ### Database Constraints
@@ -334,8 +364,25 @@ src/lib/
 ├── pitchSmartRules.js    # Pitch Smart guidelines data
 ├── pitchCountUtils.js    # Date parsing, pitch count formatting
 ├── exportUtils.js        # JSON/CSV/HTML export generators
+├── cronAuth.js           # Bearer-token check for the keep-alive cron (NODE-ONLY)
 └── useCoachAssignments.js # React hook for coach assignments
 ```
+
+**`cronAuth.js` is Node-only** — it imports `node:crypto` and is consumed exclusively by
+`api/cron/keep-alive.js`. Never import it from a component; it would break the browser build.
+
+### Serverless Functions (`api/`)
+
+```
+api/
+└── cron/
+    └── keep-alive.js     # Daily Supabase anti-pause ping (Vercel Node function)
+```
+
+Root-level `api/` is picked up by Vercel for any framework preset, including Vite. These files
+are **not** part of the Vite app: `vite dev` does not serve them, and they run in Node (use
+`process.env`, not `import.meta.env`). Do not import `src/lib/supabase.js` from here — it reads
+`import.meta.env` and throws outside Vite; construct a client from `process.env` instead.
 
 ### Modal Pattern
 
