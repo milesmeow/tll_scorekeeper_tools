@@ -45,6 +45,7 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
   - Print-friendly styling
 - ✅ **Timezone-Correct Dates** - Uses `parseLocalDate()` utility to prevent date offset issues
 - ✅ **Timestamped Filenames** - All exports include date and time (YYYY-MM-DD_HH-MM-SS)
+- ✅ **Season Cleanup** - Super admins can permanently delete a season and all its data (rosters, coaches, games, pitching/catching, absences), type-name confirmation required
 
 #### Phase 4: Rules Engine (In Progress)
 
@@ -90,7 +91,8 @@ A comprehensive web application for managing baseball teams, tracking pitch coun
 
 ### Overview
 
-The Tools section provides data export functionality for admins and super admins. Access it from the dashboard sidebar (🛠️ Tools).
+The Tools section provides data export functionality for admins and super admins, plus a
+season cleanup tool for super admins. Access it from the dashboard sidebar (🛠️ Tools).
 
 ### Export Features
 
@@ -164,6 +166,36 @@ All exports use the `parseLocalDate()` utility function to ensure dates display 
 - Only users with `admin` or `super_admin` roles can access the Tools section
 - Tools menu item only appears in dashboard sidebar for authorized users
 - Coaches do not have access to export functionality
+
+### Season Cleanup (Super Admin Only)
+
+**Purpose**: Permanently delete a finished season and everything under it, so old data
+doesn't have to be kept around indefinitely.
+
+**What gets deleted**: The season itself, plus:
+
+- All team rosters and coach assignments
+- All games and scores
+- All pitching and catching data
+- All player attendance/absence records
+
+**How to use**:
+
+1. Log in as a super admin and go to **🛠️ Tools**
+2. Select the season to delete from the Season Selector
+3. (Recommended) Run **Export Season Data** above first to keep a backup
+4. In the **⚠️ Danger Zone** card, click **Delete Season**
+5. Type the exact season name to enable the confirm button, then click **Delete Season**
+
+**Notes**:
+
+- This is only visible to `super_admin` accounts — `admin` accounts keep export access but
+  cannot delete a season
+- This cannot be undone; there is no soft delete or restore
+- Deleting the currently active season is allowed; the app will simply have no active season
+  until a super admin marks a different one active
+- The whole delete runs as a single database transaction (`delete_season_cascade()`), so it
+  either fully succeeds or leaves the season untouched
 
 ## Maintenance Mode (Super Admin Only)
 
@@ -709,7 +741,8 @@ baseball-app/
 │   │   ├── lineup/
 │   │   │   └── LineupBuilder.jsx     # Lineup builder + printable summary
 │   │   ├── tools/
-│   │   │   └── ToolsManagement.jsx   # Admin tools for data export
+│   │   │   ├── ToolsManagement.jsx   # Admin tools for data export + season cleanup
+│   │   │   └── DeleteSeasonModal.jsx # Type-name-to-confirm season deletion (super_admin)
 │   │   └── reports/
 │   │       └── Reports.jsx           # Game lists and player absence reports
 │   ├── lib/
