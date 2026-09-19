@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns per-category counts (teams/players/coaches/games) so the UI can show a delete summary
   - No forced backup step — the UI links to the existing Export Season Data tools as a suggestion
   - New tests: `DeleteSeasonModal.test.jsx` (5)
+  - New `database/seeds/test_season_seed.sql` (dev-only, not deployed schema): creates one
+    disposable, clearly-named, inactive test season with 2 teams, 18 players, a coach assignment,
+    3 games, attendance/absences, pitching logs, and positions played — run it in the Supabase SQL
+    Editor to get realistic data for exercising `delete_season_cascade()` end-to-end before trusting
+    it against real data. Includes a companion verification query (counts across every affected
+    table, filterable to the seeded season) to confirm the delete actually reached everything.
 
 ## [1.22.0] - 2026-03-26
 
