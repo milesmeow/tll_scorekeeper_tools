@@ -44,13 +44,20 @@ export default function DeleteSeasonModal({ seasonName, deleting, error, onConfi
           <div>
             <input
               type="text"
-              className="input w-full"
+              className={`input w-full ${
+                confirmText && confirmText !== seasonName ? 'border-red-400 focus:ring-red-400' : ''
+              }`}
               placeholder={`Type "${seasonName}" to confirm`}
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               disabled={deleting}
               autoFocus
             />
+            {confirmText && confirmText !== seasonName && (
+              <p className="mt-1 text-sm text-red-600">
+                Doesn't match "{seasonName}" — check for typos.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">

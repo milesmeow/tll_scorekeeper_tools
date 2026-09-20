@@ -45,6 +45,19 @@ describe('DeleteSeasonModal', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
+  it('shows a mismatch hint while the typed text does not match, and clears it once it does', () => {
+    render(<DeleteSeasonModal {...baseProps} />)
+    const input = screen.getByPlaceholderText('Type "2025 Season" to confirm')
+
+    expect(screen.queryByText(/doesn't match/i)).not.toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: '2025 Seaso' } })
+    expect(screen.getByText(/doesn't match "2025 season"/i)).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: '2025 Season' } })
+    expect(screen.queryByText(/doesn't match/i)).not.toBeInTheDocument()
+  })
+
   it('shows a server error when the delete fails', () => {
     render(<DeleteSeasonModal {...baseProps} error="Only super_admins can delete a season" />)
     expect(screen.getByText('Only super_admins can delete a season')).toBeInTheDocument()
