@@ -320,6 +320,35 @@ endpoint is therefore verified by an advancing `keep_alive.last_ping`, never by 
 
 ---
 
+### Deliberate RESTRICT Bypass: Season Cleanup
+
+`teams.season_id`, `games.season_id`, and `players.team_id` are all `ON DELETE RESTRICT`
+(`database/migrations/fix_team_delete_constraints.sql`), on purpose - a season, team, or
+player with data underneath it cannot be deleted by an ordinary `DELETE` call, so the app
+can't accidentally orphan a game or wipe a roster through a stray client request.
+
+Tools (`/tools`, super_admin only) needs an explicit, deliberate way around that guard: to
+retire a finished season entirely - rosters, coach assignments, games, pitching/catching
+logs, and attendance/absences included. That bypass lives only in
+`public.delete_season_cascade(p_season_id)`
+(`database/migrations/add_delete_season_cascade_function.sql`), never in application code:
+
+- **`SECURITY DEFINER` + explicit role check** - same pattern as `update_maintenance_mode()`:
+  the function raises if `is_super_admin()` is false, so the RESTRICT bypass is only reachable
+  by the one role trusted to use it, regardless of what RLS would otherwise allow.
+- **Deletes in dependency order, not via cascade** - games first (which cascades
+  `game_players`, `pitching_logs`, and `positions_played` automatically, since those are
+  `ON DELETE CASCADE` on `game_id`), then players, then teams (which cascades
+  `team_coaches`), then the season row itself. Deleting in the wrong order would simply fail
+  against the RESTRICT constraints rather than silently doing the wrong thing.
+- **One function body = one transaction** - if any step raises, Postgres rolls back the whole
+  operation, so a season is never left half-deleted (e.g. games gone but teams still present).
+- **No soft delete, no undo** - the UI (`DeleteSeasonModal.jsx`) requires typing the exact
+  season name before the confirm button enables, and links to the existing season backup
+  export as a suggestion, not a requirement.
+
+---
+
 ## Component Architecture
 
 ### State Management Pattern

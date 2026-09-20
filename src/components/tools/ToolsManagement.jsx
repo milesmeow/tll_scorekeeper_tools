@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { exportSeasonBackup, exportSeasonCSV, exportSeasonHTML } from '../../lib/exportUtils'
+import DeleteSeasonModal from './DeleteSeasonModal'
 
-export default function ToolsManagement({ isAdmin }) {
+export default function ToolsManagement({ isAdmin, isSuperAdmin }) {
   const [seasons, setSeasons] = useState([])
   const [selectedSeasonId, setSelectedSeasonId] = useState('')
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [exportType, setExportType] = useState('')
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleteSuccess, setDeleteSuccess] = useState(null)
 
   useEffect(() => {
     fetchSeasons()
@@ -92,6 +97,38 @@ export default function ToolsManagement({ isAdmin }) {
     }
   }
 
+  const handleDeleteSeason = async () => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const { data, error } = await supabase.rpc('delete_season_cascade', {
+        p_season_id: selectedSeasonId
+      })
+
+      if (error) throw error
+
+      const summary = data?.[0]
+      const remaining = seasons.filter((s) => s.id !== selectedSeasonId)
+      setSeasons(remaining)
+      const nextActive = remaining.find((s) => s.is_active)
+      setSelectedSeasonId(nextActive?.id || remaining[0]?.id || '')
+      setShowDeleteModal(false)
+      setDeleteSuccess(
+        summary
+          ? `Deleted "${summary.season_name}": ${summary.teams_deleted} teams, ` +
+            `${summary.players_deleted} players, ${summary.coaches_deleted} coach assignments, ` +
+            `${summary.games_deleted} games removed.`
+          : 'Season deleted.'
+      )
+      setTimeout(() => setDeleteSuccess(null), 8000)
+    } catch (error) {
+      console.error('Error deleting season:', error)
+      setDeleteError(error.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-12">Loading...</div>
   }
@@ -103,6 +140,12 @@ export default function ToolsManagement({ isAdmin }) {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">🛠️ Tools</h2>
       </div>
+
+      {deleteSuccess && (
+        <div className="alert alert-success mb-6">
+          {deleteSuccess}
+        </div>
+      )}
 
       {seasons.length === 0 ? (
         <div className="card text-center py-12">
@@ -227,7 +270,47 @@ export default function ToolsManagement({ isAdmin }) {
               <li>• Advanced reporting tools</li>
             </ul>
           </div>
+
+          {/* Danger Zone - super_admin only */}
+          {isSuperAdmin && selectedSeason && (
+            <div className="card border-2 border-red-200">
+              <h3 className="text-lg font-semibold mb-4 text-red-700">⚠️ Danger Zone</h3>
+              <div className="border border-red-200 rounded-lg p-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      🗑️ Delete Season
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Permanently deletes <strong>{selectedSeason.name}</strong> and everything under
+                      it: team rosters, coach assignments, games, pitching/catching data, and player
+                      absences. This cannot be undone.
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Tip: run Export Season Data above first if you may need this data later.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setDeleteError(null); setShowDeleteModal(true) }}
+                    className="btn btn-danger whitespace-nowrap self-start"
+                  >
+                    Delete Season
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {showDeleteModal && selectedSeason && (
+        <DeleteSeasonModal
+          seasonName={selectedSeason.name}
+          deleting={deleting}
+          error={deleteError}
+          onConfirm={handleDeleteSeason}
+          onClose={() => setShowDeleteModal(false)}
+        />
       )}
     </div>
   )

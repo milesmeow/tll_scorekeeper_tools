@@ -40,6 +40,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `super_admin` accounts are excluded (mirrors the Delete restriction); the select never offers Super Admin
   - Existing `team_coaches` assignments are left untouched on role change
   - New tests: `ChangeRoleModal.test.jsx` (5) and role-change coverage in `UserManagement.test.jsx`
+- Season cleanup: permanently delete an entire season's data from Tools (`/tools`, super_admin only)
+  - New "Danger Zone" card in `ToolsManagement.jsx`, gated on a new `isSuperAdmin` prop threaded
+    down from `Dashboard.jsx` (previously only `isAdmin` was passed)
+  - New `DeleteSeasonModal.jsx`: type-the-exact-season-name confirmation, mirroring the existing
+    `DELETE`-to-confirm pattern in `PlayerDeleteConfirmationModal.jsx` / `DeleteUserModal.jsx`
+  - New `public.delete_season_cascade(p_season_id)` SQL function
+    (`database/migrations/add_delete_season_cascade_function.sql` + `schema.sql` section 12):
+    `SECURITY DEFINER`, checked with `is_super_admin()`, deletes games (cascades `game_players`,
+    `pitching_logs`, `positions_played`), then players, then teams (cascades `team_coaches`), then
+    the season itself — all inside one plpgsql function body so it's a single transaction
+  - This deliberately bypasses the `ON DELETE RESTRICT` guards added in
+    `fix_team_delete_constraints.sql`, which exist specifically to stop *accidental* deletes;
+    this is the explicit, super_admin-only, confirmed-by-name path around them
+  - Returns per-category counts (teams/players/coaches/games) so the UI can show a delete summary
+  - No forced backup step — the UI links to the existing Export Season Data tools as a suggestion
+  - New tests: `DeleteSeasonModal.test.jsx` (5)
+  - New `database/seeds/test_season_seed.sql` (dev-only, not deployed schema): creates one
+    disposable, clearly-named, inactive test season with 2 teams, 18 players, a coach assignment,
+    3 games, attendance/absences, pitching logs, and positions played — run it in the Supabase SQL
+    Editor to get realistic data for exercising `delete_season_cascade()` end-to-end before trusting
+    it against real data. Includes a companion verification query (counts across every affected
+    table, filterable to the seeded season) to confirm the delete actually reached everything.
 
 ## [1.22.0] - 2026-03-26
 
