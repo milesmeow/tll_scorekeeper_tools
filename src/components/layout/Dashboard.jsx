@@ -249,7 +249,7 @@ export default function Dashboard({ user, profile }) {
               <Route path="/reports" element={<Reports profile={profile} />} />
               <Route path="/lineup" element={<LineupBuilder profile={profile} />} />
               <Route path="/rules" element={<RulesManagement />} />
-              <Route path="/tools" element={isAdmin ? <ToolsManagement isAdmin={isAdmin} /> : <Navigate to="/teams" replace />} />
+              <Route path="/tools" element={isAdmin ? <ToolsManagement isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} /> : <Navigate to="/teams" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
